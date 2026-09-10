@@ -1448,7 +1448,7 @@ run(function()
 						Size = UDim2.new(1, 89, 1, 52),
 						Position = UDim2.fromOffset(-48, -31),
 						BackgroundTransparency = 1,
-						Image = getvapeasset('catsix/assets/new/blur.png'),
+						Image = getvapeasset('kingvape/assets/new/blur.png'),
 						ScaleType = Enum.ScaleType.Slice,
 						SliceCenter = Rect.new(52, 31, 261, 502)
 					}),
@@ -1780,7 +1780,7 @@ run(function()
 	Viewmodel = vape.Legit:CreateModule({
 		Name = 'Viewmodel',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_viewmodel.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_viewmodel.png'),
 		Function = function(callback)
 			if callback then 
 				ViewmodelMotor = Instance.new('Motor6D')

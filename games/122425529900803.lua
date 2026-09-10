@@ -1922,7 +1922,7 @@ run(function()
 	Viewmodel = vape.Legit:CreateModule({
 		Name = 'Viewmodel',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_viewmodel.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_viewmodel.png'),
 		Function = function(callback)
 			if callback then
 				ViewmodelMotor = Instance.new('Motor6D')

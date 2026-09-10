@@ -2776,7 +2776,7 @@ run(function()
 	BulletTracers = vape.Legit:CreateModule({
 		Name = 'BulletTracers',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_bullettracers.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_bullettracers.png'),
 		Function = function(callback)
 			if callback then
 				TracerHook:Add('BulletTracers', function(...)
@@ -2891,7 +2891,7 @@ run(function()
 	Crosshair = vape.Legit:CreateModule({
 		Name = 'Crosshair',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_crosshair.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_crosshair.png'),
 		Function = function(callback)
 			if callback then
 				debug.setconstant(oldequip or pl.Equip, 30, Image.Value:find('rbxasset') and Image.Value or isfile(Image.Value) and getcustomasset(Image.Value) or '')
@@ -2997,7 +2997,7 @@ run(function()
 	DamageIndicator = vape.Legit:CreateModule({
 		Name = 'DamageIndicator',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_damageindicator.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_damageindicator.png'),
 		Function = function(callback)
 			if callback then
 				TracerHook:Add('DamageIndicator', function(...)
@@ -3075,7 +3075,7 @@ run(function()
 	HitSound = vape.Legit:CreateModule({
 		Name = 'HitSound',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_hitsound.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_hitsound.png'),
 		Function = function(callback)
 			if callback then
 				local played
@@ -3140,7 +3140,7 @@ run(function()
 	KillSound = vape.Legit:CreateModule({
 		Name = 'KillSound',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_killsound.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_killsound.png'),
 		Function = function(callback)
 			if callback then
 				KillSound:Clean(vapeEvents.PlayerKill.Event:Connect(function(plr)
@@ -3250,7 +3250,7 @@ run(function()
 	Viewmodel = vape.Legit:CreateModule({
 		Name = 'Viewmodel',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_viewmodel.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_viewmodel.png'),
 		Function = function(callback)
 			if callback then
 				TracerHook:Add('Viewmodel', function(...)

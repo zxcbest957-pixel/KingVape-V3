@@ -21,10 +21,10 @@ local function downloadFile(path, func)
 		pcall(function() content = readfile(path) end)
 	end
 	if not content or content == '' or content == '404: Not Found' or typeof(content) ~= 'string' then
-		local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+		local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 		commit = (commit or 'main'):gsub('%s+', '')
 		if commit == '' then commit = 'main' end
-		local relPath = select(1, path:gsub('catsix/', ''))
+		local relPath = select(1, path:gsub('kingvape/', ''))
 		local url = 'https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..relPath
 		local cdnUrl = 'https://cdn.jsdelivr.net/gh/zxcbest957-pixel/KingVape-V3@'..commit..'/'..relPath
 
@@ -122,7 +122,7 @@ local function addBlur(parent)
 	blur.Size = UDim2.new(1, 89, 1, 52)
 	blur.Position = UDim2.fromOffset(-48, -31)
 	blur.BackgroundTransparency = 1
-	blur.Image = getvapeasset('catsix/assets/new/blur.png')
+	blur.Image = getvapeasset('kingvape/assets/new/blur.png')
 	blur.ScaleType = Enum.ScaleType.Slice
 	blur.SliceCenter = Rect.new(52, 31, 261, 502)
 	blur.Parent = parent
@@ -278,9 +278,9 @@ local function motorMove(target, cf)
 	task.delay(0, part.Destroy, part)
 end
 
-local hash = loadstring(downloadFile('catsix/libraries/hash.lua'), 'hash')()
-local prediction = loadstring(downloadFile('catsix/libraries/prediction.lua'), 'prediction')()
-entitylib = loadstring(downloadFile('catsix/libraries/entity.lua'), 'entitylibrary')()
+local hash = loadstring(downloadFile('kingvape/libraries/hash.lua'), 'hash')()
+local prediction = loadstring(downloadFile('kingvape/libraries/prediction.lua'), 'prediction')()
+entitylib = loadstring(downloadFile('kingvape/libraries/entity.lua'), 'entitylibrary')()
 local whitelist = {
 	alreadychecked = {},
 	customtags = {},
@@ -3201,7 +3201,7 @@ run(function()
 		arrow.BackgroundTransparency = 1
 		arrow.BorderSizePixel = 0
 		arrow.Visible = false
-		arrow.Image = getvapeasset('catsix/assets/new/arrowmodule.png')
+		arrow.Image = getvapeasset('kingvape/assets/new/arrowmodule.png')
 		arrow.ImageColor3 = entitylib.getEntityColor(ent) or Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
 		arrow.Parent = Folder
 		Reference[ent] = arrow
@@ -5076,7 +5076,7 @@ run(function()
 	
 	Radar = vape:CreateOverlay({
 		Name = 'Radar',
-		Icon = getvapeasset('catsix/assets/new/radaricon.png'),
+		Icon = getvapeasset('kingvape/assets/new/radaricon.png'),
 		Size = UDim2.fromOffset(14, 14),
 		Position = UDim2.fromOffset(12, 13),
 		Function = function(callback)
@@ -5299,7 +5299,7 @@ run(function()
 	
 	SessionInfo = vape:CreateOverlay({
 		Name = 'Session Info',
-		Icon = getvapeasset('catsix/assets/new/textguiicon.png'),
+		Icon = getvapeasset('kingvape/assets/new/textguiicon.png'),
 		Size = UDim2.fromOffset(16, 12),
 		Position = UDim2.fromOffset(12, 14),
 		Function = function(callback)
@@ -5370,8 +5370,8 @@ run(function()
 	Hide = SessionInfo:CreateTextList({
 		Name = 'Blacklist',
 		Tooltip = 'Name of entry to hide.',
-		Icon = getvapeasset('catsix/assets/new/blockedicon.png'),
-		Tab = getvapeasset('catsix/assets/new/blockedtab.png'),
+		Icon = getvapeasset('kingvape/assets/new/blockedicon.png'),
+		Tab = getvapeasset('kingvape/assets/new/blockedtab.png'),
 		TabSize = UDim2.fromOffset(21, 16),
 		Color = Color3.fromRGB(250, 50, 56)
 	})
@@ -6930,7 +6930,7 @@ run(function()
 	Atmosphere = vape.Legit:CreateModule({
 		Name = 'Atmosphere',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_atmosphere.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_atmosphere.png'),
 		Function = function(callback)
 			if callback then
 				for _, v in lightingService:GetChildren() do
@@ -7030,7 +7030,7 @@ run(function()
 	Breadcrumbs = vape.Legit:CreateModule({
 		Name = 'Breadcrumbs',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_breadcrumbs.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_breadcrumbs.png'),
 		Function = function(callback)
 			if callback then
 				point = Instance.new('Attachment')
@@ -7152,7 +7152,7 @@ run(function()
 	Cape = vape.Legit:CreateModule({
 		Name = 'Cape',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_cape.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_cape.png'),
 		Function = function(callback)
 			if callback then
 				part = Instance.new('Part')
@@ -7223,7 +7223,7 @@ run(function()
 	ChinaHat = vape.Legit:CreateModule({
 		Name = 'China Hat',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_chinahat.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_chinahat.png'),
 		Function = function(callback)
 			if callback then
 				if vape.ThreadFix then
@@ -7399,7 +7399,7 @@ run(function()
 	Clock = vape.Legit:CreateModule({
 		Name = 'Clock',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_clock.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_clock.png'),
 		Function = function(callback)
 			if callback then
 				repeat
@@ -7619,7 +7619,7 @@ run(function()
 	Compass = vape.Legit:CreateModule({
 		Name = 'Compass',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_compass.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_compass.png'),
 		Function = function(callback)
 			if callback then
 				Compass:Clean(runService.RenderStepped:Connect(update))
@@ -7678,7 +7678,7 @@ run(function()
 	local arrow = Instance.new('ImageLabel')
 	arrow.AnchorPoint = Vector2.new(0.5, 0)
 	arrow.BackgroundTransparency = 1
-	arrow.Image = getvapeasset('catsix/assets/new/compassarrow.png')
+	arrow.Image = getvapeasset('kingvape/assets/new/compassarrow.png')
 	arrow.Position = UDim2.fromOffset(stripcentre, 15)
 	arrow.Size = UDim2.fromOffset(19, 32)
 	arrow.Parent = strip
@@ -7720,7 +7720,7 @@ run(function()
 	local last = {}
 	local positivecolor = Color3.fromRGB(5, 134, 105)
 	local negativecolor = Color3.fromRGB(250, 50, 56)
-	local trianglearrow = getvapeasset('catsix/assets/new/triangle.png')
+	local trianglearrow = getvapeasset('kingvape/assets/new/triangle.png')
 	local digitWidth = getfontbounds('0', 19, uipallet.Font).X
 	local holder, horizontal, vertical
 	local horizontalmaterial, verticalmaterial
@@ -7833,7 +7833,7 @@ run(function()
 	Coords = vape.Legit:CreateModule({
 		Name = 'Coords',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_coords.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_coords.png'),
 		Function = function(callback)
 			if callback then
 				Coords:Clean(runService.RenderStepped:Connect(update))
@@ -8054,7 +8054,7 @@ run(function()
 	Disguise = vape.Legit:CreateModule({
 		Name = 'Disguise',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_disguise.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_disguise.png'),
 		Function = function(callback)
 			if callback then
 				Disguise:Clean(entitylib.Events.LocalAdded:Connect(localAdded))
@@ -8167,7 +8167,7 @@ run(function()
 	FFlag = vape.Legit:CreateModule({
 		Name = 'FFlagEditor',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_fflageditor.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_fflageditor.png'),
 		Function = function(callback)
 			if callback then
 				apply()
@@ -8195,12 +8195,12 @@ run(function()
 	FFlag:CreateButton({
 		Name = 'Import from file',
 		Function = function()
-			if not isfile('catsix/fflags.json') then
-				notif('Vape', 'No catsix/fflags.json to read', 12, 'warning')
+			if not isfile('kingvape/fflags.json') then
+				notif('Vape', 'No kingvape/fflags.json to read', 12, 'warning')
 				return
 			end
 	
-			ingest(readfile('catsix/fflags.json'), 'catsix/fflags.json')
+			ingest(readfile('kingvape/fflags.json'), 'kingvape/fflags.json')
 		end
 	})
 	FFlag:CreateButton({
@@ -8223,13 +8223,13 @@ run(function()
 			if suc2 and unpackFlags(blob) == plain then
 				copied, packed = blob, true
 			end
-			writefile('catsix/fflags.json', plain)
+			writefile('kingvape/fflags.json', plain)
 	
 			if setclipboard then
 				setclipboard(copied)
 			end
 	
-			notif('Vape', packed and `Wrote catsix/fflags.json and copied {#copied} characters to your clipboard, {math.floor(#copied / #plain * 100)}% of the raw json` or `Wrote catsix/fflags.json and copied the raw json, packing it did not read back so it was left alone`, 12, packed and 'info' or 'warning')
+			notif('Vape', packed and `Wrote kingvape/fflags.json and copied {#copied} characters to your clipboard, {math.floor(#copied / #plain * 100)}% of the raw json` or `Wrote kingvape/fflags.json and copied the raw json, packing it did not read back so it was left alone`, 12, packed and 'info' or 'warning')
 		end
 	})
 	FFlag:CreateButton({
@@ -8251,7 +8251,7 @@ run(function()
 	FOV = vape.Legit:CreateModule({
 		Name = 'FOV',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_fov.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_fov.png'),
 		Function = function(callback)
 			if callback then
 				oldfov = gameCamera.FieldOfView
@@ -8280,7 +8280,7 @@ run(function()
 	FPS = vape.Legit:CreateModule({
 		Name = 'FPS',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_fps.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_fps.png'),
 		Function = function(callback)
 			if callback then
 				local frames = {}
@@ -8345,10 +8345,10 @@ run(function()
 	local leftclicks = {}
 	local rightclicks = {}
 	local arrowicons = {
-		W = getvapeasset('catsix/assets/new/key_up.png'),
-		A = getvapeasset('catsix/assets/new/key_left.png'),
-		S = getvapeasset('catsix/assets/new/key_down.png'),
-		D = getvapeasset('catsix/assets/new/key_right.png')
+		W = getvapeasset('kingvape/assets/new/key_up.png'),
+		A = getvapeasset('kingvape/assets/new/key_left.png'),
+		S = getvapeasset('kingvape/assets/new/key_down.png'),
+		D = getvapeasset('kingvape/assets/new/key_right.png')
 	}
 	local keybinds = {
 		[Enum.KeyCode.W] = 'W',
@@ -8519,7 +8519,7 @@ run(function()
 	Keystrokes = vape.Legit:CreateModule({
 		Name = 'Keystrokes',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_keystrokes.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_keystrokes.png'),
 		Function = function(callback)
 			if callback then
 				Keystrokes:Clean(inputService.InputBegan:Connect(function(input)
@@ -8623,19 +8623,19 @@ run(function()
 	mouseicons.Parent = holder
 	lmbicon = Instance.new('ImageLabel')
 	lmbicon.BackgroundTransparency = 1
-	lmbicon.Image = getvapeasset('catsix/assets/new/key_lmb.png')
+	lmbicon.Image = getvapeasset('kingvape/assets/new/key_lmb.png')
 	lmbicon.ImageColor3 = releasedbackground
 	lmbicon.Name = 'LMB'
 	lmbicon.Size = UDim2.fromOffset(50.2, 48)
 	lmbicon.Parent = mouseicons
 	rmbicon = lmbicon:Clone()
-	rmbicon.Image = getvapeasset('catsix/assets/new/key_rmb.png')
+	rmbicon.Image = getvapeasset('kingvape/assets/new/key_rmb.png')
 	rmbicon.Name = 'RMB'
 	rmbicon.Position = UDim2.fromOffset(40, 0)
 	rmbicon.Parent = mouseicons
 	mmbicon = Instance.new('ImageLabel')
 	mmbicon.BackgroundTransparency = 1
-	mmbicon.Image = getvapeasset('catsix/assets/new/key_mmb.png')
+	mmbicon.Image = getvapeasset('kingvape/assets/new/key_mmb.png')
 	mmbicon.ImageColor3 = Color3.fromRGB(225, 225, 225)
 	mmbicon.Name = 'MMB'
 	mmbicon.Position = UDim2.fromOffset(43, 14)
@@ -8678,7 +8678,7 @@ run(function()
 	Memory = vape.Legit:CreateModule({
 		Name = 'Memory',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_memory.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_memory.png'),
 		Function = function(callback)
 			if callback then
 				repeat
@@ -8728,7 +8728,7 @@ run(function()
 	Ping = vape.Legit:CreateModule({
 		Name = 'Ping',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_ping.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_ping.png'),
 		Function = function(callback)
 			if callback then
 				repeat
@@ -8824,7 +8824,7 @@ run(function()
 	SongBeats = vape.Legit:CreateModule({
 		Name = 'Song Beats',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_songbeats.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_songbeats.png'),
 		Function = function(callback)
 			if callback then
 				songobj = Instance.new('Sound')
@@ -8915,7 +8915,7 @@ run(function()
 	Speedmeter = vape.Legit:CreateModule({
 		Name = 'Speedmeter',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_speedmeter.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_speedmeter.png'),
 		Function = function(callback)
 			if callback then
 				repeat
@@ -8968,7 +8968,7 @@ run(function()
 	TimeChanger = vape.Legit:CreateModule({
 		Name = 'Time Changer',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_timechanger.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_timechanger.png'),
 		Function = function(callback)
 			if callback then
 				old = lightingService.TimeOfDay

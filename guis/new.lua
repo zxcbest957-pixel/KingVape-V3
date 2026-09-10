@@ -131,17 +131,17 @@ local function getFeatureTag(name)
 	if not featureTags then
 		featureTags = {}
 
-		if not isfile('catsix/features.json') then
+		if not isfile('kingvape/features.json') then
 			pcall(function()
 				pcall(function()
-		local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+		local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 		if not commit or commit == '' then commit = 'main' end
-		writefile('catsix/features.json', game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/features.json', true))
+		writefile('kingvape/features.json', game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/features.json', true))
 	end)
 			end)
 		end
 
-		local features = loadJson('catsix/features.json')
+		local features = loadJson('kingvape/features.json')
 		for i, v in {updated = 'updated', new = 'added'} do
 			local list = features and features[v]
 
@@ -229,135 +229,135 @@ end
 
 do
 	local vapeAssets = {
-		['catsix/assets/new/add.png'] = 'rbxassetid://121642387707174',
-		['catsix/assets/new/aim.png'] = 'rbxassetid://122207028123421',
-		['catsix/assets/new/allowedicon.png'] = 'rbxassetid://112336790299036',
-		['catsix/assets/new/allowediconmini.png'] = 'rbxassetid://90142384730147',
-		['catsix/assets/new/back.png'] = 'rbxassetid://80523803497740',
-		['catsix/assets/new/backmini.png'] = 'rbxassetid://85859225495272',
-		['catsix/assets/new/bind.png'] = 'rbxassetid://81399857677684',
-		['catsix/assets/new/bindbkg.png'] = 'rbxassetid://101996225428926',
-		['catsix/assets/new/blatant.png'] = 'rbxassetid://126929923309265',
-		['catsix/assets/new/blur.png'] = 'rbxassetid://79246816170155',
-		['catsix/assets/new/blurnoti.png'] = 'rbxassetid://124705876663719',
-		['catsix/assets/new/cheat_switch.png'] = 'rbxassetid://99437817306124',
-		['catsix/assets/new/close.png'] = 'rbxassetid://121816018671466',
-		['catsix/assets/new/closemini.png'] = 'rbxassetid://108320409341289',
-		['catsix/assets/new/closetiny.png'] = 'rbxassetid://71393233149714',
-		['catsix/assets/new/colorpreview.png'] = 'rbxassetid://140438628568318',
-		['catsix/assets/new/combat.png'] = 'rbxassetid://94762732349053',
-		['catsix/assets/new/combo_display.png'] = 'rbxassetid://97746985576116',
-		['catsix/assets/new/compassarrow.png'] = 'rbxassetid://100463923923900',
-		['catsix/assets/new/customtheme.png'] = 'rbxassetid://91756736022800',
-		['catsix/assets/new/discord.png'] = 'rbxassetid://99871463341003',
-		['catsix/assets/new/dislike.png'] = 'rbxassetid://135092704977606',
-		['catsix/assets/new/downexpand.png'] = 'rbxassetid://94197751291504',
-		['catsix/assets/new/downexpandslider.png'] = 'rbxassetid://90289944682645',
-		['catsix/assets/new/edit.png'] = 'rbxassetid://105801951237137',
-		['catsix/assets/new/editlarge.png'] = 'rbxassetid://119233876755282',
-		['catsix/assets/new/empty.png'] = 'rbxassetid://89525157373515',
-		['catsix/assets/new/expandarrow.png'] = 'rbxassetid://86360332526471',
-		['catsix/assets/new/expandright.png'] = 'rbxassetid://14368316544',
-		['catsix/assets/new/expandup.png'] = 'rbxassetid://14368317595',
-		['catsix/assets/new/favoritesicon.png'] = 'rbxassetid://133471112203189',
-		['catsix/assets/new/friends.png'] = 'rbxassetid://92957214042038',
-		['catsix/assets/new/hide.png'] = 'rbxassetid://129675456133478',
-		['catsix/assets/new/inventory.png'] = 'rbxassetid://93264756888499',
-		['catsix/assets/new/key_down.png'] = 'rbxassetid://',
-		['catsix/assets/new/key_left.png'] = 'rbxassetid://',
-		['catsix/assets/new/key_lmb.png'] = 'rbxassetid://',
-		['catsix/assets/new/key_mmb.png'] = 'rbxassetid://',
-		['catsix/assets/new/key_right.png'] = 'rbxassetid://',
-		['catsix/assets/new/key_rmb.png'] = 'rbxassetid://',
-		['catsix/assets/new/key_up.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_atmosphere.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_bedalarm.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_bedbreakeffect.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_breadcrumbs.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_bullettracers.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_cape.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_chinahat.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_cleankit.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_clock.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_compass.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_coords.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_crosshair.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_damageindicator.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_disguise.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_fflageditor.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_fixguis.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_fov.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_fps.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_fpsboost.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_fpsunlocker.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_hideshield.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_hitcolor.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_hitfix.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_hitsound.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_interface.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_keystrokes.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_killeffect.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_killsound.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_memory.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_mode_icon.png'] = 'rbxassetid://102858626075156',
-		['catsix/assets/new/legit_ping.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_potionstatus.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_reachdisplay.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_songbeats.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_soundchanger.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_speedmeter.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_switch.png'] = 'rbxassetid://127508881124779',
-		['catsix/assets/new/legit_timechanger.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_uicleanup.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_viewmodel.png'] = 'rbxassetid://',
-		['catsix/assets/new/legit_wineffect.png'] = 'rbxassetid://',
-		['catsix/assets/new/like.png'] = 'rbxassetid://80039972048538',
-		['catsix/assets/new/min.png'] = 'rbxassetid://82175054487146',
-		['catsix/assets/new/newhide.png'] = 'rbxassetid://74295679301920',
-		['catsix/assets/new/noti_alert.png'] = 'rbxassetid://82356478726846',
-		['catsix/assets/new/noti_info.png'] = 'rbxassetid://102614825645099',
-		['catsix/assets/new/noti_warning.png'] = 'rbxassetid://119631730212167',
-		['catsix/assets/new/notification.png'] = 'rbxassetid://90300780458781',
-		['catsix/assets/new/npcs.png'] = 'rbxassetid://104434365485227',
-		['catsix/assets/new/overlaydots.png'] = 'rbxassetid://78012624671930',
-		['catsix/assets/new/overlays.png'] = 'rbxassetid://136535637407545',
-		['catsix/assets/new/overlayslarge.png'] = 'rbxassetid://127574141208160',
-		['catsix/assets/new/pin.png'] = 'rbxassetid://92459145800579',
-		['catsix/assets/new/players.png'] = 'rbxassetid://105137446428129',
-		['catsix/assets/new/profiles.png'] = 'rbxassetid://126051451865127',
-		['catsix/assets/new/profilesicon.png'] = 'rbxassetid://14397465323',
-		['catsix/assets/new/profileworld.png'] = 'rbxassetid://122650686344133',
-		['catsix/assets/new/radar.png'] = 'rbxassetid://97983828696086',
-		['catsix/assets/new/rainbow_1.png'] = 'rbxassetid://101329996188554',
-		['catsix/assets/new/rainbow_2.png'] = 'rbxassetid://72739074644654',
-		['catsix/assets/new/rainbow_3.png'] = 'rbxassetid://100716555253397',
-		['catsix/assets/new/rainbow_4.png'] = 'rbxassetid://133424174227092',
-		['catsix/assets/new/range.png'] = 'rbxassetid://107794917650053',
-		['catsix/assets/new/rangearrow.png'] = 'rbxassetid://14368348640',
-		['catsix/assets/new/rangeindicator.png'] = 'rbxassetid://107038094175283',
-		['catsix/assets/new/render.png'] = 'rbxassetid://125472576898654',
-		['catsix/assets/new/search.png'] = 'rbxassetid://115611852955611',
-		['catsix/assets/new/settingdots.png'] = 'rbxassetid://130896840048276',
-		['catsix/assets/new/settings.png'] = 'rbxassetid://73820177347303',
-		['catsix/assets/new/settingsmini.png'] = 'rbxassetid://115732118290997',
-		['catsix/assets/new/show.png'] = 'rbxassetid://85547987939285',
-		['catsix/assets/new/star.png'] = 'rbxassetid://96102671351955',
-		['catsix/assets/new/sword_header.png'] = 'rbxassetid://121706791793204',
-		['catsix/assets/new/targetinfo.png'] = 'rbxassetid://121604266095276',
-		['catsix/assets/new/targetnpc1.png'] = 'rbxassetid://14497400332',
-		['catsix/assets/new/targetplayers1.png'] = 'rbxassetid://14497396015',
-		['catsix/assets/new/targetstab.png'] = 'rbxassetid://14497393895',
-		['catsix/assets/new/textgui.png'] = 'rbxassetid://99438663817412',
-		['catsix/assets/new/textguiline.png'] = 'rbxassetid://',
-		['catsix/assets/new/theme.png'] = 'rbxassetid://111525258317113',
-		['catsix/assets/new/triangle.png'] = 'rbxassetid://75441874213844',
-		['catsix/assets/new/utility.png'] = 'rbxassetid://108303206513893',
-		['catsix/assets/new/v4.png'] = 'rbxassetid://102549752760489',
-		['catsix/assets/new/v4mini.png'] = 'rbxassetid://115213099001611',
-		['catsix/assets/new/vape.png'] = 'rbxassetid://92153855792786',
-		['catsix/assets/new/vapelogo.png'] = 'rbxassetid://126205920310261',
-		['catsix/assets/new/vapelogomini.png'] = 'rbxassetid://109041903452149',
-		['catsix/assets/new/world.png'] = 'rbxassetid://118917453153459'
+		['kingvape/assets/new/add.png'] = 'rbxassetid://121642387707174',
+		['kingvape/assets/new/aim.png'] = 'rbxassetid://122207028123421',
+		['kingvape/assets/new/allowedicon.png'] = 'rbxassetid://112336790299036',
+		['kingvape/assets/new/allowediconmini.png'] = 'rbxassetid://90142384730147',
+		['kingvape/assets/new/back.png'] = 'rbxassetid://80523803497740',
+		['kingvape/assets/new/backmini.png'] = 'rbxassetid://85859225495272',
+		['kingvape/assets/new/bind.png'] = 'rbxassetid://81399857677684',
+		['kingvape/assets/new/bindbkg.png'] = 'rbxassetid://101996225428926',
+		['kingvape/assets/new/blatant.png'] = 'rbxassetid://126929923309265',
+		['kingvape/assets/new/blur.png'] = 'rbxassetid://79246816170155',
+		['kingvape/assets/new/blurnoti.png'] = 'rbxassetid://124705876663719',
+		['kingvape/assets/new/cheat_switch.png'] = 'rbxassetid://99437817306124',
+		['kingvape/assets/new/close.png'] = 'rbxassetid://121816018671466',
+		['kingvape/assets/new/closemini.png'] = 'rbxassetid://108320409341289',
+		['kingvape/assets/new/closetiny.png'] = 'rbxassetid://71393233149714',
+		['kingvape/assets/new/colorpreview.png'] = 'rbxassetid://140438628568318',
+		['kingvape/assets/new/combat.png'] = 'rbxassetid://94762732349053',
+		['kingvape/assets/new/combo_display.png'] = 'rbxassetid://97746985576116',
+		['kingvape/assets/new/compassarrow.png'] = 'rbxassetid://100463923923900',
+		['kingvape/assets/new/customtheme.png'] = 'rbxassetid://91756736022800',
+		['kingvape/assets/new/discord.png'] = 'rbxassetid://99871463341003',
+		['kingvape/assets/new/dislike.png'] = 'rbxassetid://135092704977606',
+		['kingvape/assets/new/downexpand.png'] = 'rbxassetid://94197751291504',
+		['kingvape/assets/new/downexpandslider.png'] = 'rbxassetid://90289944682645',
+		['kingvape/assets/new/edit.png'] = 'rbxassetid://105801951237137',
+		['kingvape/assets/new/editlarge.png'] = 'rbxassetid://119233876755282',
+		['kingvape/assets/new/empty.png'] = 'rbxassetid://89525157373515',
+		['kingvape/assets/new/expandarrow.png'] = 'rbxassetid://86360332526471',
+		['kingvape/assets/new/expandright.png'] = 'rbxassetid://14368316544',
+		['kingvape/assets/new/expandup.png'] = 'rbxassetid://14368317595',
+		['kingvape/assets/new/favoritesicon.png'] = 'rbxassetid://133471112203189',
+		['kingvape/assets/new/friends.png'] = 'rbxassetid://92957214042038',
+		['kingvape/assets/new/hide.png'] = 'rbxassetid://129675456133478',
+		['kingvape/assets/new/inventory.png'] = 'rbxassetid://93264756888499',
+		['kingvape/assets/new/key_down.png'] = 'rbxassetid://',
+		['kingvape/assets/new/key_left.png'] = 'rbxassetid://',
+		['kingvape/assets/new/key_lmb.png'] = 'rbxassetid://',
+		['kingvape/assets/new/key_mmb.png'] = 'rbxassetid://',
+		['kingvape/assets/new/key_right.png'] = 'rbxassetid://',
+		['kingvape/assets/new/key_rmb.png'] = 'rbxassetid://',
+		['kingvape/assets/new/key_up.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_atmosphere.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_bedalarm.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_bedbreakeffect.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_breadcrumbs.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_bullettracers.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_cape.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_chinahat.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_cleankit.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_clock.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_compass.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_coords.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_crosshair.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_damageindicator.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_disguise.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_fflageditor.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_fixguis.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_fov.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_fps.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_fpsboost.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_fpsunlocker.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_hideshield.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_hitcolor.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_hitfix.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_hitsound.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_interface.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_keystrokes.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_killeffect.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_killsound.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_memory.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_mode_icon.png'] = 'rbxassetid://102858626075156',
+		['kingvape/assets/new/legit_ping.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_potionstatus.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_reachdisplay.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_songbeats.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_soundchanger.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_speedmeter.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_switch.png'] = 'rbxassetid://127508881124779',
+		['kingvape/assets/new/legit_timechanger.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_uicleanup.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_viewmodel.png'] = 'rbxassetid://',
+		['kingvape/assets/new/legit_wineffect.png'] = 'rbxassetid://',
+		['kingvape/assets/new/like.png'] = 'rbxassetid://80039972048538',
+		['kingvape/assets/new/min.png'] = 'rbxassetid://82175054487146',
+		['kingvape/assets/new/newhide.png'] = 'rbxassetid://74295679301920',
+		['kingvape/assets/new/noti_alert.png'] = 'rbxassetid://82356478726846',
+		['kingvape/assets/new/noti_info.png'] = 'rbxassetid://102614825645099',
+		['kingvape/assets/new/noti_warning.png'] = 'rbxassetid://119631730212167',
+		['kingvape/assets/new/notification.png'] = 'rbxassetid://90300780458781',
+		['kingvape/assets/new/npcs.png'] = 'rbxassetid://104434365485227',
+		['kingvape/assets/new/overlaydots.png'] = 'rbxassetid://78012624671930',
+		['kingvape/assets/new/overlays.png'] = 'rbxassetid://136535637407545',
+		['kingvape/assets/new/overlayslarge.png'] = 'rbxassetid://127574141208160',
+		['kingvape/assets/new/pin.png'] = 'rbxassetid://92459145800579',
+		['kingvape/assets/new/players.png'] = 'rbxassetid://105137446428129',
+		['kingvape/assets/new/profiles.png'] = 'rbxassetid://126051451865127',
+		['kingvape/assets/new/profilesicon.png'] = 'rbxassetid://14397465323',
+		['kingvape/assets/new/profileworld.png'] = 'rbxassetid://122650686344133',
+		['kingvape/assets/new/radar.png'] = 'rbxassetid://97983828696086',
+		['kingvape/assets/new/rainbow_1.png'] = 'rbxassetid://101329996188554',
+		['kingvape/assets/new/rainbow_2.png'] = 'rbxassetid://72739074644654',
+		['kingvape/assets/new/rainbow_3.png'] = 'rbxassetid://100716555253397',
+		['kingvape/assets/new/rainbow_4.png'] = 'rbxassetid://133424174227092',
+		['kingvape/assets/new/range.png'] = 'rbxassetid://107794917650053',
+		['kingvape/assets/new/rangearrow.png'] = 'rbxassetid://14368348640',
+		['kingvape/assets/new/rangeindicator.png'] = 'rbxassetid://107038094175283',
+		['kingvape/assets/new/render.png'] = 'rbxassetid://125472576898654',
+		['kingvape/assets/new/search.png'] = 'rbxassetid://115611852955611',
+		['kingvape/assets/new/settingdots.png'] = 'rbxassetid://130896840048276',
+		['kingvape/assets/new/settings.png'] = 'rbxassetid://73820177347303',
+		['kingvape/assets/new/settingsmini.png'] = 'rbxassetid://115732118290997',
+		['kingvape/assets/new/show.png'] = 'rbxassetid://85547987939285',
+		['kingvape/assets/new/star.png'] = 'rbxassetid://96102671351955',
+		['kingvape/assets/new/sword_header.png'] = 'rbxassetid://121706791793204',
+		['kingvape/assets/new/targetinfo.png'] = 'rbxassetid://121604266095276',
+		['kingvape/assets/new/targetnpc1.png'] = 'rbxassetid://14497400332',
+		['kingvape/assets/new/targetplayers1.png'] = 'rbxassetid://14497396015',
+		['kingvape/assets/new/targetstab.png'] = 'rbxassetid://14497393895',
+		['kingvape/assets/new/textgui.png'] = 'rbxassetid://99438663817412',
+		['kingvape/assets/new/textguiline.png'] = 'rbxassetid://',
+		['kingvape/assets/new/theme.png'] = 'rbxassetid://111525258317113',
+		['kingvape/assets/new/triangle.png'] = 'rbxassetid://75441874213844',
+		['kingvape/assets/new/utility.png'] = 'rbxassetid://108303206513893',
+		['kingvape/assets/new/v4.png'] = 'rbxassetid://102549752760489',
+		['kingvape/assets/new/v4mini.png'] = 'rbxassetid://115213099001611',
+		['kingvape/assets/new/vape.png'] = 'rbxassetid://92153855792786',
+		['kingvape/assets/new/vapelogo.png'] = 'rbxassetid://126205920310261',
+		['kingvape/assets/new/vapelogomini.png'] = 'rbxassetid://109041903452149',
+		['kingvape/assets/new/world.png'] = 'rbxassetid://118917453153459'
 	}
 
 	local function createDownloader(text)
@@ -388,10 +388,10 @@ do
 		if not content or content == '' or content == '404: Not Found' or typeof(content) ~= 'string' then
 			createDownloader(path)
 
-			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+			local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 			commit = (commit or 'main'):gsub('%s+', '')
 			if commit == '' then commit = 'main' end
-			local relPath = select(1, path:gsub('catsix/', ''))
+			local relPath = select(1, path:gsub('kingvape/', ''))
 		local url = 'https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..relPath
 		local cdnUrl = 'https://cdn.jsdelivr.net/gh/zxcbest957-pixel/KingVape-V3@'..commit..'/'..relPath
 
@@ -445,7 +445,7 @@ do
 			end
 		end
 		if not res or res == '' then
-			res = vapeAssets[path] or ''
+			res = vapeAssets[path] or vapeAssets[path:gsub('catsix/', 'kingvape/')] or vapeAssets[path:gsub('kingvape/', 'catsix/')] or ''
 		end
 		return res
 	end
@@ -505,11 +505,11 @@ uipallet = {
 
 do
 	local success, family = pcall(function()
-		local regular = getvapeasset('catsix/assets/new/proxima.ttf')
-		local bold = getvapeasset('catsix/assets/new/proximabd.ttf')
+		local regular = getvapeasset('kingvape/assets/new/proxima.ttf')
+		local bold = getvapeasset('kingvape/assets/new/proximabd.ttf')
 		if regular == '' or bold == '' then return end
 
-		writefile('catsix/assets/new/proxima.json', httpService:JSONEncode({
+		writefile('kingvape/assets/new/proxima.json', httpService:JSONEncode({
 			name = 'Proxima',
 			faces = {
 				{name = 'Regular', weight = 400, style = 'normal', assetId = regular},
@@ -518,7 +518,7 @@ do
 			}
 		}))
 
-		return getcustomasset('catsix/assets/new/proxima.json')
+		return getcustomasset('kingvape/assets/new/proxima.json')
 	end)
 
 	if success and family and family ~= '' then
@@ -526,17 +526,17 @@ do
 	end
 
 	local displayok, displayfamily = pcall(function()
-		local regular = getvapeasset('catsix/assets/new/bahnschrift.ttf')
+		local regular = getvapeasset('kingvape/assets/new/bahnschrift.ttf')
 		if regular == '' then return end
 
-		writefile('catsix/assets/new/bahnschrift.json', httpService:JSONEncode({
+		writefile('kingvape/assets/new/bahnschrift.json', httpService:JSONEncode({
 			name = 'Bahnschrift',
 			faces = {
 				{name = 'Regular', weight = 400, style = 'normal', assetId = regular}
 			}
 		}))
 
-		return getcustomasset('catsix/assets/new/bahnschrift.json')
+		return getcustomasset('kingvape/assets/new/bahnschrift.json')
 	end)
 
 	if displayok and displayfamily and displayfamily ~= '' then
@@ -546,7 +546,7 @@ do
 		uipallet.DisplayScale = 1
 	end
 
-	local data = isfile('catsix/profiles/color.txt') and loadJson('catsix/profiles/color.txt')
+	local data = isfile('kingvape/profiles/color.txt') and loadJson('kingvape/profiles/color.txt')
 	if data then
 		uipallet.Main = data.Main and Color3.fromRGB(unpack(data.Main)) or uipallet.Main
 		uipallet.Text = data.Text and Color3.fromRGB(unpack(data.Text)) or uipallet.Text
@@ -596,7 +596,7 @@ local function addBlur(parent, notif, old)
 		blur.Size = UDim2.new(1, 89, 1, 52)
 		blur.Position = UDim2.fromOffset(-48, -31)
 		blur.BackgroundTransparency = 1
-		blur.Image = getvapeasset('catsix/assets/new/'..(notif and 'blurnoti' or 'blur')..'.png')
+		blur.Image = getvapeasset('kingvape/assets/new/'..(notif and 'blurnoti' or 'blur')..'.png')
 		blur.ScaleType = Enum.ScaleType.Slice
 		blur.SliceCenter = Rect.new(52, 31, 261, 502)
 		blur.Parent = parent
@@ -636,7 +636,7 @@ local function addCloseButton(parent, mini, offset)
 	close.AutoButtonColor = false
 	close.BackgroundColor3 = Color3.new(1, 1, 1)
 	close.BackgroundTransparency = 1
-	close.Image = getvapeasset('catsix/assets/new/'..(mini and 'closemini' or 'close')..'.png')
+	close.Image = getvapeasset('kingvape/assets/new/'..(mini and 'closemini' or 'close')..'.png')
 	close.ImageColor3 = color.Light(uipallet.Text, 0.2)
 	close.ImageTransparency = 0.5
 	close.Name = 'Close'
@@ -842,7 +842,7 @@ local function stripLegacyMax(container)
 end
 
 local function readProfile(profile)
-	local path = 'catsix/profiles/'..profile..vape.Place..'.txt'
+	local path = 'kingvape/profiles/'..profile..vape.Place..'.txt'
 	if not isfile(path) then
 		return nil
 	end
@@ -1125,11 +1125,11 @@ local function applyAvatar(image, url)
 			setthreadidentity(8)
 		end
 
-		if not isfolder('catsix/assets/pfp') then
-			makefolder('catsix/assets/pfp')
+		if not isfolder('kingvape/assets/pfp') then
+			makefolder('kingvape/assets/pfp')
 		end
 
-		local path = 'catsix/assets/pfp/'..url:gsub('%W', ''):sub(-48)..'.png'
+		local path = 'kingvape/assets/pfp/'..url:gsub('%W', ''):sub(-48)..'.png'
 		if not isfile(path) then
 			local success, res = pcall(request, {Url = url, Method = 'GET'})
 			if not success or not res or not res.Body or res.Body == '' then return end
@@ -1231,7 +1231,7 @@ end
 local function buildNotification()
 	local notification = Instance.new('ImageLabel')
 	notification.BackgroundTransparency = 1
-	notification.Image = getvapeasset('catsix/assets/new/notification.png')
+	notification.Image = getvapeasset('kingvape/assets/new/notification.png')
 	notification.Position = UDim2.new(1, 0, 1, 0)
 	notification.ScaleType = Enum.ScaleType.Slice
 	notification.SliceCenter = Rect.new(7, 7, 9, 9)
@@ -1304,7 +1304,7 @@ local function startNotification(entry, title, text, duration, type)
 		or type == 'warning' and Color3.fromRGB(236, 129, 44)
 		or Color3.new(1, 1, 1)
 	entry.Height = 75 + ((count - 1) * 16.8)
-	entry.Icon.Image = getvapeasset('catsix/assets/new/noti_'..(type or 'info')..'.png')
+	entry.Icon.Image = getvapeasset('kingvape/assets/new/noti_'..(type or 'info')..'.png')
 	entry.IconShadow.Image = entry.Icon.Image
 	entry.Object.Size = UDim2.fromOffset(math.max(bounds.X + 80, 266), entry.Height)
 	entry.Progress.BackgroundColor3 = accent
@@ -1405,8 +1405,8 @@ function vape:Load(skipgui, profile)
 	local oldProfile = self.Profile
 	local toggleCount = 0
 
-	if isfile('catsix/profiles/'..game.GameId..'.gui.txt') then
-		guiData = loadJson('catsix/profiles/'..game.GameId..'.gui.txt')
+	if isfile('kingvape/profiles/'..game.GameId..'.gui.txt') then
+		guiData = loadJson('kingvape/profiles/'..game.GameId..'.gui.txt')
 		if not guiData then
 			guiData = {Categories = {}}
 			self:CreateNotification('Vape', 'Failed to load GUI settings, saving is off until you fix or delete '..game.GameId..'.gui.txt', 15, 'alert')
@@ -1532,7 +1532,7 @@ function vape:Load(skipgui, profile)
 	gui.Enabled = true
 
 	if (not inputService.KeyboardEnabled or inputService.TouchEnabled or shared.VapeDeveloper) and not skipgui and not self.VapeButton then
-		local hide = isfile('catsix/profiles/hide.txt') and readfile('catsix/profiles/hide.txt') == 'true'
+		local hide = isfile('kingvape/profiles/hide.txt') and readfile('kingvape/profiles/hide.txt') == 'true'
 		local button = Instance.new('TextButton')
 		button.BackgroundColor3 = Color3.new()
 		button.BackgroundTransparency = hide and 1 or 0.35
@@ -1546,7 +1546,7 @@ function vape:Load(skipgui, profile)
 		local image = Instance.new('ImageLabel')
 		image.AnchorPoint = Vector2.new(0.5, 0.5)
 		image.BackgroundTransparency = 1
-		image.Image = getvapeasset('catsix/assets/new/vape.png')
+		image.Image = getvapeasset('kingvape/assets/new/vape.png')
 		image.ImageTransparency = hide and 1 or 0
 		image.Name = 'Icon'
 		image.Position = UDim2.fromScale(0.5, 0.5)
@@ -1726,37 +1726,37 @@ function vape:LoadGUI()
 	
 	vape:CreateCategory({
 		Name = 'Combat',
-		Icon = getvapeasset('catsix/assets/new/combat.png'),
+		Icon = getvapeasset('kingvape/assets/new/combat.png'),
 		Size = UDim2.fromOffset(13, 14)
 	})
 	vape:CreateCategory({
 		Name = 'Blatant',
-		Icon = getvapeasset('catsix/assets/new/blatant.png'),
+		Icon = getvapeasset('kingvape/assets/new/blatant.png'),
 		Size = UDim2.fromOffset(14, 14)
 	})
 	vape:CreateCategory({
 		Name = 'Render',
-		Icon = getvapeasset('catsix/assets/new/render.png'),
+		Icon = getvapeasset('kingvape/assets/new/render.png'),
 		Size = UDim2.fromOffset(15, 14)
 	})
 	vape:CreateCategory({
 		Name = 'Utility',
-		Icon = getvapeasset('catsix/assets/new/utility.png'),
+		Icon = getvapeasset('kingvape/assets/new/utility.png'),
 		Size = UDim2.fromOffset(15, 14)
 	})
 	vape:CreateCategory({
 		Name = 'World',
-		Icon = getvapeasset('catsix/assets/new/world.png'),
+		Icon = getvapeasset('kingvape/assets/new/world.png'),
 		Size = UDim2.fromOffset(14, 14)
 	})
 	vape:CreateCategory({
 		Name = 'Inventory',
-		Icon = getvapeasset('catsix/assets/new/inventory.png'),
+		Icon = getvapeasset('kingvape/assets/new/inventory.png'),
 		Size = UDim2.fromOffset(15, 14)
 	})
 	vape:CreateCategory({
 		Name = 'Kits',
-		Icon = getvapeasset('catsix/assets/new/friends.png'),
+		Icon = getvapeasset('kingvape/assets/new/friends.png'),
 		Size = UDim2.fromOffset(17, 16)
 	})
 	vape.Categories.Main:CreateDivider({
@@ -1776,7 +1776,7 @@ function vape:LoadGUI()
 	
 		friends = vape:CreateCategoryList({
 			Name = 'Friends',
-			Icon = getvapeasset('catsix/assets/new/friends.png'),
+			Icon = getvapeasset('kingvape/assets/new/friends.png'),
 			Size = UDim2.fromOffset(17, 16),
 			Placeholder = 'Roblox username',
 			Color = Color3.fromRGB(5, 134, 105),
@@ -1829,7 +1829,7 @@ function vape:LoadGUI()
 	]]
 	local profiles = vape:CreateCategoryList({
 		Name = 'Profiles',
-		Icon = getvapeasset('catsix/assets/new/profiles.png'),
+		Icon = getvapeasset('kingvape/assets/new/profiles.png'),
 		Size = UDim2.fromOffset(17, 10),
 		Position = UDim2.fromOffset(12, 16),
 		Placeholder = 'Type name',
@@ -1847,15 +1847,15 @@ function vape:LoadGUI()
 		Name = 'Reset current profile',
 		Function = function()
 			vape.Save = function() end
-			if isfile('catsix/profiles/'..vape.Profile..vape.Place..'.txt') and delfile then
-				delfile('catsix/profiles/'..vape.Profile..vape.Place..'.txt')
+			if isfile('kingvape/profiles/'..vape.Profile..vape.Place..'.txt') and delfile then
+				delfile('kingvape/profiles/'..vape.Profile..vape.Place..'.txt')
 			end
 	
 			shared.vapereload = true
 			if shared.VapeDeveloper then
-				loadstring(readfile('catsix/init.lua'), 'init')(license)
+				loadstring(readfile('kingvape/init.lua'), 'init')(license)
 			else
-				local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+				local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 				if not commit or commit == '' then commit = 'main' end
 				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/init.lua', true), 'init')(license)
 			end
@@ -1869,7 +1869,7 @@ function vape:LoadGUI()
 	local targets
 	targets = vape:CreateCategoryList({
 		Name = 'Targets',
-		Icon = getvapeasset('catsix/assets/new/friends.png'),
+		Icon = getvapeasset('kingvape/assets/new/friends.png'),
 		Size = UDim2.fromOffset(17, 16),
 		Placeholder = 'Roblox username',
 		Function = function()
@@ -1888,7 +1888,7 @@ function vape:LoadGUI()
 	]]
 	vape:CreateCategory({
 		Name = 'Favorites',
-		Icon = getvapeasset('catsix/assets/new/favoritesicon.png'),
+		Icon = getvapeasset('kingvape/assets/new/favoritesicon.png'),
 		Size = UDim2.fromOffset(14, 14),
 		Position = UDim2.fromOffset(850, 465),
 		NoButton = true
@@ -2001,9 +2001,9 @@ function vape:LoadGUI()
 		Function = function()
 			shared.vapereload = true
 			if shared.VapeDeveloper then
-				loadstring(readfile('catsix/init.lua'), 'init')(license)
+				loadstring(readfile('kingvape/init.lua'), 'init')(license)
 			else
-				local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+				local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 				if not commit or commit == '' then commit = 'main' end
 				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/init.lua', true), 'init')(license)
 			end
@@ -2155,12 +2155,12 @@ function vape:LoadGUI()
 		List = inputService.TouchEnabled and {'new', 'old'} or {'new', 'old', 'rise'},
 		Function = function(val, mouse)
 			if mouse then
-				writefile('catsix/profiles/gui.txt', val)
+				writefile('kingvape/profiles/gui.txt', val)
 				shared.vapereload = true
 				if shared.VapeDeveloper then
-					loadstring(readfile('catsix/init.lua'), 'init')(license)
+					loadstring(readfile('kingvape/init.lua'), 'init')(license)
 				else
-					local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+					local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 				if not commit or commit == '' then commit = 'main' end
 				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/init.lua', true), 'init')(license)
 				end
@@ -2172,14 +2172,14 @@ function vape:LoadGUI()
 	if not inputService.KeyboardEnabled or inputService.TouchEnabled or shared.VapeDeveloper then
 		guipane:CreateToggle({
 			Name = 'Hide Vape Button',
-			Default = isfile('catsix/profiles/hide.txt') and readfile('catsix/profiles/hide.txt') == 'true',
+			Default = isfile('kingvape/profiles/hide.txt') and readfile('kingvape/profiles/hide.txt') == 'true',
 			Function = function(enabled)
 				if vape.VapeButton then
 					vape.VapeButton.BackgroundTransparency = enabled and 1 or 0.35
 					vape.VapeButton.Icon.ImageTransparency = enabled and 1 or 0
 				end
 	
-				writefile('catsix/profiles/hide.txt', tostring(enabled))
+				writefile('kingvape/profiles/hide.txt', tostring(enabled))
 			end,
 			Tooltip = 'Hides the button that opens the GUI'
 		})
@@ -2321,7 +2321,7 @@ function vape:LoadGUI()
 		
 		TextGUI = vape:CreateOverlay({
 			Name = 'Text GUI',
-			Icon = getvapeasset('catsix/assets/new/textgui.png'),
+			Icon = getvapeasset('kingvape/assets/new/textgui.png'),
 			Size = UDim2.fromOffset(16, 12),
 			Position = UDim2.fromOffset(12, 14),
 			Function = function()
@@ -2514,7 +2514,7 @@ function vape:LoadGUI()
 		Logo.BackgroundColor3 = Color3.new()
 		Logo.BackgroundTransparency = 1
 		Logo.BorderSizePixel = 0
-		Logo.Image = getvapeasset('catsix/assets/new/vapelogo.png')
+		Logo.Image = getvapeasset('kingvape/assets/new/vapelogo.png')
 		Logo.Name = 'Logo'
 		Logo.Position = UDim2.new(1, -142, 0, 3)
 		Logo.Size = UDim2.fromOffset(81, 24)
@@ -2524,7 +2524,7 @@ function vape:LoadGUI()
 		LogoV4.BackgroundColor3 = Color3.new()
 		LogoV4.BackgroundTransparency = 1
 		LogoV4.BorderSizePixel = 0
-		LogoV4.Image = getvapeasset('catsix/assets/new/v4.png')
+		LogoV4.Image = getvapeasset('kingvape/assets/new/v4.png')
 		LogoV4.Name = 'Logo2'
 		LogoV4.Position = UDim2.new(1, -1, 0, 0)
 		LogoV4.Size = UDim2.fromOffset(35, 24)
@@ -2686,7 +2686,7 @@ function vape:LoadGUI()
 							colorline = Instance.new('ImageLabel')
 							colorline.BackgroundTransparency = 1
 							colorline.BorderSizePixel = 0
-							colorline.Image = getvapeasset('catsix/assets/new/textguiline.png')
+							colorline.Image = getvapeasset('kingvape/assets/new/textguiline.png')
 							colorline.Position = UDim2.fromOffset(isRight and -4 or 0, 0)
 							colorline.ScaleType = Enum.ScaleType.Slice
 							colorline.SliceCenter = Rect.new(0, 4, 8, 5)
@@ -2838,7 +2838,7 @@ function vape:LoadGUI()
 		
 		TargetInfoOverlay = vape:CreateOverlay({
 			Name = 'Target Info',
-			Icon = getvapeasset('catsix/assets/new/targetinfo.png'),
+			Icon = getvapeasset('kingvape/assets/new/targetinfo.png'),
 			Size = UDim2.fromOffset(14, 14),
 			Position = UDim2.fromOffset(12, 14),
 			CategorySize = 240,
@@ -3427,8 +3427,8 @@ function vape:Save(newProfile)
 		return
 	end
 
-	local guiSuccess, guiError = writeJson('catsix/profiles/'..game.GameId..'.gui.txt', guiData)
-	local mainSuccess, mainError = writeJson('catsix/profiles/'..self.Profile..self.Place..'.txt', mainData)
+	local guiSuccess, guiError = writeJson('kingvape/profiles/'..game.GameId..'.gui.txt', guiData)
+	local mainSuccess, mainError = writeJson('kingvape/profiles/'..self.Profile..self.Place..'.txt', mainData)
 
 	if guiSuccess and mainSuccess then
 		self.SaveFailed = nil
@@ -3650,7 +3650,7 @@ components = {
 		end)
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('catsix/assets/new/bind.png')
+		icon.Image = getvapeasset('kingvape/assets/new/bind.png')
 		icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		icon.Name = 'Icon'
 		icon.Position = UDim2.new(0.5, -5, 0, 5)
@@ -3673,7 +3673,7 @@ components = {
 			if props.Cover then
 				cover = Instance.new('ImageLabel')
 				cover.BackgroundTransparency = 1
-				cover.Image = getvapeasset('catsix/assets/new/bindbkg.png')
+				cover.Image = getvapeasset('kingvape/assets/new/bindbkg.png')
 				cover.Name = 'Cover'
 				cover.ScaleType = Enum.ScaleType.Slice
 				cover.SliceCenter = Rect.new(0, 0, 141, 40)
@@ -3823,7 +3823,7 @@ components = {
 			self.Keys = table.clone(keys)
 		
 			if mouse then
-				icon.Image = getvapeasset('catsix/assets/new/edit.png')
+				icon.Image = getvapeasset('kingvape/assets/new/edit.png')
 		
 				if cover then
 					coverlabel.Text = #keys <= 0 and 'BIND REMOVED' or 'BOUND TO'
@@ -3883,7 +3883,7 @@ components = {
 		bind.MouseEnter:Connect(function()
 			label.Visible = false
 			icon.Visible = not label.Visible
-			icon.Image = getvapeasset(component.Binding and 'catsix/assets/new/close.png' or 'catsix/assets/new/edit.png')
+			icon.Image = getvapeasset(component.Binding and 'kingvape/assets/new/close.png' or 'kingvape/assets/new/edit.png')
 		
 			if not props.Cover or not api.Enabled then
 				icon.ImageColor3 = color.Dark(uipallet.Text, 0.16)
@@ -3893,7 +3893,7 @@ components = {
 		bind.MouseLeave:Connect(function()
 			label.Visible = #component.Keys > 0
 			icon.Visible = not label.Visible
-			icon.Image = getvapeasset(component.Binding and 'catsix/assets/new/close.png' or 'catsix/assets/new/bind.png')
+			icon.Image = getvapeasset(component.Binding and 'kingvape/assets/new/close.png' or 'kingvape/assets/new/bind.png')
 		
 			if not props.Cover or not api.Enabled then
 				icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
@@ -3928,7 +3928,7 @@ components = {
 			end
 		
 			component.Binding = true
-			icon.Image = getvapeasset('catsix/assets/new/close.png')
+			icon.Image = getvapeasset('kingvape/assets/new/close.png')
 			vape.Binding = component
 		end)
 		
@@ -4035,7 +4035,7 @@ components = {
 		addTooltip(pencilbutton, 'Edit hidden modules')
 		local pencil = Instance.new('ImageLabel')
 		pencil.BackgroundTransparency = 1
-		pencil.Image = getvapeasset('catsix/assets/new/editlarge.png')
+		pencil.Image = getvapeasset('kingvape/assets/new/editlarge.png')
 		pencil.ImageColor3 = Color3.fromRGB(140, 140, 140)
 		pencil.Size = UDim2.fromOffset(12, 12)
 		pencil.Position = UDim2.fromOffset(4, 14)
@@ -4060,7 +4060,7 @@ components = {
 		arrowbutton.Parent = window
 		local arrow = Instance.new('ImageLabel')
 		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('catsix/assets/new/downexpand.png')
+		arrow.Image = getvapeasset('kingvape/assets/new/downexpand.png')
 		arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 		arrow.Size = UDim2.fromOffset(9, 4)
 		arrow.Position = UDim2.fromOffset(9, 18)
@@ -4282,11 +4282,11 @@ components = {
 			end
 		
 			if count > 0 then
-				pencil.Image = getvapeasset('catsix/assets/new/newhide.png')
+				pencil.Image = getvapeasset('kingvape/assets/new/newhide.png')
 				pencil.Position = UDim2.fromOffset(3, 14)
 				pencil.Size = UDim2.fromOffset(14, 12)
 			else
-				pencil.Image = getvapeasset('catsix/assets/new/editlarge.png')
+				pencil.Image = getvapeasset('kingvape/assets/new/editlarge.png')
 				pencil.Position = UDim2.fromOffset(4, 14)
 				pencil.Size = UDim2.fromOffset(12, 12)
 			end
@@ -4483,7 +4483,7 @@ components = {
 		arrow.Size = UDim2.fromOffset(9, 4)
 		arrow.Position = UDim2.fromOffset(15, 20)
 		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('catsix/assets/new/downexpand.png')
+		arrow.Image = getvapeasset('kingvape/assets/new/downexpand.png')
 		arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 		arrow.Rotation = 180
 		arrow.Parent = arrowbutton
@@ -4506,7 +4506,7 @@ components = {
 		local settings = Instance.new('ImageButton')
 		settings.AutoButtonColor = false
 		settings.BackgroundTransparency = 1
-		settings.Image = getvapeasset('catsix/assets/new/settings.png')
+		settings.Image = getvapeasset('kingvape/assets/new/settings.png')
 		settings.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		settings.Name = 'Settings'
 		settings.Position = UDim2.new(1, -56, 0, 15)
@@ -4562,7 +4562,7 @@ components = {
 		local addbutton = Instance.new('ImageButton')
 		addbutton.AnchorPoint = Vector2.new(0, 0.5)
 		addbutton.BackgroundTransparency = 1
-		addbutton.Image = getvapeasset('catsix/assets/new/add.png')
+		addbutton.Image = getvapeasset('kingvape/assets/new/add.png')
 		addbutton.ImageColor3 = props.Color
 		addbutton.ImageTransparency = 0.3
 		addbutton.Name = 'AddButton'
@@ -4667,7 +4667,7 @@ components = {
 				return button
 			end
 		
-			local createbkg = addRowButton('CreateNew', 'catsix/assets/new/add.png', 'CREATE NEW', true, 'Create a new profile', 2)
+			local createbkg = addRowButton('CreateNew', 'kingvape/assets/new/add.png', 'CREATE NEW', true, 'Create a new profile', 2)
 		
 			local newprofile = Instance.new('Frame')
 			newprofile.BackgroundColor3 = uipallet.Main
@@ -4691,7 +4691,7 @@ components = {
 			local backicon = Instance.new('ImageLabel')
 			backicon.AnchorPoint = Vector2.new(0.5, 0.5)
 			backicon.BackgroundTransparency = 1
-			backicon.Image = getvapeasset('catsix/assets/new/back.png')
+			backicon.Image = getvapeasset('kingvape/assets/new/back.png')
 			backicon.ImageColor3 = uipallet.Text
 			backicon.Position = UDim2.fromScale(0.5, 0.5)
 			backicon.Size = UDim2.fromScale(1, 1)
@@ -4720,7 +4720,7 @@ components = {
 			newarrowbutton.Parent = newprofile
 			local newarrow = Instance.new('ImageLabel')
 			newarrow.BackgroundTransparency = 1
-			newarrow.Image = getvapeasset('catsix/assets/new/expandup.png')
+			newarrow.Image = getvapeasset('kingvape/assets/new/expandup.png')
 			newarrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 			newarrow.Name = 'Arrow'
 			newarrow.Position = UDim2.fromOffset(20, 19)
@@ -4979,7 +4979,7 @@ components = {
 			searchstroke.Parent = searchbkg
 			local searchicon = Instance.new('ImageLabel')
 			searchicon.BackgroundTransparency = 1
-			searchicon.Image = getvapeasset('catsix/assets/new/search.png')
+			searchicon.Image = getvapeasset('kingvape/assets/new/search.png')
 			searchicon.ImageColor3 = Color3.fromRGB(122, 122, 122)
 			searchicon.Name = 'Icon'
 			searchicon.Position = UDim2.fromOffset(12, 9)
@@ -5213,7 +5213,7 @@ components = {
 				gap.Parent = ring
 				local head = Instance.new('ImageLabel')
 				head.BackgroundTransparency = 1
-				head.Image = getvapeasset('catsix/assets/new/range.png')
+				head.Image = getvapeasset('kingvape/assets/new/range.png')
 				head.ImageColor3 = ringstroke.Color
 				head.Name = 'Head'
 				head.Position = UDim2.fromOffset(7, -1)
@@ -5549,7 +5549,7 @@ components = {
 				arrow.Name = 'Arrow'
 				arrow.Position = UDim2.fromOffset(339 - maxwidth, 12)
 				arrow.Size = UDim2.fromOffset(12, 6)
-				arrow.Image = getvapeasset('catsix/assets/new/rangearrow.png')
+				arrow.Image = getvapeasset('kingvape/assets/new/rangearrow.png')
 				arrow.ImageColor3 = color.Light(uipallet.Main, 0.2)
 				arrow.Parent = row
 				local minvalue = addValueLabel(row, opt.ValueMin, 4)
@@ -5566,7 +5566,7 @@ components = {
 					local knob = Instance.new('ImageLabel')
 					knob.AnchorPoint = Vector2.new(0.5, 0.5)
 					knob.BackgroundTransparency = 1
-					knob.Image = getvapeasset('catsix/assets/new/range.png')
+					knob.Image = getvapeasset('kingvape/assets/new/range.png')
 					knob.ImageColor3 = accentColor()
 					knob.Name = name
 					knob.Position = UDim2.fromScale(edge, 0.5)
@@ -5667,7 +5667,7 @@ components = {
 				title.Parent = button
 				local arrow = Instance.new('ImageLabel')
 				arrow.BackgroundTransparency = 1
-				arrow.Image = getvapeasset('catsix/assets/new/expandright.png')
+				arrow.Image = getvapeasset('kingvape/assets/new/expandright.png')
 				arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 				arrow.Name = 'Arrow'
 				arrow.Position = UDim2.new(1, -17, 0, 11)
@@ -5778,8 +5778,8 @@ components = {
 					end)
 				end
 		
-				addTargetTab('Players', opt.Players, 'catsix/assets/new/targetplayers1.png', UDim2.fromOffset(15, 16), 12)
-				addTargetTab('NPCs', opt.NPCs, 'catsix/assets/new/targetnpc1.png', UDim2.fromOffset(12, 16), 79)
+				addTargetTab('Players', opt.Players, 'kingvape/assets/new/targetplayers1.png', UDim2.fromOffset(15, 16), 12)
+				addTargetTab('NPCs', opt.NPCs, 'kingvape/assets/new/targetnpc1.png', UDim2.fromOffset(12, 16), 79)
 		
 				local function addTargetToggle(name, toggle, y)
 					local label = Instance.new('TextLabel')
@@ -5848,7 +5848,7 @@ components = {
 				addCorner(tag, UDim.new(0, 6))
 				local tagicon = Instance.new('ImageLabel')
 				tagicon.BackgroundTransparency = 1
-				tagicon.Image = getvapeasset('catsix/assets/new/targetstab.png')
+				tagicon.Image = getvapeasset('kingvape/assets/new/targetstab.png')
 				tagicon.ImageColor3 = Color3.fromRGB(171, 171, 171)
 				tagicon.Name = 'Icon'
 				tagicon.Position = UDim2.fromOffset(14, 9)
@@ -5934,7 +5934,7 @@ components = {
 				icon.Name = 'Icon'
 				icon.Position = UDim2.fromOffset(14, 14)
 				icon.Size = UDim2.fromOffset(14, 12)
-				icon.Image = opt.Icon or getvapeasset('catsix/assets/new/allowedicon.png')
+				icon.Image = opt.Icon or getvapeasset('kingvape/assets/new/allowedicon.png')
 				icon.Parent = card
 				local title = Instance.new('TextLabel')
 				title.BackgroundTransparency = 1
@@ -6050,7 +6050,7 @@ components = {
 					local opt = v.Option
 					if opt.Type == 'Toggle' then
 						local sublist = following and following.Option.Type == 'TextList'
-						addToggleRow(v, i, sublist and (following.Option.Icon or getvapeasset('catsix/assets/new/allowedicon.png')) or nil)
+						addToggleRow(v, i, sublist and (following.Option.Icon or getvapeasset('kingvape/assets/new/allowedicon.png')) or nil)
 						y += 30
 					elseif opt.Type == 'Slider' then
 						addSliderRow(v, i)
@@ -6111,7 +6111,7 @@ components = {
 				local chevron = Instance.new('ImageLabel')
 				chevron.AnchorPoint = Vector2.new(1, 0.5)
 				chevron.BackgroundTransparency = 1
-				chevron.Image = getvapeasset('catsix/assets/new/expandright.png')
+				chevron.Image = getvapeasset('kingvape/assets/new/expandright.png')
 				chevron.ImageColor3 = Color3.fromRGB(122, 122, 122)
 				chevron.Name = 'Chevron'
 				chevron.Position = UDim2.new(1, -12, 0.5, 0)
@@ -6273,7 +6273,7 @@ components = {
 				newprofile.Visible = false
 			end)
 		
-			local publicbkg = addRowButton('Public', 'catsix/assets/new/profileworld.png', 'PUBLIC', false, 'Browse public profiles', 1)
+			local publicbkg = addRowButton('Public', 'kingvape/assets/new/profileworld.png', 'PUBLIC', false, 'Browse public profiles', 1)
 			publicbkg.Position = UDim2.new(1, -publicbkg.Size.X.Offset, 0, publicbkg.Position.Y.Offset)
 		
 			publicbkg.MouseButton1Click:Connect(function()
@@ -6329,8 +6329,8 @@ components = {
 							profile.Bind:Destroy()
 							table.remove(self.List, index)
 		
-							if isfile('catsix/profiles/'..value..vape.Place..'.txt') and delfile then
-								delfile('catsix/profiles/'..value..vape.Place..'.txt')
+							if isfile('kingvape/profiles/'..value..vape.Place..'.txt') and delfile then
+								delfile('kingvape/profiles/'..value..vape.Place..'.txt')
 							end
 						end
 					else
@@ -6398,7 +6398,7 @@ components = {
 					dotsbutton.Parent = obj
 					local dots = Instance.new('ImageLabel')
 					dots.BackgroundTransparency = 1
-					dots.Image = getvapeasset('catsix/assets/new/settingdots.png')
+					dots.Image = getvapeasset('kingvape/assets/new/settingdots.png')
 					dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
 					dots.Name = 'Dots'
 					dots.Position = UDim2.fromOffset(11, 9)
@@ -6493,7 +6493,7 @@ components = {
 					close.AutoButtonColor = false
 					close.BackgroundColor3 = Color3.new(1, 1, 1)
 					close.BackgroundTransparency = 1
-					close.Image = getvapeasset('catsix/assets/new/closetiny.png')
+					close.Image = getvapeasset('kingvape/assets/new/closetiny.png')
 					close.ImageColor3 = color.Light(uipallet.Text, 0.2)
 					close.ImageTransparency = 0.5
 					close.Position = UDim2.new(1, -27, 0, 8)
@@ -6943,7 +6943,7 @@ components = {
 		addCorner(knob, UDim.new(1, 0))
 		local preview = Instance.new('ImageButton')
 		preview.BackgroundTransparency = 1
-		preview.Image = getvapeasset('catsix/assets/new/colorpreview.png')
+		preview.Image = getvapeasset('kingvape/assets/new/colorpreview.png')
 		preview.ImageColor3 = Color3.fromHSV(component.Hue, component.Sat, component.Value)
 		preview.ImageTransparency = 1 - component.Opacity
 		preview.Position = UDim2.new(1, -22, 0, 10)
@@ -6957,7 +6957,7 @@ components = {
 		expand.Parent = colorslider
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('catsix/assets/new/downexpandslider.png')
+		icon.Image = getvapeasset('kingvape/assets/new/downexpandslider.png')
 		icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		icon.Position = UDim2.fromOffset(4, 4)
 		icon.Size = UDim2.fromOffset(10, 5)
@@ -6970,18 +6970,18 @@ components = {
 		rainbow.Parent = colorslider
 		local ring1 = Instance.new('ImageLabel')
 		ring1.BackgroundTransparency = 1
-		ring1.Image = getvapeasset('catsix/assets/new/rainbow_1.png')
+		ring1.Image = getvapeasset('kingvape/assets/new/rainbow_1.png')
 		ring1.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		ring1.Size = UDim2.fromOffset(12, 12)
 		ring1.Parent = rainbow
 		local ring2 = Instance.fromExisting(ring1)
-		ring2.Image = getvapeasset('catsix/assets/new/rainbow_2.png')
+		ring2.Image = getvapeasset('kingvape/assets/new/rainbow_2.png')
 		ring2.Parent = rainbow
 		local ring3 = Instance.fromExisting(ring1)
-		ring3.Image = getvapeasset('catsix/assets/new/rainbow_3.png')
+		ring3.Image = getvapeasset('kingvape/assets/new/rainbow_3.png')
 		ring3.Parent = rainbow
 		local ring4 = Instance.fromExisting(ring1)
-		ring4.Image = getvapeasset('catsix/assets/new/rainbow_4.png')
+		ring4.Image = getvapeasset('kingvape/assets/new/rainbow_4.png')
 		ring4.Parent = rainbow
 		props.Function = props.Function or function() end
 		
@@ -7311,7 +7311,7 @@ components = {
 		addCorner(button, UDim.new(0, 6))
 		local arrow = Instance.new('ImageLabel')
 		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('catsix/assets/new/expandarrow.png')
+		arrow.Image = getvapeasset('kingvape/assets/new/expandarrow.png')
 		arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 		arrow.Position = UDim2.new(1, -17, 0, 11)
 		arrow.Rotation = 90
@@ -7541,14 +7541,14 @@ components = {
 		addTooltip(settingsbutton, 'Open settings')
 		local settingsicon = Instance.new('ImageLabel')
 		settingsicon.BackgroundTransparency = 1
-		settingsicon.Image = getvapeasset('catsix/assets/new/settings.png')
+		settingsicon.Image = getvapeasset('kingvape/assets/new/settings.png')
 		settingsicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		settingsicon.Position = UDim2.fromOffset(15, 12)
 		settingsicon.Size = UDim2.fromOffset(14, 14)
 		settingsicon.Parent = settingsbutton
 		local discord = Instance.new('ImageButton')
 		discord.BackgroundTransparency = 1
-		discord.Image = getvapeasset('catsix/assets/new/discord.png')
+		discord.Image = getvapeasset('kingvape/assets/new/discord.png')
 		discord.Position = UDim2.new(1, -56, 0, 11)
 		discord.Size = UDim2.fromOffset(16, 16)
 		discord.Parent = window
@@ -7732,7 +7732,7 @@ components = {
 		
 		local arrow = Instance.new('ImageLabel')
 		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('catsix/assets/new/expandarrow.png')
+		arrow.Image = getvapeasset('kingvape/assets/new/expandarrow.png')
 		arrow.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		arrow.Name = 'Arrow'
 		arrow.Position = UDim2.new(1, -20, 0, 16)
@@ -7977,7 +7977,7 @@ components = {
 		end
 		local preview = Instance.new('ImageButton')
 		preview.BackgroundTransparency = 1
-		preview.Image = getvapeasset('catsix/assets/new/colorpreview.png')
+		preview.Image = getvapeasset('kingvape/assets/new/colorpreview.png')
 		preview.ImageColor3 = Color3.fromHSV(component.Hue, component.Sat, component.Value)
 		preview.Position = UDim2.new(1, -22, 0, 10)
 		preview.Size = UDim2.fromOffset(12, 12)
@@ -8001,7 +8001,7 @@ components = {
 		expand.Parent = slider
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('catsix/assets/new/downexpandslider.png')
+		icon.Image = getvapeasset('kingvape/assets/new/downexpandslider.png')
 		icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		icon.Position = UDim2.fromOffset(4, 4)
 		icon.Size = UDim2.fromOffset(10, 5)
@@ -8014,22 +8014,22 @@ components = {
 		rainbow.Parent = slider
 		local ring1 = Instance.new('ImageLabel')
 		ring1.BackgroundTransparency = 1
-		ring1.Image = getvapeasset('catsix/assets/new/rainbow_1.png')
+		ring1.Image = getvapeasset('kingvape/assets/new/rainbow_1.png')
 		ring1.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		ring1.Size = UDim2.fromOffset(12, 12)
 		ring1.Parent = rainbow
 		local ring2 = Instance.fromExisting(ring1)
-		ring2.Image = getvapeasset('catsix/assets/new/rainbow_2.png')
+		ring2.Image = getvapeasset('kingvape/assets/new/rainbow_2.png')
 		ring2.Parent = rainbow
 		local ring3 = Instance.fromExisting(ring1)
-		ring3.Image = getvapeasset('catsix/assets/new/rainbow_3.png')
+		ring3.Image = getvapeasset('kingvape/assets/new/rainbow_3.png')
 		ring3.Parent = rainbow
 		local ring4 = Instance.fromExisting(ring1)
-		ring4.Image = getvapeasset('catsix/assets/new/rainbow_4.png')
+		ring4.Image = getvapeasset('kingvape/assets/new/rainbow_4.png')
 		ring4.Parent = rainbow
 		local knob = Instance.new('ImageLabel')
 		knob.BackgroundTransparency = 1
-		knob.Image = getvapeasset('catsix/assets/new/theme.png')
+		knob.Image = getvapeasset('kingvape/assets/new/theme.png')
 		knob.ImageColor3 = colors[4]
 		knob.Name = 'Knob'
 		knob.Position = UDim2.fromOffset(colorPositions[4] - 3, -5)
@@ -8052,8 +8052,8 @@ components = {
 			ColorSequenceKeypoint.new(1, Color3.fromHSV(component.Hue, component.Sat, 1))
 		}))
 		
-		local normalknob = getvapeasset('catsix/assets/new/theme.png')
-		local rainbowknob = getvapeasset('catsix/assets/new/customtheme.png')
+		local normalknob = getvapeasset('kingvape/assets/new/theme.png')
+		local rainbowknob = getvapeasset('kingvape/assets/new/customtheme.png')
 		local rainbowthread
 		local currentNotch
 		
@@ -8516,7 +8516,7 @@ components = {
 		dotsbutton.Parent = button
 		local dots = Instance.new('ImageLabel')
 		dots.BackgroundTransparency = 1
-		dots.Image = getvapeasset('catsix/assets/new/overlaydots.png')
+		dots.Image = getvapeasset('kingvape/assets/new/overlaydots.png')
 		dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		dots.Name = 'Dots'
 		dots.Position = UDim2.fromOffset(6, 6)
@@ -8556,7 +8556,7 @@ components = {
 		back.Size = UDim2.fromOffset(16, 16)
 		back.Position = UDim2.fromOffset(11, 13)
 		back.BackgroundTransparency = 1
-		back.Image = getvapeasset('catsix/assets/new/back.png')
+		back.Image = getvapeasset('kingvape/assets/new/back.png')
 		back.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		back.Parent = settingspane
 		addCorner(settingspane)
@@ -8573,7 +8573,7 @@ components = {
 		local favoriteicon = Instance.new('ImageLabel')
 		favoriteicon.AnchorPoint = Vector2.new(0.5, 0.5)
 		favoriteicon.BackgroundTransparency = 1
-		favoriteicon.Image = getvapeasset('catsix/assets/new/star.png')
+		favoriteicon.Image = getvapeasset('kingvape/assets/new/star.png')
 		favoriteicon.ImageColor3 = vapecolors.Icon
 		favoriteicon.Name = 'Icon'
 		favoriteicon.Position = UDim2.fromScale(0.5, 0.5)
@@ -8657,7 +8657,7 @@ components = {
 			local closeicon = Instance.new('ImageLabel')
 			closeicon.AnchorPoint = Vector2.new(0.5, 0.5)
 			closeicon.BackgroundTransparency = 1
-			closeicon.Image = getvapeasset('catsix/assets/new/closetiny.png')
+			closeicon.Image = getvapeasset('kingvape/assets/new/closetiny.png')
 			closeicon.ImageColor3 = vapecolors.Secondary
 			closeicon.Name = 'Icon'
 			closeicon.Position = UDim2.fromScale(0.5, 0.5)
@@ -8672,7 +8672,7 @@ components = {
 				return editor.Visible or editorpane.Visible
 			end)
 			local settingsicon = settingsbutton.Icon
-			settingsicon.Image = getvapeasset('catsix/assets/new/settingdots.png')
+			settingsicon.Image = getvapeasset('kingvape/assets/new/settingdots.png')
 			settingsicon.Size = UDim2.fromOffset(2, 11)
 			editorpane = Instance.new('Frame')
 			editorpane.BackgroundColor3 = uipallet.Main
@@ -8684,7 +8684,7 @@ components = {
 			addCorner(editorpane)
 			local editordots = Instance.new('ImageLabel')
 			editordots.BackgroundTransparency = 1
-			editordots.Image = getvapeasset('catsix/assets/new/settingdots.png')
+			editordots.Image = getvapeasset('kingvape/assets/new/settingdots.png')
 			editordots.AnchorPoint = Vector2.new(0.5, 0.5)
 			editordots.ImageColor3 = vapecolors.Secondary
 			editordots.Name = 'Dots'
@@ -8695,7 +8695,7 @@ components = {
 			editortitle.Parent = editorpane
 			local editorclose = Instance.new('ImageButton')
 			editorclose.BackgroundTransparency = 1
-			editorclose.Image = getvapeasset('catsix/assets/new/closetiny.png')
+			editorclose.Image = getvapeasset('kingvape/assets/new/closetiny.png')
 			editorclose.AnchorPoint = Vector2.new(0.5, 0.5)
 			editorclose.ImageColor3 = vapecolors.Secondary
 			editorclose.Name = 'Close'
@@ -9110,14 +9110,14 @@ components = {
 		modal.Parent = window
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('catsix/assets/new/legit_mode_icon.png')
+		icon.Image = getvapeasset('kingvape/assets/new/legit_mode_icon.png')
 		icon.ImageColor3 = uipallet.Text
 		icon.Position = UDim2.fromOffset(18, 11)
 		icon.Size = UDim2.fromOffset(16, 16)
 		icon.Parent = window
 		local close = Instance.new('ImageButton')
 		close.BackgroundTransparency = 1
-		close.Image = getvapeasset('catsix/assets/new/min.png')
+		close.Image = getvapeasset('kingvape/assets/new/min.png')
 		close.ImageColor3 = color.Light(uipallet.Main, 0.24)
 		close.Position = UDim2.new(1, -31, 0, 11)
 		close.Size = UDim2.fromOffset(16, 16)
@@ -9133,7 +9133,7 @@ components = {
 		stroke.Parent = holder
 		local searchicon = Instance.new('ImageLabel')
 		searchicon.BackgroundTransparency = 1
-		searchicon.Image = getvapeasset('catsix/assets/new/search.png')
+		searchicon.Image = getvapeasset('kingvape/assets/new/search.png')
 		searchicon.ImageColor3 = color.Light(uipallet.Main, 0.42)
 		searchicon.Position = UDim2.new(1, -25, 0, 9)
 		searchicon.Size = UDim2.fromOffset(12, 12)
@@ -9170,7 +9170,7 @@ components = {
 		local emptyicon = Instance.new('ImageLabel')
 		emptyicon.AnchorPoint = Vector2.new(0.5, 0.5)
 		emptyicon.BackgroundTransparency = 1
-		emptyicon.Image = getvapeasset('catsix/assets/new/empty.png')
+		emptyicon.Image = getvapeasset('kingvape/assets/new/empty.png')
 		emptyicon.ImageColor3 = vapecolors.Primary
 		emptyicon.Position = UDim2.new(0.5, -8, 0.5, -30)
 		emptyicon.Size = UDim2.fromOffset(53, 40)
@@ -9386,7 +9386,7 @@ components = {
 		dotsbutton.Parent = button
 		local dots = Instance.new('ImageLabel')
 		dots.BackgroundTransparency = 1
-		dots.Image = getvapeasset('catsix/assets/new/settingdots.png')
+		dots.Image = getvapeasset('kingvape/assets/new/settingdots.png')
 		dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		dots.Name = 'Dots'
 		dots.Position = UDim2.fromOffset(4, 12)
@@ -9419,7 +9419,7 @@ components = {
 		local favoriteicon = Instance.new('ImageLabel')
 		favoriteicon.AnchorPoint = Vector2.new(0.5, 0.5)
 		favoriteicon.BackgroundTransparency = 1
-		favoriteicon.Image = getvapeasset('catsix/assets/new/star.png')
+		favoriteicon.Image = getvapeasset('kingvape/assets/new/star.png')
 		favoriteicon.ImageColor3 = vapecolors.Icon
 		favoriteicon.Name = 'Icon'
 		favoriteicon.Position = UDim2.fromScale(0.5, 0.5)
@@ -10019,7 +10019,7 @@ components = {
 		pin.Position = UDim2.new(1, -37, 0, 14)
 		pin.BackgroundTransparency = 1
 		pin.AutoButtonColor = false
-		pin.Image = getvapeasset('catsix/assets/new/pin.png')
+		pin.Image = getvapeasset('kingvape/assets/new/pin.png')
 		pin.ImageColor3 = color.Dark(uipallet.Text, 0.43)
 		pin.Parent = window
 		local dotsbutton = Instance.new('TextButton')
@@ -10031,7 +10031,7 @@ components = {
 		dotsbutton.Parent = window
 		local dots = Instance.new('ImageLabel')
 		dots.BackgroundTransparency = 1
-		dots.Image = getvapeasset('catsix/assets/new/overlaydots.png')
+		dots.Image = getvapeasset('kingvape/assets/new/overlaydots.png')
 		dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		dots.Position = UDim2.fromOffset(5, 15)
 		dots.Size = UDim2.fromOffset(2, 12)
@@ -10220,7 +10220,7 @@ components = {
 		local button = Instance.new('ImageButton')
 		button.AutoButtonColor = false
 		button.BackgroundTransparency = 1
-		button.Image = getvapeasset('catsix/assets/new/overlays.png')
+		button.Image = getvapeasset('kingvape/assets/new/overlays.png')
 		button.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		button.Position = UDim2.new(1, -34, 0, 7)
 		button.Size = UDim2.fromOffset(24, 24)
@@ -10240,7 +10240,7 @@ components = {
 		local favoritesicon = Instance.new('ImageLabel')
 		favoritesicon.AnchorPoint = Vector2.new(0.5, 0.5)
 		favoritesicon.BackgroundTransparency = 1
-		favoritesicon.Image = getvapeasset('catsix/assets/new/favoritesicon.png')
+		favoritesicon.Image = getvapeasset('kingvape/assets/new/favoritesicon.png')
 		favoritesicon.ImageColor3 = vapecolors.Icon
 		favoritesicon.Name = 'Icon'
 		favoritesicon.Position = UDim2.fromScale(0.5, 0.5)
@@ -10266,7 +10266,7 @@ components = {
 		addCorner(window)
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('catsix/assets/new/overlayslarge.png')
+		icon.Image = getvapeasset('kingvape/assets/new/overlayslarge.png')
 		icon.ImageColor3 = uipallet.Text
 		icon.Position = UDim2.fromOffset(10, 13)
 		icon.Size = UDim2.fromOffset(14, 12)
@@ -10459,7 +10459,7 @@ components = {
 		icon.Name = 'Icon'
 		icon.Position = UDim2.fromOffset(10, 13)
 		icon.Size = UDim2.fromOffset(16, 10)
-		icon.Image = getvapeasset('catsix/assets/new/profilesicon.png')
+		icon.Image = getvapeasset('kingvape/assets/new/profilesicon.png')
 		icon.ImageColor3 = vapecolors.Primary
 		icon.Parent = window
 		local title = Instance.new('TextLabel')
@@ -10506,7 +10506,7 @@ components = {
 		local collapseicon = Instance.new('ImageLabel')
 		collapseicon.AnchorPoint = Vector2.new(0.5, 0)
 		collapseicon.BackgroundTransparency = 1
-		collapseicon.Image = getvapeasset('catsix/assets/new/hide.png')
+		collapseicon.Image = getvapeasset('kingvape/assets/new/hide.png')
 		collapseicon.ImageColor3 = vapecolors.Icon
 		collapseicon.Position = UDim2.fromOffset(10, 0)
 		collapseicon.Size = UDim2.fromOffset(10, 8)
@@ -10583,7 +10583,7 @@ components = {
 		searchicon.AnchorPoint = Vector2.new(0.5, 0.5)
 		searchicon.BackgroundTransparency = 1
 		searchicon.BorderSizePixel = 0
-		searchicon.Image = getvapeasset('catsix/assets/new/search.png')
+		searchicon.Image = getvapeasset('kingvape/assets/new/search.png')
 		searchicon.ImageColor3 = vapecolors.Icon
 		searchicon.Position = UDim2.new(0, 18, 0.5, 0)
 		searchicon.Size = UDim2.fromOffset(12, 12)
@@ -10651,7 +10651,7 @@ components = {
 			publish.Visible = not state
 			owned.Visible = not state
 			ownedempty.Visible = not state and #component.Owned == 0
-			collapseicon.Image = getvapeasset('catsix/assets/new/'..(state and 'show' or 'hide')..'.png')
+			collapseicon.Image = getvapeasset('kingvape/assets/new/'..(state and 'show' or 'hide')..'.png')
 			collapse.Position = UDim2.fromOffset(state and 12 or 176, 48)
 			resultslabel.Position = UDim2.fromOffset(state and 50 or 216, 44)
 			searchbkg.Position = UDim2.fromOffset(state and 50 or 216, 67)
@@ -11056,7 +11056,7 @@ components = {
 			local thumb = Instance.new('ImageLabel')
 			thumb.AnchorPoint = Vector2.new(0.5, 0.5)
 			thumb.BackgroundTransparency = 1
-			thumb.Image = getvapeasset('catsix/assets/new/'..(flipped and 'dislike' or 'like')..'.png')
+			thumb.Image = getvapeasset('kingvape/assets/new/'..(flipped and 'dislike' or 'like')..'.png')
 			thumb.ImageColor3 = vapecolors.Icon
 			thumb.Name = 'Thumb'
 			thumb.Position = UDim2.fromScale(0.5, 0.5)
@@ -11871,7 +11871,7 @@ components = {
 				vape:Save(vape.Profile)
 			end
 		
-			local path = 'catsix/profiles/'..(profile or vape.Profile)..vape.Place..'.txt'
+			local path = 'kingvape/profiles/'..(profile or vape.Profile)..vape.Place..'.txt'
 			return isfile(path) and readfile(path) or nil
 		end
 		
@@ -12108,7 +12108,7 @@ components = {
 			end
 		
 			vape:Save(profile)
-			writefile('catsix/profiles/'..profile..vape.Place..'.txt', content)
+			writefile('kingvape/profiles/'..profile..vape.Place..'.txt', content)
 			vape:Load(true, profile)
 			profiles:ChangeValue()
 			showPanel(nil)
@@ -12259,14 +12259,14 @@ components = {
 		addCorner(search)
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('catsix/assets/new/search.png')
+		icon.Image = getvapeasset('kingvape/assets/new/search.png')
 		icon.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		icon.Position = UDim2.new(1, -25, 0, 11)
 		icon.Size = UDim2.fromOffset(14, 14)
 		icon.Parent = search
 		local legiticon = Instance.new('ImageButton')
 		legiticon.BackgroundTransparency = 1
-		legiticon.Image = getvapeasset('catsix/assets/new/legit_switch.png')
+		legiticon.Image = getvapeasset('kingvape/assets/new/legit_switch.png')
 		legiticon.Name = 'Legit'
 		legiticon.Position = UDim2.fromOffset(8, 11)
 		legiticon.Size = UDim2.fromOffset(29, 16)
@@ -12339,7 +12339,7 @@ components = {
 		legitreturnstroke.Parent = legitreturn
 		local legitreturnicon = Instance.new('ImageLabel')
 		legitreturnicon.BackgroundTransparency = 1
-		legitreturnicon.Image = getvapeasset('catsix/assets/new/cheat_switch.png')
+		legitreturnicon.Image = getvapeasset('kingvape/assets/new/cheat_switch.png')
 		legitreturnicon.Name = 'Icon'
 		legitreturnicon.Position = UDim2.fromOffset(8, 9)
 		legitreturnicon.Size = UDim2.fromOffset(29, 15)
@@ -12496,7 +12496,7 @@ components = {
 		local close = addCloseButton(pane, true)
 		local back = Instance.new('ImageButton')
 		back.BackgroundTransparency = 1
-		back.Image = getvapeasset('catsix/assets/new/backmini.png')
+		back.Image = getvapeasset('kingvape/assets/new/backmini.png')
 		back.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		back.Position = UDim2.fromOffset(12, 14)
 		back.Size = UDim2.fromOffset(14, 14)
@@ -12528,7 +12528,7 @@ components = {
 			versionlabel.Position = UDim2.new(0, 0, 1, -16)
 			versionlabel.Size = UDim2.new(1, 0, 0, 16)
 			versionlabel.Text = 'Vape '..vape.Version..' '..(
-				isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt'):sub(1, 6) or ''
+				isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt'):sub(1, 6) or ''
 			)..' '
 			versionlabel.TextColor3 = color.Dark(uipallet.Text, 0.43)
 			versionlabel.TextSize = 10
@@ -12870,7 +12870,7 @@ components = {
 		addCorner(targetswindow)
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('catsix/assets/new/aim.png')
+		icon.Image = getvapeasset('kingvape/assets/new/aim.png')
 		icon.Position = UDim2.fromOffset(10, 15)
 		icon.Size = UDim2.fromOffset(18, 12)
 		icon.Parent = targetswindow
@@ -12966,7 +12966,7 @@ components = {
 		
 		component.Players = components.TargetsButton({
 			Position = UDim2.fromOffset(11, 45),
-			Icon = getvapeasset('catsix/assets/new/players.png'),
+			Icon = getvapeasset('kingvape/assets/new/players.png'),
 			IconSize = UDim2.fromOffset(16, 16),
 			IconParent = iconholder,
 			Targets = component,
@@ -12976,7 +12976,7 @@ components = {
 		
 		component.NPCs = components.TargetsButton({
 			Position = UDim2.fromOffset(112, 45),
-			Icon = getvapeasset('catsix/assets/new/npcs.png'),
+			Icon = getvapeasset('kingvape/assets/new/npcs.png'),
 			IconSize = UDim2.fromOffset(12, 16),
 			IconParent = iconholder,
 			Targets = component,
@@ -13301,7 +13301,7 @@ components = {
 		button.Parent = holder
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('catsix/assets/new/allowediconmini.png')
+		icon.Image = getvapeasset('kingvape/assets/new/allowediconmini.png')
 		icon.Position = UDim2.fromOffset(10, 14)
 		icon.Size = UDim2.fromOffset(14, 12)
 		icon.Parent = button
@@ -13343,7 +13343,7 @@ components = {
 		addCorner(textlistwindow)
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('catsix/assets/new/allowedicon.png')
+		icon.Image = getvapeasset('kingvape/assets/new/allowedicon.png')
 		icon.Position = UDim2.fromOffset(10, 13)
 		icon.Size = UDim2.fromOffset(19, 16)
 		icon.Parent = textlistwindow
@@ -13385,7 +13385,7 @@ components = {
 		textbox.Parent = boxholder
 		local add = Instance.new('ImageButton')
 		add.BackgroundTransparency = 1
-		add.Image = getvapeasset('catsix/assets/new/add.png')
+		add.Image = getvapeasset('kingvape/assets/new/add.png')
 		add.ImageColor3 = props.Color
 		add.ImageTransparency = 0.3
 		add.Position = UDim2.new(1, -26, 0, 8)
@@ -13467,7 +13467,7 @@ components = {
 				close.AutoButtonColor = false
 				close.BackgroundColor3 = Color3.new(1, 1, 1)
 				close.BackgroundTransparency = 1
-				close.Image = getvapeasset('catsix/assets/new/closetiny.png')
+				close.Image = getvapeasset('kingvape/assets/new/closetiny.png')
 				close.ImageColor3 = color.Light(uipallet.Text, 0.2)
 				close.ImageTransparency = 0.5
 				close.Position = UDim2.new(1, -27, 0, 8)
@@ -13819,7 +13819,7 @@ components = {
 		local knobknob = Instance.new('ImageLabel')
 		knobknob.AnchorPoint = Vector2.new(0.5, 0.5)
 		knobknob.BackgroundTransparency = 1
-		knobknob.Image = getvapeasset('catsix/assets/new/range.png')
+		knobknob.Image = getvapeasset('kingvape/assets/new/range.png')
 		knobknob.ImageColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
 		knobknob.Position = UDim2.fromScale(0.5, 0.5)
 		knobknob.Size = UDim2.fromOffset(9, 16)
@@ -13831,7 +13831,7 @@ components = {
 		knobmaxknob.Rotation = 180
 		local arrow = Instance.new('ImageLabel')
 		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('catsix/assets/new/rangeindicator.png')
+		arrow.Image = getvapeasset('kingvape/assets/new/rangeindicator.png')
 		arrow.ImageColor3 = color.Light(uipallet.Main, 0.14)
 		arrow.Position = UDim2.new(1, -56, 0, 10)
 		arrow.Size = UDim2.fromOffset(12, 6)

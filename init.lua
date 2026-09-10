@@ -32,10 +32,10 @@ local function downloadFile(path, func)
 		if not license.Closet then
 			downloader.Text = 'Downloading '.. path
 		end
-		local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+		local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 		commit = (commit or 'main'):gsub('%s+', '')
 		if commit == '' then commit = 'main' end
-		local relPath = select(1, path:gsub('catsix/', ''))
+		local relPath = select(1, path:gsub('kingvape/', ''))
 		local url = 'https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..relPath
 		local cdnUrl = 'https://cdn.jsdelivr.net/gh/zxcbest957-pixel/KingVape-V3@'..commit..'/'..relPath
 
@@ -94,29 +94,43 @@ local function wipeFolder(path)
 	end
 end
 
-for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 'catsix/libraries', 'catsix/guis'} do
+for _, folder in {'kingvape', 'kingvape/configs', 'kingvape/games', 'kingvape/profiles', 'kingvape/assets', 'kingvape/libraries', 'kingvape/guis'} do
 	if not isfolder(folder) then
 		downloader.Text = 'Downloading '.. folder
 		makefolder(folder)
 	end
 end
+pcall(function()
+	if isfolder('catsix/profiles') then
+		for _, file in listfiles('catsix/profiles') do
+			local name = file:match('([^/\\]+)$')
+			if name and not isfile('kingvape/profiles/'..name) then
+				local c = readfile(file)
+				if c and c ~= '' then
+					writefile('kingvape/profiles/'..name, c)
+				end
+			end
+		end
+	end
+end)
 
-local currentVersion = (isfile('catsix/profiles/version.txt') and readfile('catsix/profiles/version.txt')) or ''
-local targetVersion = '3.0.4'
-local currentCommit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or ''
+
+local currentVersion = (isfile('kingvape/profiles/version.txt') and readfile('kingvape/profiles/version.txt')) or ''
+local targetVersion = '3.0.5'
+local currentCommit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or ''
 if currentVersion ~= targetVersion or currentCommit ~= targetCommit then
-	wipeFolder('catsix/guis')
-	wipeFolder('catsix/games')
-	wipeFolder('catsix/libraries')
-	pcall(delfile, 'catsix/main.lua')
+	wipeFolder('kingvape/guis')
+	wipeFolder('kingvape/games')
+	wipeFolder('kingvape/libraries')
+	pcall(delfile, 'kingvape/main.lua')
 end
-pcall(writefile, 'catsix/profiles/commit.txt', targetCommit)
-pcall(writefile, 'catsix/profiles/version.txt', targetVersion)
+pcall(writefile, 'kingvape/profiles/commit.txt', targetCommit)
+pcall(writefile, 'kingvape/profiles/version.txt', targetVersion)
 
 if shared.ForceUpdate or shared.vapereload then
-	wipeFolder('catsix/guis')
-	wipeFolder('catsix/games')
-	wipeFolder('catsix/libraries')
+	wipeFolder('kingvape/guis')
+	wipeFolder('kingvape/games')
+	wipeFolder('kingvape/libraries')
 end
 
 local function loadAnalytics()
@@ -124,7 +138,7 @@ local function loadAnalytics()
 		pcall(function()
 			if shared.KingVapeAnalyticsLoaded then return end
 			shared.KingVapeAnalyticsLoaded = true
-			local path = 'catsix/libraries/analytics.lua'
+			local path = 'kingvape/libraries/analytics.lua'
 			local content
 			
 			if isfile(path) and not shared.ForceUpdate then
@@ -152,7 +166,7 @@ local function loadAnalytics()
 end
 loadAnalytics()
 
-if shared.updated or #listfiles('catsix/profiles') < 4 then
+if shared.updated or #listfiles('kingvape/profiles') < 4 then
 	shared.VapePresetInstall = function()
 		local suc, req = pcall(request, {
 			Url = 'https://api.github.com/repos/zxcbest957-pixel/KingVape-V3/contents/profiles',
@@ -163,7 +177,7 @@ if shared.updated or #listfiles('catsix/profiles') < 4 then
 		if not body or typeof(body) ~= 'table' then return false end
 		local installed = false
 		for _, v in body do
-			if v.type == 'file' and pcall(downloadFile, 'catsix/'.. ({v.path:gsub(' ', '%%20')})[1]) then
+			if v.type == 'file' and pcall(downloadFile, 'kingvape/'.. ({v.path:gsub(' ', '%%20')})[1]) then
 				installed = true
 			end
 		end
@@ -172,7 +186,7 @@ if shared.updated or #listfiles('catsix/profiles') < 4 then
 end
 
 downloader.Text = ''
-local mainCode = downloadFile('catsix/main.lua')
+local mainCode = downloadFile('kingvape/main.lua')
 if typeof(mainCode) == 'string' and mainCode ~= '' then
 	local fn = loadstring(mainCode, 'main')
 	if fn then

@@ -15,9 +15,9 @@ end
 local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
-			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+			local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 			if not commit or commit == '' then commit = 'main' end
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('kingvape/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -146,7 +146,7 @@ local function addBlur(parent)
 	blur.Size = UDim2.new(1, 89, 1, 52)
 	blur.Position = UDim2.fromOffset(-48, -31)
 	blur.BackgroundTransparency = 1
-	blur.Image = getvapeasset('catsix/assets/new/blur.png')
+	blur.Image = getvapeasset('kingvape/assets/new/blur.png')
 	blur.ScaleType = Enum.ScaleType.Slice
 	blur.SliceCenter = Rect.new(52, 31, 261, 502)
 	blur.Parent = parent
@@ -1157,7 +1157,7 @@ local require, debug, cheatenginelib = require, debug, nil
 run(function()
 	getgenv().canDebug = not table.find({'Solara', 'Xeno'}, ({identifyexecutor()})[1]) and true or false
 	if not canDebug then
-		cheatenginelib = loadstring(downloadFile('catsix/libraries/cheatengine.lua'), 'cheatengine')(vape, vapeEvents, entitylib)
+		cheatenginelib = loadstring(downloadFile('kingvape/libraries/cheatengine.lua'), 'cheatengine')(vape, vapeEvents, entitylib)
 		require = function(v)
 			return cheatenginelib[({v:GetFullName():gsub(lplr.Name, 'PlayerTemplate')})[1]]:await()
 		end
@@ -8177,7 +8177,7 @@ run(function()
 	
 	HitAccuracy = vape:CreateOverlay({
 		Name = 'Hit Accuracy',
-		Icon = getvapeasset('catsix/assets/new/aim.png'),
+		Icon = getvapeasset('kingvape/assets/new/aim.png'),
 		Size = UDim2.fromOffset(18, 12),
 		Position = UDim2.fromOffset(11, 14),
 		Function = function(callback)
@@ -10610,14 +10610,14 @@ run(function()
 	
 	ComboCounter = targetinfo:CreateStat({
 		Name = 'Combo Counter',
-		Icon = getvapeasset('catsix/assets/new/combo_display.png'),
+		Icon = getvapeasset('kingvape/assets/new/combo_display.png'),
 		IconSize = UDim2.fromOffset(14, 12),
 		Default = true,
 		Tooltip = 'Shows how many hits in a direct row you have landed on, or taken from, the target.'
 	})
 	ComboComparator = targetinfo:CreateStat({
 		Name = 'Combo Comparator',
-		Icon = getvapeasset('catsix/assets/new/sword_header.png'),
+		Icon = getvapeasset('kingvape/assets/new/sword_header.png'),
 		IconSize = UDim2.fromOffset(12, 12),
 		Signed = true,
 		Tooltip = 'Measures how many hits you have landed compared to the target.'
@@ -14759,7 +14759,7 @@ run(function()
 							Size = UDim2.new(1, 89, 1, 52),
 							Position = UDim2.fromOffset(-48, -31),
 							BackgroundTransparency = 1,
-							Image = getvapeasset('catsix/assets/new/blur.png'),
+							Image = getvapeasset('kingvape/assets/new/blur.png'),
 							ScaleType = Enum.ScaleType.Slice,
 							SliceCenter = Rect.new(52, 31, 261, 502)
 						}),
@@ -15873,7 +15873,7 @@ run(function()
 		close.Position = UDim2.new(1, -35, 0, 9)
 		close.BackgroundColor3 = Color3.new(1, 1, 1)
 		close.BackgroundTransparency = 1
-		close.Image = getvapeasset('catsix/assets/new/close.png')
+		close.Image = getvapeasset('kingvape/assets/new/close.png')
 		close.ImageColor3 = color.Light(uipallet.Text, 0.2)
 		close.ImageTransparency = 0.5
 		close.AutoButtonColor = false
@@ -15987,7 +15987,7 @@ run(function()
 		searchicon.Size = UDim2.fromOffset(14, 14)
 		searchicon.Position = UDim2.new(1, -26, 0, 8)
 		searchicon.BackgroundTransparency = 1
-		searchicon.Image = getvapeasset('catsix/assets/new/search.png')
+		searchicon.Image = getvapeasset('kingvape/assets/new/search.png')
 		searchicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
 		searchicon.Parent = searchbkg
 		local children = Instance.new('ScrollingFrame')
@@ -16128,7 +16128,7 @@ run(function()
 		textbuttonicon.Position = UDim2.fromScale(0.5, 0.5)
 		textbuttonicon.AnchorPoint = Vector2.new(0.5, 0.5)
 		textbuttonicon.BackgroundTransparency = 1
-		textbuttonicon.Image = getvapeasset('catsix/assets/new/add.png')
+		textbuttonicon.Image = getvapeasset('kingvape/assets/new/add.png')
 		textbuttonicon.ImageColor3 = Color3.fromHSV(0.46, 0.96, 0.52)
 		textbuttonicon.Parent = textbutton
 		local childrenlist = Instance.new('Frame')
@@ -16221,7 +16221,7 @@ run(function()
 			close.Position = UDim2.new(1, -23, 0, 6)
 			close.BackgroundColor3 = Color3.new(1, 1, 1)
 			close.BackgroundTransparency = 1
-			close.Image = getvapeasset('catsix/assets/new/closemini.png')
+			close.Image = getvapeasset('kingvape/assets/new/closemini.png')
 			close.ImageColor3 = color.Light(uipallet.Text, 0.2)
 			close.ImageTransparency = 0.5
 			close.AutoButtonColor = false
@@ -24209,7 +24209,7 @@ run(function()
 	BedBreakEffect = vape.Legit:CreateModule({
 		Name = 'Bed Break Effect',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_bedbreakeffect.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_bedbreakeffect.png'),
 		Function = function(callback)
 			if callback then
 				BedBreakEffect:Clean(vapeEvents.BedwarsBedBreak.Event:Connect(function(data)
@@ -24244,7 +24244,7 @@ run(function()
 	vape.Legit:CreateModule({
 		Name = 'Clean Kit',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_cleankit.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_cleankit.png'),
 		Function = function(callback)
 			if callback then
 				old = bedwars.WindWalkerController.spawnOrb
@@ -24269,7 +24269,7 @@ run(function()
 	local Crosshair = vape.Legit:CreateModule({
 		Name = 'Crosshair',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_crosshair.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_crosshair.png'),
 		Function = function(callback)
 			if callback then
 				if not foundids then
@@ -24348,7 +24348,7 @@ run(function()
 	DamageIndicator = vape.Legit:CreateModule({
 		Name = 'Damage Indicator',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_damageindicator.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_damageindicator.png'),
 		Function = function(callback)
 			if callback then
 				oldvalues = table.clone(tab)
@@ -24439,7 +24439,7 @@ run(function()
 	FOV = vape.Legit:CreateModule({
 		Name = 'FOV',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_fov.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_fov.png'),
 		Function = function(callback)
 			if callback then
 				old = bedwars.FovController.setFOV
@@ -24473,7 +24473,7 @@ run(function()
 	vape.Legit:CreateModule({
 		Name = 'FPSUnlocker',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_fpsunlocker.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_fpsunlocker.png'),
 		Function = function(callback)
 			if cap then
 				setfpscap(callback and 9999 or cap)
@@ -24493,7 +24493,7 @@ run(function()
 	HitColor = vape.Legit:CreateModule({
 		Name = 'Hit Color',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_hitcolor.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_hitcolor.png'),
 		Function = function(callback)
 			if callback then
 				repeat
@@ -24530,7 +24530,7 @@ run(function()
 	vape.Legit:CreateModule({
 		Name = 'HitFix',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_hitfix.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_hitfix.png'),
 		Function = function(callback)
 			debug.setconstant(bedwars.SwordController.swingSwordAtMouse, 23, callback and 'raycast' or 'Raycast')
 			debug.setupvalue(bedwars.SwordController.swingSwordAtMouse, 4, callback and bedwars.QueryUtil or workspace)
@@ -24580,7 +24580,7 @@ run(function()
 	Interface = vape.Legit:CreateModule({
 		Name = 'Interface',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_interface.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_interface.png'),
 		Function = function(callback)
 			for i, v in (callback and new or old) do
 				for i2, v2 in v do
@@ -24743,7 +24743,7 @@ run(function()
 	KillEffect = vape.Legit:CreateModule({
 		Name = 'Kill Effect',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_killeffect.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_killeffect.png'),
 		Function = function(callback)
 			if callback then
 				for i, v in killeffects do
@@ -24813,7 +24813,7 @@ run(function()
 	Ping = vape.Legit:CreateModule({
 		Name = 'Ping',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_ping.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_ping.png'),
 		Function = function(callback)
 			if callback then
 				repeat
@@ -25070,7 +25070,7 @@ run(function()
 	PotionStatus = vape.Legit:CreateModule({
 		Name = 'Potion Status',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_potionstatus.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_potionstatus.png'),
 		Function = function(callback)
 			if callback then
 				repeat
@@ -25158,7 +25158,7 @@ run(function()
 	ReachDisplay = vape.Legit:CreateModule({
 		Name = 'Reach Display',
 		Category = 'HUD',
-		Icon = getvapeasset('catsix/assets/new/legit_reachdisplay.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_reachdisplay.png'),
 		Function = function(callback)
 			if callback then
 				repeat
@@ -25251,7 +25251,7 @@ run(function()
 	SongBeats = vape.Legit:CreateModule({
 		Name = 'Song Beats',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_songbeats.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_songbeats.png'),
 		Function = function(callback)
 			if callback then
 				songobj = Instance.new('Sound')
@@ -25331,7 +25331,7 @@ run(function()
 	SoundChanger = vape.Legit:CreateModule({
 		Name = 'SoundChanger',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_soundchanger.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_soundchanger.png'),
 		Function = function(callback)
 			if callback then
 				old = bedwars.AudioManager.playAudio
@@ -25408,7 +25408,7 @@ run(function()
 	UICleanup = vape.Legit:CreateModule({
 		Name = 'UI Cleanup',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_uicleanup.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_uicleanup.png'),
 		Function = function(callback)
 			for i, v in (callback and new or old) do
 				for i2, v2 in v do
@@ -25616,7 +25616,7 @@ run(function()
 	Viewmodel = vape.Legit:CreateModule({
 		Name = 'Viewmodel',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_viewmodel.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_viewmodel.png'),
 		Function = function(callback)
 			local viewmodel = gameCamera:FindFirstChild('Viewmodel')
 			if callback then
@@ -25792,7 +25792,7 @@ run(function()
 	WinEffect = vape.Legit:CreateModule({
 		Name = 'WinEffect',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_wineffect.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_wineffect.png'),
 		Function = function(callback)
 			if callback then
 				WinEffect:Clean(vapeEvents.MatchEndEvent.Event:Connect(function()

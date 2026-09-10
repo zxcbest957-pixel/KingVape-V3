@@ -1092,7 +1092,7 @@ run(function()
 	FixGUIs = vape.Legit:CreateModule({
 		Name = 'FixGUIs',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_fixguis.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_fixguis.png'),
 		Function = function(callback)
 			if callback then
 				local guis = {lplr.PlayerGui:FindFirstChild('Team_UpgradesV3', true), lplr.PlayerGui:FindFirstChild('ItemShopV3', true)}
@@ -1157,7 +1157,7 @@ run(function()
 	HideShield = vape.Legit:CreateModule({
 		Name = 'HideShield',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_hideshield.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_hideshield.png'),
 		Function = function(callback)
 			if callback then
 				HideShield:Clean(entitylib.Events.LocalAdded:Connect(localAdded))

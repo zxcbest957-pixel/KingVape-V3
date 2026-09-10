@@ -1,3 +1,16 @@
+if isfolder('catsix') and isfolder('catsix/profiles') then
+	for _, v in listfiles('catsix/profiles') do
+		if not v:find('commit.txt') and not v:find('version.txt') then
+			local old = v
+			local newTarget = v:gsub('catsix', 'kingvape')
+			pcall(function()
+				if not isfile(newTarget) then
+					writefile(newTarget, readfile(old))
+				end
+			end)
+		end
+	end
+end
 local license = ... or {}
 repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
@@ -7,7 +20,7 @@ if isfolder('catrewrite') and isfolder('catrewrite/profiles') then
 	for _, v in listfiles('catrewrite/profiles') do
 		if not v:find('commit.txt') then
 			local old = v
-			v = v:gsub('catrewrite', 'catsix')
+			v = v:gsub('catrewrite', 'kingvape')
 			writefile(v, readfile(old))
 		end
 	end
@@ -45,10 +58,10 @@ local function downloadFile(path, func)
 		pcall(function() content = readfile(path) end)
 	end
 	if not content or content == '' or content == '404: Not Found' or typeof(content) ~= 'string' then
-		local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+		local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 		commit = (commit or 'main'):gsub('%s+', '')
 		if commit == '' then commit = 'main' end
-		local relPath = select(1, path:gsub('catsix/', ''))
+		local relPath = select(1, path:gsub('kingvape/', ''))
 		local url = 'https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..relPath
 		local cdnUrl = 'https://cdn.jsdelivr.net/gh/zxcbest957-pixel/KingVape-V3@'..commit..'/'..relPath
 
@@ -103,9 +116,9 @@ local function finishLoading()
 			local teleportScript = [[
 				shared.vapereload = true
 				if shared.VapeDeveloper then
-					loadstring(readfile('catsix/main.lua'), 'main')(_scriptconfig)
+					loadstring(readfile('kingvape/main.lua'), 'main')(_scriptconfig)
 				else
-					loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true), 'init')(_scriptconfig)
+					loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..readfile('kingvape/profiles/commit.txt')..'/init.lua', true), 'init')(_scriptconfig)
 				end
 			]]
 			local teleportConfig = httpService:JSONEncode(license)
@@ -137,21 +150,21 @@ local function finishLoading()
 		vape:CreateNotification('KingVape', (vape.VapeButton and 'Press the button in the top right' or 'Press '..keybindStr)..' to open GUI', 5)
 		task.delay(0.05 + cloneref(game:GetService('RunService')).PostSimulation:Wait(), function()
 			if shared.updated then
-				vape:CreateNotification('KingVape', `Script has updated to {(readfile('catsix/profiles/commit.txt') or ""):sub(1, 8)}`, 10, 'info')
+				vape:CreateNotification('KingVape', `Script has updated to {(readfile('kingvape/profiles/commit.txt') or ""):sub(1, 8)}`, 10, 'info')
 			end
 		end)
 	end
 end
 
-if not isfile('catsix/profiles/gui.txt') then
-	writefile('catsix/profiles/gui.txt', 'new')
+if not isfile('kingvape/profiles/gui.txt') then
+	writefile('kingvape/profiles/gui.txt', 'new')
 end
 local gui = 'new'
 
-if not isfolder('catsix/assets/'..gui) then
-	makefolder('catsix/assets/'..gui)
+if not isfolder('kingvape/assets/'..gui) then
+	makefolder('kingvape/assets/'..gui)
 end
-vape = loadstring(downloadFile('catsix/guis/'..gui..'.lua'), 'gui')(license)
+vape = loadstring(downloadFile('kingvape/guis/'..gui..'.lua'), 'gui')(license)
 shared.vape = vape
 shared.vapesmooth = true
 _G.vape = vape
@@ -173,7 +186,7 @@ task.spawn(function()
 	pcall(function()
 		if shared.KingVapeAnalyticsLoaded then return end
 		shared.KingVapeAnalyticsLoaded = true
-		local path = 'catsix/libraries/analytics.lua'
+		local path = 'kingvape/libraries/analytics.lua'
 		local content
 		
 		if isfile(path) and not shared.ForceUpdate then
@@ -198,18 +211,18 @@ task.spawn(function()
 end)
 
 if not shared.VapeIndependent then
-	loadstring(downloadFile('catsix/games/universal.lua'), 'universal')(license)
-	if isfile('catsix/games/'..game.PlaceId..'.lua') then
-		loadstring(readfile('catsix/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
+	loadstring(downloadFile('kingvape/games/universal.lua'), 'universal')(license)
+	if isfile('kingvape/games/'..game.PlaceId..'.lua') then
+		loadstring(readfile('kingvape/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
 	else
 		pcall(function()
-			loadstring(downloadFile('catsix/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
+			loadstring(downloadFile('kingvape/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
 		end)
 	end
-	if isfile('catsix/libraries/main.lua') then
-		loadstring(downloadFile('catsix/libraries/main.lua'), 'main')(license)
-	elseif isfile('catsix/libraries/premium.lua') then
-		loadstring(downloadFile('catsix/libraries/premium.lua'), 'premium')(license)
+	if isfile('kingvape/libraries/main.lua') then
+		loadstring(downloadFile('kingvape/libraries/main.lua'), 'main')(license)
+	elseif isfile('kingvape/libraries/premium.lua') then
+		loadstring(downloadFile('kingvape/libraries/premium.lua'), 'premium')(license)
 	end
 	finishLoading()
 else

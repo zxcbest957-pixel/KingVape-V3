@@ -14,9 +14,9 @@ end
 local function downloadFile(path, func)
 	if not isfile(path) then
 		local suc, res = pcall(function()
-			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+			local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
 			if not commit or commit == '' then commit = 'main' end
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('kingvape/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' then
 			error(res)
@@ -51,7 +51,7 @@ local prediction = vape.Libraries.prediction
 local targetinfo = vape.Libraries.targetinfo
 local sessioninfo = vape.Libraries.sessioninfo
 local getvapeasset = vape.Libraries.getvapeasset
-local drawingactor = loadstring(downloadFile('catsix/libraries/drawing.lua'), 'drawing')(...)
+local drawingactor = loadstring(downloadFile('kingvape/libraries/drawing.lua'), 'drawing')(...)
 local function notif(...)
 	return vape:CreateNotification(...)
 end
@@ -67,7 +67,7 @@ if not select(1, ...) and game.PlaceId == 5938036553 then
 
 		task.spawn(function()
 			repeat task.wait() until not shared.vape
-			local executionString = "loadfile('catsix/main.lua')("..drawingactor..")"
+			local executionString = "loadfile('kingvape/main.lua')("..drawingactor..")"
 			for i, v in shared do
 				if type(v) == 'string' then
 					executionString = string.format("shared.%s = '%s'", i, v)..'\n'..executionString
@@ -104,7 +104,7 @@ local function addBlur(parent)
 	blur.Size = UDim2.new(1, 89, 1, 52)
 	blur.Position = UDim2.fromOffset(-48, -31)
 	blur.BackgroundTransparency = 1
-	blur.Image = getvapeasset('catsix/assets/new/blur.png')
+	blur.Image = getvapeasset('kingvape/assets/new/blur.png')
 	blur.ScaleType = Enum.ScaleType.Slice
 	blur.SliceCenter = Rect.new(52, 31, 261, 502)
 	blur.Parent = parent
@@ -1561,7 +1561,7 @@ run(function()
 	BulletTracers = vape.Legit:CreateModule({
 		Name = 'BulletTracers',
 		Category = 'Game',
-		Icon = getvapeasset('catsix/assets/new/legit_bullettracers.png'),
+		Icon = getvapeasset('kingvape/assets/new/legit_bullettracers.png'),
 		Function = function(callback)
 			if callback then 
 				BulletTracers:Clean(hookEvent('SPAWN_FPV_SOL_BULLET', function(id, btype, origin, velocity)

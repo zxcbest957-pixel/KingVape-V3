@@ -1,25 +1,5 @@
 {
-    "added": [
-        "ChargeSpoof",
-        "MultiJump",
-        "AutoCollect",
-        "CollectableESP",
-        "AutoEnchant",
-        "AutoUpgrade",
-        "AutoBedDefense",
-        "EnemyBreakVisuals",
-        "ESPSplit",
-        "BlockBreakVisuals",
-        "AutoParry",
-        "SmartScaffold",
-        "AutoManager"
-    ],
-    "updated": [
-        "Nuker",
-        "AutoTool",
-        "Killaura",
-        "Block-In",
-        "TrapDisabler"
-    ],
+    "added": [],
+    "updated": [],
     "text": "[KINGVAPE - REFLASHED & UPDATED]\n\u001b[2;32m[+]\u001b[0m Reflashed Core: Whitelist and telemetry backdoors completely neutralized (immunity bypass, anti-crash, anti-remote uninject, no SelfReport)\n\u001b[2;32m[+]\u001b[0m Integrated EnemyBreakVisuals: real-time server block break & health visuals with pulse/shockwave\n\u001b[2;32m[+]\u001b[0m Integrated ESPSplit: generator resource analyzer with dropped item tracking, tier display & filters\n\u001b[2;32m[+]\u001b[0m Added ChargeSpoof (tells the server every swing was fully charged for instant max damage)\n\u001b[2;32m[+]\u001b[0m Added MultiJump (air jump bypasses without falling client penalties)\n\u001b[2;32m[+]\u001b[0m Added AutoCollect (remote collection of kit items, souls, alchemy items, coins, seeds)\n\u001b[2;32m[+]\u001b[0m Added CollectableESP (renders all kit collectables on map with distance)\n\u001b[2;32m[+]\u001b[0m Added AutoEnchant, AutoUpgrade, and AutoBedDefense automation\n\u001b[2;32m[+]\u001b[0m Added BlockBreakVisuals, AutoParry, SmartScaffold, and AutoManager\n\u001b[2;33m[!]\u001b[0m Reworked Nuker & TrapDisabler with optimized shortest-path algorithms"
 }

@@ -116,13 +116,14 @@ end)
 
 
 local currentVersion = (isfile('kingvape/profiles/version.txt') and readfile('kingvape/profiles/version.txt')) or ''
-local targetVersion = '3.0.6'
+local targetVersion = '3.0.7'
 local currentCommit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or ''
 if currentVersion ~= targetVersion or currentCommit ~= targetCommit then
 	wipeFolder('kingvape/guis')
 	wipeFolder('kingvape/games')
 	wipeFolder('kingvape/libraries')
 	pcall(delfile, 'kingvape/main.lua')
+	pcall(delfile, 'kingvape/features.json')
 end
 pcall(writefile, 'kingvape/profiles/commit.txt', targetCommit)
 pcall(writefile, 'kingvape/profiles/version.txt', targetVersion)

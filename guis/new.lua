@@ -128,34 +128,7 @@ end
 
 local featureTags
 local function getFeatureTag(name)
-	if not featureTags then
-		featureTags = {}
-
-		if not isfile('kingvape/features.json') then
-			pcall(function()
-				pcall(function()
-		local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
-		if not commit or commit == '' then commit = 'main' end
-		writefile('kingvape/features.json', game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/features.json', true))
-	end)
-			end)
-		end
-
-		local features = loadJson('kingvape/features.json')
-		for i, v in {updated = 'updated', new = 'added'} do
-			local list = features and features[v]
-
-			if type(list) == 'table' then
-				for _, v2 in list do
-					if type(v2) == 'string' then
-						featureTags[v2] = i
-					end
-				end
-			end
-		end
-	end
-
-	return featureTags[name]
+	return nil
 end
 
 local color = {}
@@ -9473,6 +9446,9 @@ components = {
 		
 		for i, v in props.Tags do
 			v = v:upper()
+			if v == 'NEW' or v == 'UPDATED' or v == 'ADDED' then
+				continue
+			end
 			props.Tags[i] = v:lower()
 			local indicator = Instance.new('TextLabel')
 			indicator.BackgroundColor3 = Color3.new(1, 1, 1)

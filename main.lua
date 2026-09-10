@@ -16,11 +16,15 @@ end
 
 local vape
 local loadstring = function(...)
+	local str = ...
+	if typeof(str) ~= 'string' or str == '' then
+		return function() end
+	end
 	local res, err = loadstring(...)
 	if err and vape then
-		vape:CreateNotification('Vape', 'Failed to load : '..err, 30, 'alert')
+		vape:CreateNotification('KingVape', 'Failed to load : '..err, 30, 'alert')
 	end
-	return res
+	return res or function() end
 end
 local queue_on_teleport = queue_on_teleport or function() end
 local isfile = isfile or function(file)
@@ -40,21 +44,39 @@ local function downloadFile(path, func)
 	if isfile(path) then
 		pcall(function() content = readfile(path) end)
 	end
-	if not content or content == '' or content == '404: Not Found' then
-		local suc, res = pcall(function()
-			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
-			if not commit or commit == '' then commit = 'main' end
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
-		end)
-		if not suc or res == '404: Not Found' or not res or res == '' then
-			error(res or 'Failed to download '..tostring(path))
+	if not content or content == '' or content == '404: Not Found' or typeof(content) ~= 'string' then
+		local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
+		commit = (commit or 'main'):gsub('%s+', '')
+		if commit == '' then commit = 'main' end
+		local url = 'https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('catsix/', ''))
+
+		local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+		if httpRequest then
+			pcall(function()
+				local res = httpRequest({Url = url, Method = 'GET'})
+				if res and res.StatusCode == 200 and typeof(res.Body) == 'string' and res.Body ~= '' then
+					content = res.Body
+				end
+			end)
 		end
-		if path:find('.lua') then
-			res = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..res
+
+		if not content or typeof(content) ~= 'string' or content == '' then
+			pcall(function()
+				local res = game:HttpGet(url, true)
+				if typeof(res) == 'string' and res ~= '' and res ~= '404: Not Found' then
+					content = res
+				end
+			end)
 		end
-		pcall(writefile, path, res)
-		content = res
+
+		if content and typeof(content) == 'string' and content ~= '404: Not Found' and content ~= '' then
+			if path:find('%.lua') then
+				content = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..content
+			end
+			pcall(writefile, path, content)
+		end
 	end
+	if typeof(content) ~= 'string' then content = '' end
 	return (func or function() return content end)(path)
 end
 

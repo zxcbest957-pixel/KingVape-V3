@@ -13736,21 +13736,30 @@ components = {
 		return component
 	end,
 	TwoSlider = function(props, children, api)
+		props = typeof(props) == 'table' and props or {}
+		if typeof(api) ~= 'table' then
+			api = {Options = {}}
+		elseif typeof(api.Options) ~= 'table' then
+			api.Options = {}
+		end
+		local maxVal = (props.Max and props.Max ~= 0) and props.Max or 100
+		local minVal = props.Min or 0
 		local component = {
 			Decimal = props.Decimal or 1,
-			DefaultMin = props.DefaultMin or props.Min,
+			DefaultMin = props.DefaultMin or minVal,
 			DefaultMax = props.DefaultMax or 10,
 			Index = getTableSize(api.Options),
-			Max = props.Max,
-			Min = props.Min,
+			Max = maxVal,
+			Min = minVal,
 			Type = 'TwoSlider',
-			ValueMin = props.DefaultMin or props.Min,
+			ValueMin = props.DefaultMin or minVal,
 			ValueMax = props.DefaultMax or 10
 		}
 		
 		local twoslider = Instance.new('TextButton')
 		twoslider.AutoButtonColor = false
-		twoslider.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
+		local childBg = (typeof(children) == 'Instance' and children:IsA('GuiObject') and children.BackgroundColor3) or uipallet.Main
+		twoslider.BackgroundColor3 = color.Dark(childBg, props.Darker and 0.02 or 0)
 		twoslider.BorderSizePixel = 0
 		twoslider.Size = UDim2.new(1, 0, 0, 50)
 		twoslider.Text = ''
@@ -13763,7 +13772,7 @@ components = {
 		title.FontFace = uipallet.Font
 		title.Position = UDim2.fromOffset(10, 2)
 		title.Size = UDim2.fromOffset(60, 30)
-		title.Text = props.Name
+		title.Text = props.Name or 'TwoSlider'
 		title.TextColor3 = color.Dark(uipallet.Text, 0.16)
 		title.TextSize = 11
 		title.TextXAlignment = Enum.TextXAlignment.Left
@@ -13803,11 +13812,12 @@ components = {
 		holder.Position = UDim2.fromOffset(10, 37)
 		holder.Size = UDim2.new(1, -20, 0, 2)
 		holder.Parent = twoslider
+		local gc = vape.GUIColor or {Hue = 0.5, Sat = 1, Value = 1}
 		local fill = Instance.new('Frame')
-		fill.BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		fill.BackgroundColor3 = Color3.fromHSV(gc.Hue, gc.Sat, gc.Value)
 		fill.BorderSizePixel = 0
-		fill.Position = UDim2.fromScale(math.clamp(component.ValueMin / props.Max, 0.04, 0.96), 0)
-		fill.Size = UDim2.fromScale(math.clamp(math.clamp(component.ValueMax / props.Max, 0, 1), 0.04, 0.96) - fill.Position.X.Scale, 1)
+		fill.Position = UDim2.fromScale(math.clamp(component.ValueMin / maxVal, 0.04, 0.96), 0)
+		fill.Size = UDim2.fromScale(math.clamp(math.clamp(component.ValueMax / maxVal, 0, 1), 0.04, 0.96) - fill.Position.X.Scale, 1)
 		fill.Parent = holder
 		local knob = Instance.new('Frame')
 		knob.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -13820,15 +13830,15 @@ components = {
 		knobknob.AnchorPoint = Vector2.new(0.5, 0.5)
 		knobknob.BackgroundTransparency = 1
 		knobknob.Image = getvapeasset('kingvape/assets/new/range.png')
-		knobknob.ImageColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		knobknob.ImageColor3 = fill.BackgroundColor3
 		knobknob.Position = UDim2.fromScale(0.5, 0.5)
 		knobknob.Size = UDim2.fromOffset(9, 16)
 		knobknob.Parent = knob
 		local knobmax = knob:Clone()
 		knobmax.Position = UDim2.fromScale(1, 0.5)
 		knobmax.Parent = fill
-		local knobmaxknob = knobmax.ImageLabel
-		knobmaxknob.Rotation = 180
+		local knobmaxknob = knobmax:FindFirstChildOfClass('ImageLabel') or knobmax.ImageLabel
+		if knobmaxknob then knobmaxknob.Rotation = 180 end
 		local arrow = Instance.new('ImageLabel')
 		arrow.BackgroundTransparency = 1
 		arrow.Image = getvapeasset('kingvape/assets/new/rangeindicator.png')
@@ -13843,7 +13853,7 @@ components = {
 		function component:Color(hue, sat, val, isRainbow)
 			fill.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
 			knobknob.ImageColor3 = fill.BackgroundColor3
-			knobmaxknob.ImageColor3 = fill.BackgroundColor3
+			if knobmaxknob then knobmaxknob.ImageColor3 = fill.BackgroundColor3 end
 		end
 		
 		function component:GetRandomValue()
@@ -13854,6 +13864,7 @@ components = {
 			if vape.ThreadFix then
 				setthreadidentity(8)
 			end
+			if typeof(data) ~= 'table' then return end
 		
 			local valueMin = data.ValueMin or self.ValueMin
 			local valueMax = data.ValueMax or self.ValueMax
@@ -13868,7 +13879,9 @@ components = {
 		end
 		
 		function component:Save(data)
-			data[props.Name] = {
+			if typeof(data) ~= 'table' then return end
+			local optName = props.Name or ('TwoSlider'..tostring(self.Index))
+			data[optName] = {
 				ValueMin = self.ValueMin,
 				ValueMax = self.ValueMax
 			}
@@ -13883,10 +13896,10 @@ components = {
 			maxvalue.Text = self.ValueMax
 			minvalue.Text = self.ValueMin
 		
-			local size = math.clamp(math.clamp(self.ValueMin / props.Max, 0, 1), 0.04, 0.96)
+			local size = math.clamp(math.clamp(self.ValueMin / maxVal, 0, 1), 0.04, 0.96)
 			tween:Tween(fill, TweenInfo.new(0.1), {
 				Position = UDim2.fromScale(size, 0),
-				Size = UDim2.fromScale(math.clamp(math.clamp(self.ValueMax / props.Max, 0.04, 0.96) - size, 0, 1), 1)
+				Size = UDim2.fromScale(math.clamp(math.clamp(self.ValueMax / maxVal, 0.04, 0.96) - size, 0, 1), 1)
 			})
 		
 			vape:QueueSave()
@@ -13905,15 +13918,19 @@ components = {
 		end)
 		
 		knobmax.MouseEnter:Connect(function()
-			tween:Tween(knobmaxknob, uipallet.Tween, {
-				Size = UDim2.fromOffset(11, 18)
-			})
+			if knobmaxknob then
+				tween:Tween(knobmaxknob, uipallet.Tween, {
+					Size = UDim2.fromOffset(11, 18)
+				})
+			end
 		end)
 		
 		knobmax.MouseLeave:Connect(function()
-			tween:Tween(knobmaxknob, uipallet.Tween, {
-				Size = UDim2.fromOffset(9, 16)
-			})
+			if knobmaxknob then
+				tween:Tween(knobmaxknob, uipallet.Tween, {
+					Size = UDim2.fromOffset(9, 16)
+				})
+			end
 		end)
 		
 		twoslider.InputBegan:Connect(function(input)
@@ -13921,9 +13938,10 @@ components = {
 				setthreadidentity(8)
 			end
 		
+			local curScale = (scale and scale.Scale) or 1
 			if
 				(input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch)
-				and (input.Position.Y - twoslider.AbsolutePosition.Y) > (20 * scale.Scale)
+				and (input.Position.Y - twoslider.AbsolutePosition.Y) > (20 * curScale)
 			then
 				local maxCheck = (input.Position.X - knobmax.AbsolutePosition.X) > -10
 				local newPosition = math.clamp((input.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1)
@@ -13935,9 +13953,9 @@ components = {
 					end
 		
 					if newInput.UserInputType == (input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
-						local newPosition = math.clamp((newInput.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1)
-						component:SetValue(maxCheck, math.floor((props.Min + (props.Max - props.Min) * newPosition) * props.Decimal) / props.Decimal, newPosition)
-					end
+						local newPos = math.clamp((newInput.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1)
+						component:SetValue(maxCheck, math.floor((minVal + (maxVal - minVal) * newPos) * props.Decimal) / props.Decimal, newPos)
+				end
 				end)
 		
 				releaseConnection = input.Changed:Connect(function()
@@ -13947,7 +13965,7 @@ components = {
 					end
 				end)
 		
-				component:SetValue(maxCheck, math.floor((props.Min + (props.Max - props.Min) * newPosition) * props.Decimal) / props.Decimal, newPosition)
+				component:SetValue(maxCheck, math.floor((minVal + (maxVal - minVal) * newPosition) * props.Decimal) / props.Decimal, newPosition)
 			end
 		end)
 		
@@ -13983,7 +14001,13 @@ components = {
 			end
 		end)
 		
-		api.Options[props.Name] = component
+		local optName = props.Name or ('TwoSlider'..tostring(component.Index))
+		if typeof(api) == 'table' then
+			if typeof(api.Options) ~= 'table' then
+				api.Options = {}
+			end
+			api.Options[optName] = component
+		end
 		
 		return component
 	end,

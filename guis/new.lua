@@ -11394,7 +11394,7 @@ components = {
 		
 			task.spawn(function()
 				local res = request({
-					Url = 'https://api.catvape.dev/configs/like',
+					Url = '',
 					Method = 'POST',
 					Headers = {
 						['Content-Type'] = 'application/json'
@@ -11686,7 +11686,7 @@ components = {
 			showSkeletons()
 		
 			local res = request({
-				Url = 'https://api.catvape.dev/configs/get',
+				Url = '',
 				Method = 'POST',
 				Headers = {
 					['Content-Type'] = 'application/json'
@@ -12008,7 +12008,7 @@ components = {
 			vape:CreateNotification('Cat', 'Publishing profile', 5, 'info')
 		
 			local res = request({
-				Url = 'https://api.catvape.dev/configs/set',
+				Url = '',
 				Method = 'POST',
 				Headers = {
 					['Content-Type'] = 'application/json'
@@ -12084,7 +12084,7 @@ components = {
 		
 			showPanel(nil)
 			local res = request({
-				Url = 'https://api.catvape.dev/configs/delete',
+				Url = '',
 				Method = 'POST',
 				Headers = {
 					['Content-Type'] = 'application/json'
@@ -12151,7 +12151,7 @@ components = {
 			vape:CreateNotification('Cat', `Updating "{entry.Name}"`, 5, 'info')
 		
 			local res = request({
-				Url = 'https://api.catvape.dev/configs/set',
+				Url = '',
 				Method = 'POST',
 				Headers = {
 					['Content-Type'] = 'application/json'

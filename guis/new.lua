@@ -1689,15 +1689,7 @@ function vape:LoadGUI()
 	clickgui.Visible = false
 	clickgui.Parent = scaledgui
 	local scarcitybanner = Instance.new('TextLabel')
-	scarcitybanner.BackgroundTransparency = 1
-	scarcitybanner.FontFace = uipallet.Font
-	scarcitybanner.Position = UDim2.fromScale(0, 0.8)
-	scarcitybanner.Size = UDim2.fromScale(1, 0.022)
-	scarcitybanner.Text = 'Thank you for choosing KingVape'
-	scarcitybanner.TextColor3 = Color3.new(1, 1, 1)
-	scarcitybanner.TextScaled = true
-	scarcitybanner.TextStrokeTransparency = 0.5
-	scarcitybanner.Parent = clickgui
+	scarcitybanner.Visible = false
 	local modal = Instance.new('TextButton')
 	modal.BackgroundTransparency = 1
 	modal.Modal = true
@@ -1901,6 +1893,9 @@ function vape:LoadGUI()
 		Position = UDim2.fromOffset(850, 465),
 		NoButton = true
 	})
+	if vape.Categories.Favorites and vape.Categories.Favorites.Object then
+		vape.Categories.Favorites.Object.Visible = false
+	end
 	vape.Categories.Favorites.Paint = vape.PaintFavorites
 	
 	--[[
@@ -8572,6 +8567,7 @@ components = {
 		favorite.Position = UDim2.fromOffset(186, 8)
 		favorite.Size = UDim2.fromOffset(22, 26)
 		favorite.Text = ''
+		favorite.Visible = false
 		favorite.Parent = settingspane
 		addTooltip(favorite, 'Add module to favorites')
 		local favoriteicon = Instance.new('ImageLabel')
@@ -9198,7 +9194,7 @@ components = {
 		
 		local tabx = 25
 		
-		for _, v in {'Favorite', 'All', 'HUD', 'Game'} do
+		for _, v in {'All', 'HUD', 'Game'} do
 			local tab = Instance.new('TextButton')
 			tab.AutoButtonColor = false
 			tab.BackgroundTransparency = 1
@@ -9261,7 +9257,7 @@ components = {
 				shown += v.Object.Visible and 1 or 0
 			end
 		
-			empty.Visible = shown == 0 and self.Group == 'Favorite'
+			empty.Visible = shown == 0
 		end
 		
 		local function visibleCheck()
@@ -9465,7 +9461,7 @@ components = {
 		local function updateIndicators()
 			local bind = component.Bind and component.Bind.Object
 			indicators.Position = UDim2.new(0, (bind and bind.Visible) and (179 - bind.Size.X.Offset) or 187, 0.5, 0)
-			favorite.Visible = component.Favorited or isHover or modulechildren.Visible
+			favorite.Visible = false
 		end
 		
 		props.Tags = props.Tags or {}
@@ -10237,6 +10233,7 @@ components = {
 		favorites.Name = 'Favorites'
 		favorites.Position = UDim2.new(1, -58, 0, 7)
 		favorites.Size = UDim2.fromOffset(24, 24)
+		favorites.Visible = false
 		favorites.Parent = bar
 		addCorner(favorites, UDim.new(1, 0))
 		addTooltip(favorites, 'Favorites')
@@ -10309,7 +10306,10 @@ components = {
 		
 		local function paintFavorites()
 			local category = vape.Categories.Favorites
-			favoritesicon.ImageColor3 = (category and category.Standalone) and vapecolors.Favorite or vapecolors.Icon
+			if category and category.Object then
+				category.Object.Visible = false
+			end
+			favorites.Visible = false
 		end
 		
 		vape.PaintFavorites = paintFavorites

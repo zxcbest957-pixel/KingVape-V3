@@ -219,11 +219,16 @@ if not shared.VapeIndependent then
 			loadstring(downloadFile('kingvape/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
 		end)
 	end
-	if isfile('kingvape/libraries/main.lua') then
-		loadstring(downloadFile('kingvape/libraries/main.lua'), 'main')(license)
-	elseif isfile('kingvape/libraries/premium.lua') then
-		loadstring(downloadFile('kingvape/libraries/premium.lua'), 'premium')(license)
-	end
+	pcall(function()
+		local mainLib = downloadFile('kingvape/libraries/main.lua')
+		if typeof(mainLib) == 'string' and mainLib ~= '' and mainLib ~= '404: Not Found' then
+			local fn = loadstring(mainLib, 'main')
+			if fn then fn(license) end
+		elseif isfile('kingvape/libraries/premium.lua') then
+			local fn = loadstring(readfile('kingvape/libraries/premium.lua'), 'premium')
+			if fn then fn(license) end
+		end
+	end)
 	finishLoading()
 else
 	vape.Init = finishLoading

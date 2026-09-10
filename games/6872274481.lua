@@ -2147,8 +2147,6 @@ run(function()
 
 				if #shown > 0 and not notified then
 					notified = true
-					local meta = bedwars.BedwarsKitMeta[kit]
-					notif('Kits', `This script supports the {(meta and meta.name or kit):lower()} kit!\nModules: {table.concat(shown, ', ')}`, 20, 'info')
 				end
 			end
 			task.wait(1)

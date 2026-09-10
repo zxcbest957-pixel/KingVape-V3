@@ -391,7 +391,9 @@ do
 			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
 			commit = (commit or 'main'):gsub('%s+', '')
 			if commit == '' then commit = 'main' end
-			local url = 'https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('catsix/', ''))
+			local relPath = select(1, path:gsub('catsix/', ''))
+		local url = 'https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..relPath
+		local cdnUrl = 'https://cdn.jsdelivr.net/gh/zxcbest957-pixel/KingVape-V3@'..commit..'/'..relPath
 
 			local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 			if httpRequest then

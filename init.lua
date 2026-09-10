@@ -71,13 +71,17 @@ for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 
 	end
 end
 
+local currentVersion = (isfile('catsix/profiles/version.txt') and readfile('catsix/profiles/version.txt')) or ''
+local targetVersion = '3.0.1'
 local currentCommit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or ''
-if currentCommit ~= targetCommit then
+if currentVersion ~= targetVersion or currentCommit ~= targetCommit then
 	wipeFolder('catsix/guis')
 	wipeFolder('catsix/games')
 	wipeFolder('catsix/libraries')
+	pcall(delfile, 'catsix/main.lua')
 end
 pcall(writefile, 'catsix/profiles/commit.txt', targetCommit)
+pcall(writefile, 'catsix/profiles/version.txt', targetVersion)
 
 if shared.ForceUpdate or shared.vapereload then
 	wipeFolder('catsix/guis')

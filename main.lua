@@ -92,7 +92,15 @@ local function finishLoading()
 	end))
 
 	if not shared.vapereload then
-		vape:CreateNotification('KingVape', (vape.VapeButton and 'Press the button in the top right' or 'Press '..table.concat(vape.Keybind, ' + '):upper())..' to open GUI', 5)
+		local keybindStr = 'RIGHTSHIFT'
+		if type(vape.Keybind) == 'table' and #vape.Keybind > 0 then
+			keybindStr = table.concat(vape.Keybind, ' + '):upper()
+		elseif vape.GUIBind and type(vape.GUIBind.Keys) == 'table' and #vape.GUIBind.Keys > 0 then
+			keybindStr = table.concat(vape.GUIBind.Keys, ' + '):upper()
+		elseif type(vape.Keybind) == 'string' and vape.Keybind ~= '' then
+			keybindStr = vape.Keybind:upper()
+		end
+		vape:CreateNotification('KingVape', (vape.VapeButton and 'Press the button in the top right' or 'Press '..keybindStr)..' to open GUI', 5)
 		task.delay(0.05 + cloneref(game:GetService('RunService')).PostSimulation:Wait(), function()
 			if shared.updated then
 				vape:CreateNotification('KingVape', `Script has updated to {(readfile('catsix/profiles/commit.txt') or ""):sub(1, 8)}`, 10, 'info')

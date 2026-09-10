@@ -9,6 +9,7 @@ local vape = {
 		Value = 0.52
 	},
 	HeldKeybinds = {},
+	Keybind = {'RightShift'},
 	Loaded = false,
 	Libraries = {},
 	Modules = {},
@@ -8490,7 +8491,7 @@ components = {
 		shadow.ClipsDescendants = true
 		shadow.Visible = false
 		shadow.Text = ''
-		shadow.Parent = api.Window
+		shadow.Parent = (api and api.Window) or scaledgui or gui
 		addCorner(shadow)
 		local settingspane = Instance.new('TextButton')
 		settingspane.Size = UDim2.new(0, 220, 1, 0)
@@ -8559,7 +8560,7 @@ components = {
 			modulechildren.Visible = false
 			modulechildren.Parent = scaledgui
 			component.Children = modulechildren
-			addDragHandler(modulechildren, api.Window)
+			addDragHandler(modulechildren, api and api.Window)
 			addGlass(modulechildren)
 			objectstroke = Instance.new('UIStroke')
 			objectstroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
@@ -8685,7 +8686,7 @@ components = {
 			end)
 		
 			modulechildren.InputBegan:Connect(function(input)
-				if not api.Window.Visible then return end
+				if not (api and api.Window and api.Window.Visible) then return end
 		
 				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 					component:Select(true)
@@ -8693,7 +8694,7 @@ components = {
 			end)
 		
 			modulechildren.MouseEnter:Connect(function()
-				if api.Window.Visible and not editor.Visible then
+				if api and api.Window and api.Window.Visible and not editor.Visible then
 					objectstroke.Thickness = 2
 				end
 			end)
@@ -8909,11 +8910,13 @@ components = {
 			end
 		end
 		
-		table.insert(connections, api.Window:GetPropertyChangedSignal('Visible'):Connect(function()
-			if not api.Window.Visible then
-				component:Select(false)
-			end
-		end))
+		if api and api.Window then
+			table.insert(connections, api.Window:GetPropertyChangedSignal('Visible'):Connect(function()
+				if not api.Window.Visible then
+					component:Select(false)
+				end
+			end))
+		end
 		
 		back.MouseEnter:Connect(function()
 			back.ImageColor3 = uipallet.Text
@@ -9201,6 +9204,7 @@ components = {
 		end
 		
 		function component:CreateModule(props)
+			component.Window = component.Window or window
 			return components.LegitModule(props, children, component)
 		end
 		
@@ -12397,13 +12401,15 @@ components = {
 			})
 		end)
 		
-		vape:Clean(vape.Legit.Window:GetPropertyChangedSignal('Visible'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		if vape.Legit and vape.Legit.Window then
+			vape:Clean(vape.Legit.Window:GetPropertyChangedSignal('Visible'):Connect(function()
+				if vape.ThreadFix then
+					setthreadidentity(8)
+				end
 		
-			legitreturn.Visible = vape.Legit.Window.Visible
-		end))
+				legitreturn.Visible = vape.Legit.Window.Visible
+			end))
+		end
 		
 		windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
 			if vape.ThreadFix then
@@ -13286,7 +13292,7 @@ components = {
 		textlistwindow.Size = UDim2.fromOffset(220, 85)
 		textlistwindow.Text = ''
 		textlistwindow.Visible = false
-		textlistwindow.Parent = api.Legit and vape.Legit.Window or clickgui
+		textlistwindow.Parent = (api and api.Legit and vape.Legit and vape.Legit.Window) or clickgui
 		component.Window = textlistwindow
 		addBlur(textlistwindow)
 		addCorner(textlistwindow)
@@ -13554,7 +13560,7 @@ components = {
 				setthreadidentity(8)
 			end
 		
-			local actualPosition = (textlist.AbsolutePosition - (api.Legit and vape.Legit.Window.AbsolutePosition or -guiService:GetGuiInset())) / scale.Scale
+			local actualPosition = (textlist.AbsolutePosition - ((api and api.Legit and vape.Legit and vape.Legit.Window) and vape.Legit.Window.AbsolutePosition or -guiService:GetGuiInset())) / scale.Scale
 			textlistwindow.Position = UDim2.fromOffset(actualPosition.X + 223, actualPosition.Y)
 		end)
 		

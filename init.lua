@@ -72,7 +72,7 @@ for _, folder in {'catsix', 'catsix/games', 'catsix/profiles', 'catsix/assets', 
 end
 
 local currentVersion = (isfile('catsix/profiles/version.txt') and readfile('catsix/profiles/version.txt')) or ''
-local targetVersion = '3.0.1'
+local targetVersion = '3.0.2'
 local currentCommit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or ''
 if currentVersion ~= targetVersion or currentCommit ~= targetCommit then
 	wipeFolder('catsix/guis')

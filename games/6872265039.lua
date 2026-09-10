@@ -2,7 +2,7 @@ if table.find({'Solara', 'Xeno'}, ({identifyexecutor()})[1]) then return false e
 local buildclock = os.clock()
 local run = function(func)
 	xpcall(func, function(err)
-		warn(`[catvape] {err}\n{debug.traceback(nil, 2)}`)
+		warn(`[KingVape] {err}\n{debug.traceback(nil, 2)}`)
 		if shared.vape then
 			shared.vape:CreateNotification('Vape', `A module failed to load : {err}`, 15, 'alert')
 		end

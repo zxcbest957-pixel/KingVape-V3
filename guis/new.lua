@@ -104,7 +104,7 @@ local function attemptLoad(obj, data, name)
 	local success, err = pcall(obj.Load, obj, data)
 	if not success then
 		loadfailures += 1
-		warn('[catvape] failed to load '..name..': '..tostring(err))
+		warn('[KingVape] failed to load '..name..': '..tostring(err))
 	end
 end
 
@@ -1565,7 +1565,7 @@ local function deferLoad(callback)
 		local failures = loadfailures
 		local success, err = pcall(callback)
 		if not success then
-			warn('[catvape] failed to run deferred load: '..tostring(err))
+			warn('[KingVape] failed to run deferred load: '..tostring(err))
 		end
 
 		success, err = pcall(function()
@@ -1587,7 +1587,7 @@ local function deferLoad(callback)
 		end)
 
 		if not success then
-			warn('[catvape] failed to load deferred settings: '..tostring(err))
+			warn('[KingVape] failed to load deferred settings: '..tostring(err))
 		end
 
 		if loadfailures > failures then
@@ -7468,20 +7468,24 @@ components = {
 		addBlur(window)
 		addCorner(window)
 		addDragHandler(window)
-		local logo = Instance.new('ImageLabel')
+		local logo = Instance.new('TextLabel')
 		logo.BackgroundTransparency = 1
-		logo.Image = getvapeasset('catsix/assets/new/vapelogomini.png')
-		logo.ImageColor3 = select(3, uipallet.Main:ToHSV()) > 0.5 and uipallet.Text or Color3.new(1, 1, 1)
+		logo.Font = Enum.Font.FredokaOne
+		logo.RichText = true
+		logo.Text = '<font color="#FF3366">K</font><font color="#FF6633">I</font><font color="#FFCC00">N</font><font color="#34C759">G</font><font color="#00C7BE">V</font><font color="#30B0C7">A</font><font color="#5856D6">P</font><font color="#AF52DE">E</font>'
+		logo.TextSize = 25
+		logo.TextXAlignment = Enum.TextXAlignment.Left
 		logo.Name = 'VapeLogo'
-		logo.Position = UDim2.fromOffset(12, 11)
-		logo.Size = UDim2.fromOffset(55, 16)
+		logo.Position = UDim2.fromOffset(12, 4)
+		logo.Size = UDim2.fromOffset(200, 30)
 		logo.Parent = window
 		local v4logo = Instance.new('ImageLabel')
 		v4logo.BackgroundTransparency = 1
-		v4logo.Image = getvapeasset('catsix/assets/new/v4mini.png')
+		v4logo.ImageTransparency = 1
+		v4logo.Visible = false
 		v4logo.Name = 'V4Logo'
 		v4logo.Position = UDim2.new(1, -1, 0, 0)
-		v4logo.Size = UDim2.fromOffset(23, 16)
+		v4logo.Size = UDim2.fromOffset(0, 0)
 		v4logo.Parent = logo
 		local children = Instance.new('Frame')
 		children.BackgroundTransparency = 1
@@ -8898,7 +8902,7 @@ components = {
 				end, self.Enabled)
 		
 				if not success then
-					warn(`[catvape] {props.Name} errored turning {self.Enabled and 'on' or 'off'} : {err}`)
+					warn(`[KingVape] {props.Name} errored turning {self.Enabled and 'on' or 'off'} : {err}`)
 					vape:CreateNotification('Vape', `{props.Name} errored, check your console`, 10, 'alert')
 				end
 			end)
@@ -9731,7 +9735,7 @@ components = {
 				end, self.Enabled)
 		
 				if not success then
-					warn(`[catvape] {props.Name} errored turning {self.Enabled and 'on' or 'off'} : {err}`)
+					warn(`[KingVape] {props.Name} errored turning {self.Enabled and 'on' or 'off'} : {err}`)
 					vape:CreateNotification('Vape', `{props.Name} errored, check your console`, 10, 'alert')
 				end
 			end)
@@ -11417,7 +11421,7 @@ components = {
 					entry.likes = math.max(likes + ((entry.liked and 1 or 0) - (liked and 1 or 0)), 0)
 				else
 					entry.liked, entry.likes = liked, likes
-					vape:CreateNotification('Cat', `Failed to {wanted and 'like' or 'unlike'} "{entry.Name}"`, 8, 'warning')
+					vape:CreateNotification('KingVape', `Failed to {wanted and 'like' or 'unlike'} "{entry.Name}"`, 8, 'warning')
 				end
 		
 				if selected == entry then
@@ -11999,17 +12003,17 @@ components = {
 		
 		confirm.MouseButton1Click:Connect(function()
 			if namebox.Text == '' then
-				vape:CreateNotification('Cat', 'No profile name provided', 5, 'warning')
+				vape:CreateNotification('KingVape', 'No profile name provided', 5, 'warning')
 				return
 			end
 		
 			if not uploadsource then
-				vape:CreateNotification('Cat', 'That profile has no saved settings yet', 8, 'warning')
+				vape:CreateNotification('KingVape', 'That profile has no saved settings yet', 8, 'warning')
 				return
 			end
 		
 			showPanel(nil)
-			vape:CreateNotification('Cat', 'Publishing profile', 5, 'info')
+			vape:CreateNotification('KingVape', 'Publishing profile', 5, 'info')
 		
 			local res = request({
 				Url = '',
@@ -12027,10 +12031,10 @@ components = {
 			})
 		
 			if res and res.Body then
-				vape:CreateNotification('Cat', `Published "{namebox.Text}"`, 10, 'info')
+				vape:CreateNotification('KingVape', `Published "{namebox.Text}"`, 10, 'info')
 				refresh()
 			else
-				vape:CreateNotification('Cat', 'Failed to publish profile', 10, 'warning')
+				vape:CreateNotification('KingVape', 'Failed to publish profile', 10, 'warning')
 			end
 		end)
 		
@@ -12052,7 +12056,7 @@ components = {
 			local entry = selected
 			local content = entry.config or (entry.metadata and entry.metadata.content)
 			if not content then
-				vape:CreateNotification('Cat', `Could not fetch "{entry.Name}"`, 8, 'warning')
+				vape:CreateNotification('KingVape', `Could not fetch "{entry.Name}"`, 8, 'warning')
 				return
 			end
 		
@@ -12067,7 +12071,7 @@ components = {
 			vape:Load(true, profile)
 			profiles:ChangeValue()
 			showPanel(nil)
-			vape:CreateNotification('Cat', `Downloaded "{entry.Name}" by {entry.Author}`, 8, 'info')
+			vape:CreateNotification('KingVape', `Downloaded "{entry.Name}" by {entry.Author}`, 8, 'info')
 		end)
 		
 		editorcancel.MouseButton1Click:Connect(function()
@@ -12101,10 +12105,10 @@ components = {
 			local body = res and res.Body and httpService:JSONDecode(httpService:JSONDecode(res.Body).response)
 		
 			if body and body.success then
-				vape:CreateNotification('Cat', `Removed "{entry.Name}"`, 8, 'info')
+				vape:CreateNotification('KingVape', `Removed "{entry.Name}"`, 8, 'info')
 				refresh()
 			else
-				vape:CreateNotification('Cat', `Failed to remove "{entry.Name}"`, 8, 'warning')
+				vape:CreateNotification('KingVape', `Failed to remove "{entry.Name}"`, 8, 'warning')
 			end
 		end)
 		
@@ -12147,12 +12151,12 @@ components = {
 			local content = editorsource or entry.config
 		
 			if not content then
-				vape:CreateNotification('Cat', `Could not read the settings for "{entry.Name}"`, 8, 'warning')
+				vape:CreateNotification('KingVape', `Could not read the settings for "{entry.Name}"`, 8, 'warning')
 				return
 			end
 		
 			showPanel(nil)
-			vape:CreateNotification('Cat', `Updating "{entry.Name}"`, 5, 'info')
+			vape:CreateNotification('KingVape', `Updating "{entry.Name}"`, 5, 'info')
 		
 			local res = request({
 				Url = '',
@@ -12170,10 +12174,10 @@ components = {
 			})
 		
 			if res and res.Body then
-				vape:CreateNotification('Cat', `Updated "{entry.Name}"`, 10, 'info')
+				vape:CreateNotification('KingVape', `Updated "{entry.Name}"`, 10, 'info')
 				refresh()
 			else
-				vape:CreateNotification('Cat', `Failed to update "{entry.Name}"`, 10, 'warning')
+				vape:CreateNotification('KingVape', `Failed to update "{entry.Name}"`, 10, 'warning')
 			end
 		end)
 		

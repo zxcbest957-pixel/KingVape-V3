@@ -1208,7 +1208,7 @@ run(function()
 
 	local GlobalMiddleware = RemoteDefinitionConstruct and getupvalue(RemoteDefinitionConstruct.globalMiddleware[2], 1)
 	if canDebug and (not GlobalMiddleware or typeof(GlobalMiddleware) ~= 'table') then
-		notif('Cat', 'Failed to load ratelimits, report this to a developer.', 30, 'alert')
+		notif('KingVape', 'Failed to load ratelimits, report this to a developer.', 30, 'alert')
 	end
 
 	function RemoteHandler.Get(self, RemoteID)
@@ -1229,7 +1229,7 @@ run(function()
 		Remote.Remote = AttempedRemote
 
 		if not Success or not Remote.Remote then
-			notif('Cat', `Tried to Get remote {Remote.ID}, remote is invalid`, 15, 'alert')
+			notif('KingVape', `Tried to Get remote {Remote.ID}, remote is invalid`, 15, 'alert')
 			Remote.Remote = nil
 		end
 
@@ -3369,7 +3369,7 @@ run(function()
 							args[6] = newVelocity
 						elseif not success and shared.VapeDeveloper and tick() > lastWarn then
 							lastWarn = tick() + 5
-							warn('[catvape] silentaim solve failed: '..tostring(newVelocity))
+							warn('[KingVape] silentaim solve failed: '..tostring(newVelocity))
 						end
 						return namecall(self, table.unpack(args, 1, args.n))
 					end
@@ -24282,7 +24282,7 @@ run(function()
 	
 					if #foundids == 0 then
 						foundids = nil
-						return warn('[catvape] Crosshair failed to get constants')
+						return warn('[KingVape] Crosshair failed to get constants')
 					end
 				end
 	

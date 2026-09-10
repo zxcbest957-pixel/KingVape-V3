@@ -135,7 +135,7 @@ local function getFeatureTag(name)
 				pcall(function()
 		local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
 		if not commit or commit == '' then commit = 'main' end
-		writefile('catsix/features.json', game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/features.json', true))
+		writefile('catsix/features.json', game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/features.json', true))
 	end)
 			end)
 		end
@@ -385,7 +385,7 @@ do
 			local success, data = pcall(function()
 				local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
 			if not commit or commit == '' then commit = 'main' end
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
 			end)
 
 			if not success or data == '404: Not Found' then
@@ -1823,7 +1823,7 @@ function vape:LoadGUI()
 			else
 				local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
 				if not commit or commit == '' then commit = 'main' end
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/init.lua', true), 'init')(license)
+				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/init.lua', true), 'init')(license)
 			end
 		end,
 		Tooltip = 'This will set your profile to the default settings of Vape'
@@ -1968,7 +1968,7 @@ function vape:LoadGUI()
 			else
 				local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
 				if not commit or commit == '' then commit = 'main' end
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/init.lua', true), 'init')(license)
+				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/init.lua', true), 'init')(license)
 			end
 		end,
 		Tooltip = 'Reloads vape for debugging purposes'
@@ -2125,7 +2125,7 @@ function vape:LoadGUI()
 				else
 					local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
 				if not commit or commit == '' then commit = 'main' end
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/init.lua', true), 'init')(license)
+				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/init.lua', true), 'init')(license)
 				end
 			end
 		end,

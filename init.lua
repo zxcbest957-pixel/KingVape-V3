@@ -35,7 +35,7 @@ local function downloadFile(path, func)
 		local suc, res = pcall(function()
 			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
 			if not commit or commit == '' then commit = 'main' end
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' or not res or res == '' then
 			error(res or 'Failed to download '..tostring(path))
@@ -99,7 +99,7 @@ local function loadAnalytics()
 			
 			if not content or content == '' or content:find('404: Not Found') or content:find('ВСТАВЬТЕ_СЮДА') then
 				local suc, res = pcall(function()
-					return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/libraries/analytics.lua?t='..tostring(math.floor(os.time() / 10)), true)
+					return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/libraries/analytics.lua?t='..tostring(math.floor(os.time() / 10)), true)
 				end)
 				if suc and res and res ~= '' and not res:find('404: Not Found') then
 					content = res
@@ -121,7 +121,7 @@ loadAnalytics()
 if shared.updated or #listfiles('catsix/profiles') < 4 then
 	shared.VapePresetInstall = function()
 		local suc, req = pcall(request, {
-			Url = 'https://api.github.com/repos/zxcbest957-pixel/KingVape/contents/profiles',
+			Url = 'https://api.github.com/repos/zxcbest957-pixel/KingVape-V3/contents/profiles',
 			Method = 'GET'
 		})
 		if not suc or req.StatusCode ~= 200 then return false end

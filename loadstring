@@ -1,2 +1,2 @@
 pcall(delfolder, 'catsix')
-loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/init.lua', true))()
+loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/init.lua', true))()

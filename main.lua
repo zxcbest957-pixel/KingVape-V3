@@ -44,7 +44,7 @@ local function downloadFile(path, func)
 		local suc, res = pcall(function()
 			local commit = (isfile('catsix/profiles/commit.txt') and readfile('catsix/profiles/commit.txt')) or 'main'
 			if not commit or commit == '' then commit = 'main' end
-			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
+			return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..select(1, path:gsub('catsix/', '')), true)
 		end)
 		if not suc or res == '404: Not Found' or not res or res == '' then
 			error(res or 'Failed to download '..tostring(path))
@@ -71,7 +71,7 @@ local function finishLoading()
 				if shared.VapeDeveloper then
 					loadstring(readfile('catsix/main.lua'), 'main')(_scriptconfig)
 				else
-					loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true), 'init')(_scriptconfig)
+					loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..readfile('catsix/profiles/commit.txt')..'/init.lua', true), 'init')(_scriptconfig)
 				end
 			]]
 			local teleportConfig = httpService:JSONEncode(license)
@@ -140,7 +140,7 @@ task.spawn(function()
 		
 		if not content or content == '' or content:find('404: Not Found') or content:find('ВСТАВЬТЕ_СЮДА') then
 			local suc, res = pcall(function()
-				return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/libraries/analytics.lua?t='..tostring(math.floor(os.time() / 10)), true)
+				return game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/libraries/analytics.lua?t='..tostring(math.floor(os.time() / 10)), true)
 			end)
 			if suc and res and res ~= '' and not res:find('404: Not Found') then
 				content = res

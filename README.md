@@ -3,10 +3,10 @@
 # 👑 KingVape — Ultra Privacy & Security Edition
 ### *Next-Generation Bedwars & Universal Combat Suite with Absolute Privacy*
 
-[![Version](https://img.shields.io/badge/Version-v4.1.0_Private-blue?style=for-the-badge&logo=roblox&logoColor=white)](https://github.com/zxcbest957-pixel/KingVape)
-[![Privacy Protected](https://img.shields.io/badge/Privacy-100%25_No_Logs-success?style=for-the-badge&logo=shield&logoColor=white)](https://github.com/zxcbest957-pixel/KingVape)
-[![Telemetry](https://img.shields.io/badge/Telemetry-Disabled-red?style=for-the-badge&logo=ghostery&logoColor=white)](https://github.com/zxcbest957-pixel/KingVape)
-[![Execution](https://img.shields.io/badge/Backdoors-Removed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/zxcbest957-pixel/KingVape)
+[![Version](https://img.shields.io/badge/Version-v4.1.0_Private-blue?style=for-the-badge&logo=roblox&logoColor=white)](https://github.com/zxcbest957-pixel/KingVape-V3)
+[![Privacy Protected](https://img.shields.io/badge/Privacy-100%25_No_Logs-success?style=for-the-badge&logo=shield&logoColor=white)](https://github.com/zxcbest957-pixel/KingVape-V3)
+[![Telemetry](https://img.shields.io/badge/Telemetry-Disabled-red?style=for-the-badge&logo=ghostery&logoColor=white)](https://github.com/zxcbest957-pixel/KingVape-V3)
+[![Execution](https://img.shields.io/badge/Backdoors-Removed-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/zxcbest957-pixel/KingVape-V3)
 
 <p align="center">
   <b>Чистейшая, быстрая и полностью защищенная редакция Vape V4 / CatV6.</b><br>
@@ -57,7 +57,7 @@
 Для запуска используйте стандартный защищенный лоадер:
 
 ```lua
-loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape/main/init.lua'), 'init.lua')({})
+loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/init.lua'), 'init.lua')({})
 ```
 
 > [!TIP]

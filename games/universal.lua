@@ -420,104 +420,12 @@ run(function()
 	end
 
 	function whitelist:newchat(obj, plr, skip)
-		obj.PrefixText = self:tag(plr, true, true)..(obj.PrefixText or '')
-
-		if not skip and self:process(obj.Text, plr) then
-			obj.Visible = false
-		end
 	end
 
 	function whitelist:oldchat(func)
-		local msgtable, oldchat = debug.getupvalue(func, 3)
-		if typeof(msgtable) == 'table' and msgtable.CurrentChannel then
-			whitelist.oldchattable = msgtable
-		end
-
-		oldchat = hookfunction(func, function(data, ...)
-			local plr = playersService:GetPlayerByUserId(data.SpeakerUserId)
-			if plr then
-				data.ExtraData.Tags = data.ExtraData.Tags or {}
-				for _, v in self:tag(plr) do
-					table.insert(data.ExtraData.Tags, {TagText = v.text, TagColor = v.color})
-				end
-
-				if data.Message and self:process(data.Message, plr) then
-					data.Message = ''
-				end
-			end
-
-			return oldchat(data, ...)
-		end)
-
-		vape:Clean(function()
-			hookfunction(func, oldchat)
-		end)
 	end
 
 	function whitelist:hook()
-		if self.hooked then return end
-		self.hooked = true
-
-		if textChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-			if getcallbackvalue and restorefunction and hookfunction then
-				local old
-				task.spawn(function()
-					vape:Clean(function()
-					if old then
-						restorefunction(old)
-						old = nil
-					end
-				end)
-
-				repeat
-					local current = getcallbackvalue(textChatService, 'OnIncomingMessage')
-					if old ~= current and current then
-						if old then
-							restorefunction(old)
-						end
-
-						local hook
-						hook = hookfunction(current, function(...)
-							local msg = ...
-							local data = hook(...)
-							local plr = msg.TextSource and playersService:GetPlayerByUserId(msg.TextSource.UserId)
-							if plr then
-								if not (data and data:IsA('TextChatMessageProperties') and data.PrefixText ~= '') then
-									data = Instance.new('TextChatMessageProperties')
-									data.PrefixText = msg.PrefixText
-									data.Text = msg.Text
-								end
-
-								self:newchat(data, plr, msg.Status ~= Enum.TextChatMessageStatus.Success)
-							end
-
-							return data
-						end)
-
-						old = current
-					end
-
-					task.wait(0.1)
-				until vape.Loaded == nil
-			end)
-		end
-	elseif replicatedStorage:FindFirstChild('DefaultChatSystemChatEvents') then
-		pcall(function()
-			for _, v in getconnections(replicatedStorage.DefaultChatSystemChatEvents.OnNewMessage.OnClientEvent) do
-				if v.Function and table.find(debug.getconstants(v.Function), 'UpdateMessagePostedInChannel') then
-					whitelist:oldchat(v.Function)
-					break
-				end
-			end
-
-			for _, v in getconnections(replicatedStorage.DefaultChatSystemChatEvents.OnMessageDoneFiltering.OnClientEvent) do
-				if v.Function and table.find(debug.getconstants(v.Function), 'UpdateMessageFiltered') then
-					whitelist:oldchat(v.Function)
-					break
-				end
-			end
-		end)
-	end
 	end
 
 	function whitelist:announce(text)
@@ -529,13 +437,6 @@ run(function()
 	end
 
 	whitelist.commands = {}
-
-	task.spawn(function()
-		repeat
-			if whitelist:update(whitelist.loaded) then return end
-		task.wait(10)
-		until vape.Loaded == nil
-	end)
 
 	vape:Clean(function()
 		table.clear(whitelist.commands)

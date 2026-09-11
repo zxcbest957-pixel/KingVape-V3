@@ -3302,12 +3302,20 @@ function vape:LoadGUI()
 	
 		if not inputService:GetFocusedTextBox() and input.KeyCode ~= Enum.KeyCode.Unknown then
 			if vape.Binding then
-				if not vape.MultiKeybind.Enabled then
-					vape.HeldKeybinds = {input.KeyCode.Name}
+				if input.KeyCode.Name ~= 'LeftShift' then
+					if not vape.MultiKeybind.Enabled then
+						vape.HeldKeybinds = {input.KeyCode.Name}
+					end
+
+					local targetKeys = vape.Binding.Keys or vape.Binding.Bind
+					local unbind = input.KeyCode == Enum.KeyCode.Backspace
+						or input.KeyCode == Enum.KeyCode.Delete
+						or input.KeyCode == Enum.KeyCode.Escape
+						or (targetKeys and checkKeybinds(vape.HeldKeybinds, targetKeys, input.KeyCode.Name))
+
+					vape.Binding:SetBind(unbind and {} or vape.HeldKeybinds, true)
+					vape.Binding = nil
 				end
-	
-				vape.Binding:SetBind(vape.HeldKeybinds, true)
-				vape.Binding = nil
 			else
 				for _, bind in vape.ActiveBinds do
 					if bind.Hold and checkKeybinds(vape.HeldKeybinds, bind.Keys, input.KeyCode.Name) then
@@ -3873,6 +3881,27 @@ components = {
 			end
 		end)
 		
+		function component:StartBinding()
+			if vape.Binding then
+				if vape.Binding == component then
+					component:SetBind({}, true)
+					vape.Binding = nil
+				end
+		
+				return
+			end
+		
+			if cover then
+				coverlabel.Text = 'PRESS A KEY TO BIND'
+				cover.Size = UDim2.fromOffset(getfontbounds(coverlabel.Text, coverlabel.TextSize, coverlabel.FontFace).X + 20, 40)
+				cover.Visible = true
+			end
+		
+			component.Binding = true
+			icon.Image = getvapeasset('kingvape/assets/new/close.png')
+			vape.Binding = component
+		end
+
 		bind.MouseButton1Click:Connect(function()
 			if vape.Binding then
 				if vape.Binding == component then
@@ -3894,15 +3923,7 @@ components = {
 				return
 			end
 		
-			if cover then
-				coverlabel.Text = 'PRESS A KEY TO BIND'
-				cover.Size = UDim2.fromOffset(getfontbounds(coverlabel.Text, coverlabel.TextSize, coverlabel.FontFace).X + 20, 40)
-				cover.Visible = true
-			end
-		
-			component.Binding = true
-			icon.Image = getvapeasset('kingvape/assets/new/close.png')
-			vape.Binding = component
+			component:StartBinding()
 		end)
 		
 		if props.Module then
@@ -9796,6 +9817,11 @@ components = {
 				return
 			end
 		
+			if inputService:IsKeyDown(Enum.KeyCode.LeftShift) and component.Bind then
+				component.Bind:StartBinding()
+				return
+			end
+
 			component:Toggle()
 		end)
 		

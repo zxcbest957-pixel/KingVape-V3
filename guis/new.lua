@@ -3305,27 +3305,8 @@ function vape:LoadGUI()
 				if not vape.MultiKeybind.Enabled then
 					vape.HeldKeybinds = {input.KeyCode.Name}
 				end
-
-				local newKeys = table.clone(vape.HeldKeybinds)
-				if type(vape.Binding.Keys) == 'table' and #vape.Binding.Keys > 0 then
-					local same = #newKeys == #vape.Binding.Keys
-					if same then
-						for _, k in newKeys do
-							if not table.find(vape.Binding.Keys, k) then
-								same = false
-								break
-							end
-						end
-					elseif not vape.MultiKeybind.Enabled and #newKeys == 1 and table.find(vape.Binding.Keys, newKeys[1]) then
-						same = true
-					end
-
-					if same then
-						newKeys = {}
-					end
-				end
-
-				vape.Binding:SetBind(newKeys, true)
+	
+				vape.Binding:SetBind(vape.HeldKeybinds, true)
 				vape.Binding = nil
 			else
 				for _, bind in vape.ActiveBinds do

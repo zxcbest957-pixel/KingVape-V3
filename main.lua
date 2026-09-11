@@ -172,14 +172,15 @@ getgenv().used_init = true
 
 if hookmetamethod and not getgenv().run then
 	getgenv().run = true
-	local old; old = hookmetamethod(game, '__namecall', function(self, Remote, ...)
+	local old; old = hookmetamethod(game, '__namecall', newcclosure(function(...)
 		if not checkcaller() and getnamecallmethod() == 'FireServer' then
-			if typeof(Remote) == "Instance" and Remote.Name == 'TabFreezeAnticheat_ClientToServerReport' then
+			local self = ...
+			if typeof(self) == "Instance" and self.Name == 'TabFreezeAnticheat_ClientToServerReport' then
 				return
 			end
 		end
-		return old(self, Remote, ...)
-	end)
+		return old(...)
+	end))
 end
 
 task.spawn(function()

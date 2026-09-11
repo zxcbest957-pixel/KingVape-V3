@@ -927,6 +927,9 @@ run(function()
 						if res then
 							return unpack(res)
 						end
+						if setnamecallmethod then
+							setnamecallmethod(Method.Value)
+						end
 						return oldnamecall(self, unpack(args))
 					end)
 				end

@@ -3369,7 +3369,14 @@ run(function()
 							lastWarn = tick() + 5
 							warn('[KingVape] silentaim solve failed: '..tostring(newVelocity))
 						end
-						return namecall(self, table.unpack(args, 1, args.n))
+						if setnamecallmethod then
+							setnamecallmethod('InvokeServer')
+						end
+						local res = table.pack(pcall(namecall, self, table.unpack(args, 1, args.n)))
+						if res[1] then
+							return table.unpack(res, 2, res.n)
+						end
+						return self.InvokeServer(self, table.unpack(args, 1, args.n))
 					end
 					return namecall(...)
 				end))

@@ -3369,14 +3369,14 @@ run(function()
 							lastWarn = tick() + 5
 							warn('[KingVape] silentaim solve failed: '..tostring(newVelocity))
 						end
-						if setnamecallmethod then
-							setnamecallmethod('InvokeServer')
-						end
-						local res = table.pack(pcall(namecall, self, table.unpack(args, 1, args.n)))
+						local res = table.pack(pcall(self.InvokeServer, self, table.unpack(args, 1, args.n)))
 						if res[1] then
 							return table.unpack(res, 2, res.n)
 						end
-						return self.InvokeServer(self, table.unpack(args, 1, args.n))
+						if setnamecallmethod then
+							setnamecallmethod('InvokeServer')
+						end
+						return namecall(self, table.unpack(args, 1, args.n))
 					end
 					return namecall(...)
 				end))
@@ -13274,8 +13274,15 @@ run(function()
 	})
 	task.spawn(function()
 		repeat task.wait(1) until vape.Loaded or vape.Loaded == nil
-		if vape.Loaded and not StaffDetector.Enabled then
-			StaffDetector:Toggle()
+		if vape.Loaded then
+			local mod = StaffDetector or (vape.Modules and vape.Modules.StaffDetector)
+			if mod and typeof(mod) == 'table' and not mod.Enabled then
+				if typeof(mod.Toggle) == 'function' then
+					mod:Toggle()
+				elseif typeof(mod.ToggleButton) == 'function' then
+					mod:ToggleButton(true)
+				end
+			end
 		end
 	end)
 end)

@@ -3316,12 +3316,6 @@ function vape:LoadGUI()
 					vape.Binding:SetBind(unbind and {} or vape.HeldKeybinds, true)
 					vape.Binding = nil
 				end
-			else
-				for _, bind in vape.ActiveBinds do
-					if bind.Hold and checkKeybinds(vape.HeldKeybinds, bind.Keys, input.KeyCode.Name) then
-						bind.Triggered:Fire(false)
-					end
-				end
 			end
 		end
 	
@@ -3604,7 +3598,7 @@ end
 components = {
 	Bind = function(props, children, api)
 		local component = {
-			Hold = props.Hold or false,
+			Hold = false,
 			Keys = {},
 			Triggered = createSignal(),
 			Type = 'Bind'
@@ -3621,14 +3615,7 @@ components = {
 		bind.Visible = false
 		bind.Text = ''
 		addCorner(bind, UDim.new(0, 4))
-		addTooltip(bind, '', function()
-			local holdText = 'Bind functionality = '..(component.Hold and 'Enable while held' or 'Toggle')
-			if inputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-				holdText = "<font color='#FF5A5A'>"..holdText.."</font>"
-			end
-		
-			return 'Click to bind\nShift click to modify bind functionality\n'..holdText
-		end)
+		addTooltip(bind, 'Click to bind\nPress the same key, Backspace or Escape to unbind')
 		local icon = Instance.new('ImageLabel')
 		icon.BackgroundTransparency = 1
 		icon.Image = getvapeasset('kingvape/assets/new/bind.png')
@@ -3776,7 +3763,7 @@ components = {
 				setthreadidentity(8)
 			end
 		
-			self.Hold = data.Hold
+			self.Hold = false
 			self:SetBind(data.Keys)
 		
 			if data.Mobile then
@@ -3791,7 +3778,7 @@ components = {
 					X = self.Mobile.Position.X.Offset,
 					Y = self.Mobile.Position.Y.Offset
 				},
-				Hold = self.Hold
+				Hold = false
 			}
 		end
 		
@@ -3903,26 +3890,6 @@ components = {
 		end
 
 		bind.MouseButton1Click:Connect(function()
-			if vape.Binding then
-				if vape.Binding == component then
-					component:SetBind({}, true)
-					vape.Binding = nil
-				end
-		
-				return
-			end
-		
-			if props.Module and inputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-				component.Hold = not component.Hold
-				if vape.CurrentTooltip then
-					vape.CurrentTooltip()
-				end
-		
-				vape:QueueSave()
-		
-				return
-			end
-		
 			component:StartBinding()
 		end)
 		
@@ -9656,7 +9623,7 @@ components = {
 				self:SetFavorite(data.Favorited)
 			end
 		
-			if self.Enabled ~= ((data.Enabled or false) and not self.Bind.Hold) then
+			if self.Enabled ~= (data.Enabled or false) then
 				self:Toggle(true)
 			end
 		
@@ -9878,22 +9845,12 @@ components = {
 		
 		bind.Object:GetPropertyChangedSignal('Visible'):Connect(updateIndicators)
 		
-		bind.Triggered:Connect(function(isDown)
-			if bind.Hold then
-				if component.Enabled ~= isDown then
-					if vape.ToggleNotifications.Enabled then
-						vape:CreateNotification(props.Name, (not component.Enabled and "<font color='#00AA00'>Enabled</font>" or "<font color='#FF5555'>Disabled</font>"), 1.5, nil, props.Name)
-					end
-		
-					component:Toggle(true)
-				end
-			else
-				if vape.ToggleNotifications.Enabled then
-					vape:CreateNotification(props.Name, (not component.Enabled and "<font color='#00AA00'>Enabled</font>" or "<font color='#FF5555'>Disabled</font>"), 1.5, nil, props.Name)
-				end
-		
-				component:Toggle(true)
+		bind.Triggered:Connect(function()
+			if vape.ToggleNotifications.Enabled then
+				vape:CreateNotification(props.Name, (not component.Enabled and "<font color='#00AA00'>Enabled</font>" or "<font color='#FF5555'>Disabled</font>"), 1.5, nil, props.Name)
 			end
+
+			component:Toggle(true)
 		end)
 		
 		if inputService.TouchEnabled then

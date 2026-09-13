@@ -13571,10 +13571,8 @@ run(function()
 	local IgnoreLocal
 	local BreakOnly
 
-	local inMouseInfo = false
 	local oldGetMouseInfo
 	local oldHitBlock
-	local oldRaycast
 
 	local function getCharacterFilter()
 		local filter = {gameCamera}
@@ -13586,6 +13584,10 @@ run(function()
 		local charsFolder = workspace:FindFirstChild('Characters')
 		if charsFolder and (not IgnoreNPCs or IgnoreNPCs.Enabled) then
 			table.insert(filter, charsFolder)
+		end
+		local entitiesFolder = workspace:FindFirstChild('Entities')
+		if entitiesFolder and (not IgnoreNPCs or IgnoreNPCs.Enabled) then
+			table.insert(filter, entitiesFolder)
 		end
 		if not IgnorePlayers or IgnorePlayers.Enabled then
 			for _, p in playersService:GetPlayers() do
@@ -13642,6 +13644,22 @@ run(function()
 		end)
 	end
 
+	pcall(function()
+		if hookmetamethod then
+			local oldNamecall
+			oldNamecall = hookmetamethod(game, '__namecall', function(self, ...)
+				local method = getnamecallmethod()
+				if BreakThrough and BreakThrough.Enabled and method == 'Raycast' and self == workspace then
+					local params = select(3, ...)
+					if typeof(params) == 'RaycastParams' then
+						applyRayFilter(params)
+					end
+				end
+				return oldNamecall(self, ...)
+			end)
+		end
+	end)
+
 	BreakThrough = vape.Categories.World:CreateModule({
 		Name = 'BreakThrough',
 		Function = function(callback)
@@ -13649,13 +13667,17 @@ run(function()
 				if bedwars.BlockSelector and bedwars.BlockSelector.getMouseInfo then
 					oldGetMouseInfo = bedwars.BlockSelector.getMouseInfo
 					bedwars.BlockSelector.getMouseInfo = function(self, mode, customRay, ...)
-						local prev = inMouseInfo
 						if BreakThrough.Enabled and (not BreakOnly or not BreakOnly.Enabled or mode == 1) then
-							inMouseInfo = true
+							if typeof(self) == 'table' then
+								for _, v in self do
+									if typeof(v) == 'RaycastParams' then
+										applyRayFilter(v)
+									end
+								end
+							end
 						end
 						local passRay = typeof(customRay) == 'Ray' and customRay or nil
 						local suc, res = pcall(oldGetMouseInfo, self, mode, passRay, ...)
-						inMouseInfo = prev
 						if suc then
 							return res
 						end
@@ -13672,22 +13694,42 @@ run(function()
 							elseif typeof(raycastparams) == 'table' and typeof(raycastparams.raycastParams) == 'RaycastParams' then
 								applyRayFilter(raycastparams.raycastParams)
 							end
+							if typeof(self) == 'table' then
+								for _, v in self do
+									if typeof(v) == 'RaycastParams' then
+										applyRayFilter(v)
+									end
+								end
+							end
 						end
 						return oldHitBlock(self, maid, raycastparams, ...)
 					end
 				end
 
-				if not oldRaycast then
-					oldRaycast = workspace.Raycast
-					workspace.Raycast = function(self, origin, direction, params, ...)
-						if BreakThrough.Enabled and inMouseInfo and typeof(params) == 'RaycastParams' then
-							applyRayFilter(params)
+				BreakThrough:Clean(runService.Heartbeat:Connect(function()
+					if not BreakThrough.Enabled then return end
+					pcall(function()
+						local placer = bedwars.BlockPlacementController and bedwars.BlockPlacementController.blockPlacer
+						local selector = placer and placer.clientManager and placer.clientManager:getBlockSelector()
+						if selector and typeof(selector) == 'table' then
+							for _, v in selector do
+								if typeof(v) == 'RaycastParams' then
+									applyRayFilter(v)
+								end
+							end
 						end
-						return oldRaycast(self, origin, direction, params, ...)
-					end
-				end
+						local breaker = bedwars.BlockBreaker
+						local breakerSelector = breaker and breaker.clientManager and breaker.clientManager:getBlockSelector()
+						if breakerSelector and typeof(breakerSelector) == 'table' then
+							for _, v in breakerSelector do
+								if typeof(v) == 'RaycastParams' then
+									applyRayFilter(v)
+								end
+							end
+						end
+					end)
+				end))
 			else
-				inMouseInfo = false
 				if oldGetMouseInfo and bedwars.BlockSelector then
 					bedwars.BlockSelector.getMouseInfo = oldGetMouseInfo
 					oldGetMouseInfo = nil

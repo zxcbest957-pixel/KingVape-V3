@@ -13570,6 +13570,144 @@ run(function()
 end)
 
 run(function()
+	local BreakThrough
+	local IgnorePlayers
+	local IgnoreNPCs
+	local IgnoreLocal
+	local BreakOnly
+
+	local oldGetMouseInfo
+	local oldHitBlock
+
+	local function getCharacterFilter()
+		local filter = {gameCamera}
+		if not IgnoreLocal or IgnoreLocal.Enabled then
+			if lplr.Character then
+				table.insert(filter, lplr.Character)
+			end
+		end
+		local charsFolder = workspace:FindFirstChild('Characters')
+		if charsFolder and (not IgnoreNPCs or IgnoreNPCs.Enabled) then
+			table.insert(filter, charsFolder)
+		end
+		if not IgnorePlayers or IgnorePlayers.Enabled then
+			for _, p in playersService:GetPlayers() do
+				if p.Character then
+					table.insert(filter, p.Character)
+				end
+			end
+		end
+		for _, ent in entitylib.List do
+			if ent.Character and (ent.Targetable or (not IgnoreNPCs or IgnoreNPCs.Enabled)) then
+				if not table.find(filter, ent.Character) then
+					table.insert(filter, ent.Character)
+				end
+			end
+		end
+		for _, inst in collectionService:GetTagged('Character') do
+			if not table.find(filter, inst) then
+				table.insert(filter, inst)
+			end
+		end
+		for _, inst in collectionService:GetTagged('Player') do
+			if not table.find(filter, inst) then
+				table.insert(filter, inst)
+			end
+		end
+		for _, inst in collectionService:GetTagged('Entity') do
+			if not table.find(filter, inst) then
+				table.insert(filter, inst)
+			end
+		end
+		return filter
+	end
+
+	local function applyRayFilter(rayParams)
+		if typeof(rayParams) ~= 'RaycastParams' then return end
+		local currentFilter = rayParams.FilterDescendantsInstances
+		local filter = {}
+		if typeof(currentFilter) == 'table' then
+			for _, v in currentFilter do
+				table.insert(filter, v)
+			end
+		end
+		local chars = getCharacterFilter()
+		for _, obj in chars do
+			if obj and not table.find(filter, obj) then
+				table.insert(filter, obj)
+			end
+		end
+		rayParams.FilterType = Enum.RaycastFilterType.Exclude
+		rayParams.FilterDescendantsInstances = filter
+	end
+
+	BreakThrough = vape.Categories.World:CreateModule({
+		Name = 'BreakThrough',
+		Function = function(callback)
+			if callback then
+				if bedwars.BlockSelector and bedwars.BlockSelector.getMouseInfo then
+					oldGetMouseInfo = bedwars.BlockSelector.getMouseInfo
+					bedwars.BlockSelector.getMouseInfo = function(self, mode, args)
+						args = args or {}
+						if BreakThrough.Enabled and (not BreakOnly or not BreakOnly.Enabled or mode == 1) then
+							local rayParams = args.ray
+							if not rayParams or typeof(rayParams) ~= 'RaycastParams' then
+								rayParams = RaycastParams.new()
+								rayParams.FilterType = Enum.RaycastFilterType.Exclude
+								args.ray = rayParams
+							end
+							applyRayFilter(args.ray)
+						end
+						return oldGetMouseInfo(self, mode, args)
+					end
+				end
+
+				if bedwars.BlockBreaker and bedwars.BlockBreaker.hitBlock then
+					oldHitBlock = bedwars.BlockBreaker.hitBlock
+					bedwars.BlockBreaker.hitBlock = function(self, maid, raycastparams, ...)
+						if BreakThrough.Enabled and typeof(raycastparams) == 'RaycastParams' then
+							applyRayFilter(raycastparams)
+						end
+						return oldHitBlock(self, maid, raycastparams, ...)
+					end
+				end
+			else
+				if oldGetMouseInfo and bedwars.BlockSelector then
+					bedwars.BlockSelector.getMouseInfo = oldGetMouseInfo
+					oldGetMouseInfo = nil
+				end
+				if oldHitBlock and bedwars.BlockBreaker then
+					bedwars.BlockBreaker.hitBlock = oldHitBlock
+					oldHitBlock = nil
+				end
+			end
+		end,
+		Tooltip = 'Allows you to break beds and blocks directly through player models standing on them'
+	})
+
+	IgnorePlayers = BreakThrough:CreateToggle({
+		Name = 'Ignore Players',
+		Default = true,
+		Tooltip = 'Ignores other players bodies when breaking blocks'
+	})
+	IgnoreNPCs = BreakThrough:CreateToggle({
+		Name = 'Ignore NPCs',
+		Default = true,
+		Tooltip = 'Ignores NPC entities and mobs when breaking blocks'
+	})
+	IgnoreLocal = BreakThrough:CreateToggle({
+		Name = 'Ignore Self',
+		Default = true,
+		Tooltip = 'Ignores own character model when breaking blocks'
+	})
+	BreakOnly = BreakThrough:CreateToggle({
+		Name = 'Break Only',
+		Default = false,
+		Tooltip = 'Only ignore players when breaking blocks (not placing)'
+	})
+end)
+
+run(function()
 	local BedAssist
 	local AimMode
 	local Speed

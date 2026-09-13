@@ -116,7 +116,7 @@ end)
 
 
 local currentVersion = (isfile('kingvape/profiles/version.txt') and readfile('kingvape/profiles/version.txt')) or ''
-local targetVersion = '3.1.4'
+local targetVersion = '3.1.5'
 local currentCommit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or ''
 if currentVersion ~= targetVersion or currentCommit ~= targetCommit then
 	wipeFolder('kingvape/guis')

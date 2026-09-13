@@ -13516,7 +13516,7 @@ run(function()
 				old = bedwars.BlockBreaker.hitBlock
 				bedwars.BlockBreaker.hitBlock = function(self, maid, raycastparams, ...)
 					if Mode.Value == 'Break' then
-						local info = self.clientManager:getBlockSelector():getMouseInfo(1, {ray = raycastparams})
+						local info = self.clientManager:getBlockSelector():getMouseInfo(1, {raycastParams = typeof(raycastparams) == 'RaycastParams' and raycastparams or nil})
 						local slot = getToolSlot(info and info.target and info.target.blockInstance or nil)
 						if slot then
 							task.spawn(function()
@@ -13624,21 +13624,25 @@ run(function()
 
 	local function applyRayFilter(rayParams)
 		if typeof(rayParams) ~= 'RaycastParams' then return end
-		local currentFilter = rayParams.FilterDescendantsInstances
-		local filter = {}
-		if typeof(currentFilter) == 'table' then
-			for _, v in currentFilter do
-				table.insert(filter, v)
+		pcall(function()
+			local currentFilter = rayParams.FilterDescendantsInstances
+			local filter = {}
+			if typeof(currentFilter) == 'table' then
+				for _, v in currentFilter do
+					if v and typeof(v) == 'Instance' then
+						table.insert(filter, v)
+					end
+				end
 			end
-		end
-		local chars = getCharacterFilter()
-		for _, obj in chars do
-			if obj and not table.find(filter, obj) then
-				table.insert(filter, obj)
+			local chars = getCharacterFilter()
+			for _, obj in chars do
+				if obj and typeof(obj) == 'Instance' and not table.find(filter, obj) then
+					table.insert(filter, obj)
+				end
 			end
-		end
-		rayParams.FilterType = Enum.RaycastFilterType.Exclude
-		rayParams.FilterDescendantsInstances = filter
+			rayParams.FilterType = Enum.RaycastFilterType.Exclude
+			rayParams.FilterDescendantsInstances = filter
+		end)
 	end
 
 	BreakThrough = vape.Categories.World:CreateModule({
@@ -13649,14 +13653,18 @@ run(function()
 					oldGetMouseInfo = bedwars.BlockSelector.getMouseInfo
 					bedwars.BlockSelector.getMouseInfo = function(self, mode, args)
 						args = args or {}
+						if typeof(args.ray) == 'RaycastParams' then
+							args.raycastParams = args.ray
+							args.ray = nil
+						end
 						if BreakThrough.Enabled and (not BreakOnly or not BreakOnly.Enabled or mode == 1) then
-							local rayParams = args.ray
+							local rayParams = args.raycastParams
 							if not rayParams or typeof(rayParams) ~= 'RaycastParams' then
 								rayParams = RaycastParams.new()
 								rayParams.FilterType = Enum.RaycastFilterType.Exclude
-								args.ray = rayParams
+								args.raycastParams = rayParams
 							end
-							applyRayFilter(args.ray)
+							applyRayFilter(args.raycastParams)
 						end
 						return oldGetMouseInfo(self, mode, args)
 					end
@@ -13665,8 +13673,12 @@ run(function()
 				if bedwars.BlockBreaker and bedwars.BlockBreaker.hitBlock then
 					oldHitBlock = bedwars.BlockBreaker.hitBlock
 					bedwars.BlockBreaker.hitBlock = function(self, maid, raycastparams, ...)
-						if BreakThrough.Enabled and typeof(raycastparams) == 'RaycastParams' then
-							applyRayFilter(raycastparams)
+						if BreakThrough.Enabled then
+							if typeof(raycastparams) == 'RaycastParams' then
+								applyRayFilter(raycastparams)
+							elseif typeof(raycastparams) == 'table' and typeof(raycastparams.raycastParams) == 'RaycastParams' then
+								applyRayFilter(raycastparams.raycastParams)
+							end
 						end
 						return oldHitBlock(self, maid, raycastparams, ...)
 					end

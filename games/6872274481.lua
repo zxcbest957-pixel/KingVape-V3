@@ -3131,20 +3131,9 @@ run(function()
 			bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = callback and SwordReach.Enabled and SwordRange.Value + 2 or 14.4
 			if callback then
 				old = bedwars.BlockSelector.getMouseInfo
-				bedwars.BlockSelector.getMouseInfo = function(self, mode, args)
-					args = args or {}
-					if typeof(args) == 'table' and typeof(args.ray) == 'RaycastParams' then
-						if not args.raycastParams then
-							args.raycastParams = args.ray
-						end
-						args.ray = nil
-					end
-					if mode == 0 then
-						args.range = BlockReach.Enabled and BlockRange.Value or 24
-					elseif mode == 1 then
-						args.range = BreakReach.Enabled and BreakRange.Value or 18
-					end
-					return old(self, mode, args)
+				bedwars.BlockSelector.getMouseInfo = function(self, mode, customRay, ...)
+					local passRay = typeof(customRay) == 'Ray' and customRay or nil
+					return old(self, mode, passRay, ...)
 				end
 			else
 				bedwars.BlockSelector.getMouseInfo = old
@@ -13582,8 +13571,10 @@ run(function()
 	local IgnoreLocal
 	local BreakOnly
 
+	local inMouseInfo = false
 	local oldGetMouseInfo
 	local oldHitBlock
+	local oldRaycast
 
 	local function getCharacterFilter()
 		local filter = {gameCamera}
@@ -13657,26 +13648,18 @@ run(function()
 			if callback then
 				if bedwars.BlockSelector and bedwars.BlockSelector.getMouseInfo then
 					oldGetMouseInfo = bedwars.BlockSelector.getMouseInfo
-					bedwars.BlockSelector.getMouseInfo = function(self, mode, args)
-						if typeof(args) ~= 'table' then
-							args = {}
-						end
-						if typeof(args.ray) == 'RaycastParams' then
-							if not args.raycastParams then
-								args.raycastParams = args.ray
-							end
-							args.ray = nil
-						end
+					bedwars.BlockSelector.getMouseInfo = function(self, mode, customRay, ...)
+						local prev = inMouseInfo
 						if BreakThrough.Enabled and (not BreakOnly or not BreakOnly.Enabled or mode == 1) then
-							local rayParams = args.raycastParams
-							if not rayParams or typeof(rayParams) ~= 'RaycastParams' then
-								rayParams = RaycastParams.new()
-								rayParams.FilterType = Enum.RaycastFilterType.Exclude
-								args.raycastParams = rayParams
-							end
-							applyRayFilter(args.raycastParams)
+							inMouseInfo = true
 						end
-						return oldGetMouseInfo(self, mode, args)
+						local passRay = typeof(customRay) == 'Ray' and customRay or nil
+						local suc, res = pcall(oldGetMouseInfo, self, mode, passRay, ...)
+						inMouseInfo = prev
+						if suc then
+							return res
+						end
+						return nil
 					end
 				end
 
@@ -13693,7 +13676,18 @@ run(function()
 						return oldHitBlock(self, maid, raycastparams, ...)
 					end
 				end
+
+				if not oldRaycast then
+					oldRaycast = workspace.Raycast
+					workspace.Raycast = function(self, origin, direction, params, ...)
+						if BreakThrough.Enabled and inMouseInfo and typeof(params) == 'RaycastParams' then
+							applyRayFilter(params)
+						end
+						return oldRaycast(self, origin, direction, params, ...)
+					end
+				end
 			else
+				inMouseInfo = false
 				if oldGetMouseInfo and bedwars.BlockSelector then
 					bedwars.BlockSelector.getMouseInfo = oldGetMouseInfo
 					oldGetMouseInfo = nil

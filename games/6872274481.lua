@@ -3133,6 +3133,12 @@ run(function()
 				old = bedwars.BlockSelector.getMouseInfo
 				bedwars.BlockSelector.getMouseInfo = function(self, mode, args)
 					args = args or {}
+					if typeof(args) == 'table' and typeof(args.ray) == 'RaycastParams' then
+						if not args.raycastParams then
+							args.raycastParams = args.ray
+						end
+						args.ray = nil
+					end
 					if mode == 0 then
 						args.range = BlockReach.Enabled and BlockRange.Value or 24
 					elseif mode == 1 then
@@ -4296,7 +4302,7 @@ run(function()
 				bedwars.BlockBreaker.hitBlock = function(self, ...)
 					local params = select(2, ...)
 					pcall(function()
-						local info = self.clientManager:getBlockSelector():getMouseInfo(1, {ray = params})
+						local info = self.clientManager:getBlockSelector():getMouseInfo(1, {raycastParams = typeof(params) == 'RaycastParams' and params or nil})
 						local block = info and info.target and info.target.blockInstance
 						local blacklisted = false
 						for _, v in block and Blacklist.Enabled and newlist or {} do
@@ -13652,9 +13658,13 @@ run(function()
 				if bedwars.BlockSelector and bedwars.BlockSelector.getMouseInfo then
 					oldGetMouseInfo = bedwars.BlockSelector.getMouseInfo
 					bedwars.BlockSelector.getMouseInfo = function(self, mode, args)
-						args = args or {}
+						if typeof(args) ~= 'table' then
+							args = {}
+						end
 						if typeof(args.ray) == 'RaycastParams' then
-							args.raycastParams = args.ray
+							if not args.raycastParams then
+								args.raycastParams = args.ray
+							end
 							args.ray = nil
 						end
 						if BreakThrough.Enabled and (not BreakOnly or not BreakOnly.Enabled or mode == 1) then

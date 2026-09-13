@@ -13603,21 +13603,6 @@ run(function()
 				end
 			end
 		end
-		for _, inst in collectionService:GetTagged('Character') do
-			if not table.find(filter, inst) then
-				table.insert(filter, inst)
-			end
-		end
-		for _, inst in collectionService:GetTagged('Player') do
-			if not table.find(filter, inst) then
-				table.insert(filter, inst)
-			end
-		end
-		for _, inst in collectionService:GetTagged('Entity') do
-			if not table.find(filter, inst) then
-				table.insert(filter, inst)
-			end
-		end
 		return filter
 	end
 
@@ -13643,22 +13628,6 @@ run(function()
 			rayParams.FilterDescendantsInstances = filter
 		end)
 	end
-
-	pcall(function()
-		if hookmetamethod then
-			local oldNamecall
-			oldNamecall = hookmetamethod(game, '__namecall', function(self, ...)
-				local method = getnamecallmethod()
-				if BreakThrough and BreakThrough.Enabled and method == 'Raycast' and self == workspace then
-					local params = select(3, ...)
-					if typeof(params) == 'RaycastParams' then
-						applyRayFilter(params)
-					end
-				end
-				return oldNamecall(self, ...)
-			end)
-		end
-	end)
 
 	BreakThrough = vape.Categories.World:CreateModule({
 		Name = 'BreakThrough',

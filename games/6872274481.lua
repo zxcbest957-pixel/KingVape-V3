@@ -1447,7 +1447,7 @@ run(function()
 	getgenv().bedwars = bedwars
 
 	entitylib.Raycast = function(origin, direction, params)
-		return bedwars.QueryUtil:raycast(origin, direction, params)
+		return workspace:Raycast(origin, direction, params)
 	end
 	prediction.Raycast = entitylib.Raycast
 
@@ -3353,27 +3353,16 @@ run(function()
 		Name = 'SilentAim',
 		Function = function(callback)
 			if callback and not namecall then
-				namecall = hookmetamethod(game, '__namecall', newcclosure(function(...)
-					if SilentAim.Enabled and not checkcaller() and getnamecallmethod() == 'InvokeServer' and tostring(...) == 'ProjectileFire' then
-						local self = ...
-						local args = table.pack(select(2, ...))
+				namecall = hookmetamethod(game, '__namecall', newcclosure(function(self, ...)
+					if SilentAim.Enabled and not checkcaller() and getnamecallmethod() == 'InvokeServer' and tostring(self) == 'ProjectileFire' then
+						local args = table.pack(...)
 						local success, newVelocity = pcall(solveSilent, args)
 						if success and typeof(newVelocity) == 'Vector3' then
 							args[6] = newVelocity
-						elseif not success and shared.VapeDeveloper and tick() > lastWarn then
-							lastWarn = tick() + 5
-							warn('[KingVape] silentaim solve failed: '..tostring(newVelocity))
-						end
-						local res = table.pack(pcall(self.InvokeServer, self, table.unpack(args, 1, args.n)))
-						if res[1] then
-							return table.unpack(res, 2, res.n)
-						end
-						if setnamecallmethod then
-							setnamecallmethod('InvokeServer')
 						end
 						return namecall(self, table.unpack(args, 1, args.n))
 					end
-					return namecall(...)
+					return namecall(self, ...)
 				end))
 			end
 		end,

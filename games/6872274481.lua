@@ -8924,7 +8924,14 @@ run(function()
 		metal_detector = {'hidden-metal', 'iron'},
 		sheep_herder = {'SheepModel', 'purple_hay_bale'},
 		sorcerer = {'alchemy_crystal', 'wild_flower'},
-		star_collector = {'stars', 'crit_star'}
+		star_collector = {'stars', 'crit_star'},
+		merchant = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
+		merchant_marco = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
+		trader = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
+		black_market_trader = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
+		blackmarket_trader = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
+		blackmarket = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
+		marco = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'}
 	}
 	
 	local function Added(ent, icon)
@@ -8948,7 +8955,7 @@ run(function()
 		image.BackgroundColor3 = Color3.fromHSV(Color.Hue, Color.Sat, Color.Value)
 		image.BackgroundTransparency = 1 - (Background.Enabled and Color.Opacity or 0)
 		image.BorderSizePixel = 0
-		image.Image = bedwars.getIcon({itemType = icon}, true)
+		image.Image = (typeof(icon) == 'string' and (icon:find('rbxassetid://') or icon:find('http') or icon:find('rbxasset://'))) and icon or bedwars.getIcon({itemType = icon}, true)
 		image.Parent = billboard
 		local uicorner = Instance.new('UICorner')
 		uicorner.CornerRadius = UDim.new(0, 4)
@@ -8984,6 +8991,23 @@ run(function()
 							end))
 							for _, v in collectionService:GetTagged(kit[1]) do
 								Added(v, kit[2])
+							end
+
+							table.insert(connections, workspace.ChildAdded:Connect(function(ent)
+								if ent.Name == kit[1] or ent.Name == 'BlackMarketTraderCoin' or ent.Name == 'blackmarket_coin' or collectionService:HasTag(ent, kit[1]) then
+									Added(ent, kit[2])
+								end
+							end))
+							table.insert(connections, workspace.ChildRemoved:Connect(function(ent)
+								if Reference[ent] then
+									Reference[ent]:Destroy()
+									Reference[ent] = nil
+								end
+							end))
+							for _, v in workspace:GetChildren() do
+								if v.Name == kit[1] or v.Name == 'BlackMarketTraderCoin' or v.Name == 'blackmarket_coin' or collectionService:HasTag(v, kit[1]) then
+									Added(v, kit[2])
+								end
 							end
 						end
 					end

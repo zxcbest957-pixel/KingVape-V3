@@ -8925,6 +8925,10 @@ run(function()
 		sheep_herder = {'SheepModel', 'purple_hay_bale'},
 		sorcerer = {'alchemy_crystal', 'wild_flower'},
 		star_collector = {'stars', 'crit_star'},
+		wren = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
+		jack = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
+		tidal_wren = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
+		wren_trick_or_treat = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
 		merchant = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
 		merchant_marco = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
 		trader = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'},
@@ -8934,9 +8938,40 @@ run(function()
 		marco = {'BlackMarketTraderCoin', 'rbxassetid://18938976671'}
 	}
 	
+	local function getPart(v)
+		if not v then return nil end
+		if v:IsA('BasePart') then return v end
+		if v:IsA('Model') then
+			return v.PrimaryPart or v:FindFirstChild('blackmarket_coin') or v:FindFirstChild('Root') or v:FindFirstChild('Handle') or v:FindFirstChildWhichIsA('BasePart')
+		end
+		return nil
+	end
+
 	local function Added(ent, icon)
-		local part = ent:IsA('BasePart') and ent or ent:IsA('Model') and (ent.PrimaryPart or ent:FindFirstChild('Root') or ent:FindFirstChildWhichIsA('BasePart'))
-		if not part or Reference[ent] then return end
+		if not ent then return end
+		local part = getPart(ent)
+		if not part then
+			if ent:IsA('Model') then
+				task.spawn(function()
+					local waitedPart = ent:WaitForChild('blackmarket_coin', 1) or ent:WaitForChild('Handle', 1) or ent:WaitForChild('Root', 1)
+					if not waitedPart then
+						for i = 1, 10 do
+							part = getPart(ent)
+							if part or not ent.Parent then break end
+							task.wait(0.1)
+						end
+					else
+						part = waitedPart
+					end
+					if part and not Reference[ent] and not Reference[part] then
+						Added(part, icon)
+						Reference[ent] = Reference[part]
+					end
+				end)
+			end
+			return
+		end
+		if Reference[part] or Reference[ent] then return end
 	
 		local billboard = Instance.new('BillboardGui')
 		billboard.Name = icon
@@ -8961,6 +8996,7 @@ run(function()
 		uicorner.CornerRadius = UDim.new(0, 4)
 		uicorner.Parent = image
 		Reference[ent] = billboard
+		Reference[part] = billboard
 	end
 	
 	KitESP = vape.Categories.Render:CreateModule({
@@ -8994,7 +9030,7 @@ run(function()
 							end
 
 							table.insert(connections, workspace.ChildAdded:Connect(function(ent)
-								if ent.Name == kit[1] or ent.Name == 'BlackMarketTraderCoin' or ent.Name == 'blackmarket_coin' or collectionService:HasTag(ent, kit[1]) then
+								if ent.Name == kit[1] or ent.Name == 'BlackMarketTraderCoin' or ent.Name == 'blackmarket_coin' or ent.Name:lower():find('coin') or collectionService:HasTag(ent, kit[1]) then
 									Added(ent, kit[2])
 								end
 							end))
@@ -9005,7 +9041,7 @@ run(function()
 								end
 							end))
 							for _, v in workspace:GetChildren() do
-								if v.Name == kit[1] or v.Name == 'BlackMarketTraderCoin' or v.Name == 'blackmarket_coin' or collectionService:HasTag(v, kit[1]) then
+								if v.Name == kit[1] or v.Name == 'BlackMarketTraderCoin' or v.Name == 'blackmarket_coin' or v.Name:lower():find('coin') or collectionService:HasTag(v, kit[1]) then
 									Added(v, kit[2])
 								end
 							end

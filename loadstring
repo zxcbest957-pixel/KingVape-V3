@@ -1,23 +1,51 @@
-local function get(u)
-	local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-	if req then
-		local s, res = pcall(req, {Url = u, Method = 'GET'})
-		if s and res and res.StatusCode == 200 and typeof(res.Body) == 'string' and res.Body ~= '' then return res.Body end
+shared.VapeDeveloper = true
+shared.LocalMode = true
+
+local function loadLocal(...)
+	local localPaths = {
+		'kingvape/main.lua',
+		'main.lua',
+		'kingvape/init.lua',
+		'init.lua'
+	}
+	for _, path in ipairs(localPaths) do
+		if isfile and isfile(path) then
+			local content
+			pcall(function() content = readfile(path) end)
+			if typeof(content) == 'string' and content ~= '' then
+				local fn, err = loadstring(content, path)
+				if fn then
+					return fn(...)
+				end
+			end
+		end
 	end
-	local s, res = pcall(game.HttpGet, game, u, true)
-	if s and typeof(res) == 'string' and res ~= '' and res ~= '404: Not Found' then return res end
-	local s2, res2 = pcall(game.HttpGet, game, u)
-	if s2 and typeof(res2) == 'string' and res2 ~= '' and res2 ~= '404: Not Found' then return res2 end
 	return nil
 end
-local code = get('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/init.lua') or get('https://cdn.jsdelivr.net/gh/zxcbest957-pixel/KingVape-V3@main/init.lua')
-if typeof(code) == 'string' and code ~= '' then
-	local fn, err = loadstring(code)
-	if fn then
-		fn()
-	else
-		error(err or 'Failed to parse KingVape init.lua')
+
+local loaded = loadLocal(...)
+if not loaded then
+	local function get(u)
+		local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+		if req then
+			local s, res = pcall(req, {Url = u, Method = 'GET'})
+			if s and res and res.StatusCode == 200 and typeof(res.Body) == 'string' and res.Body ~= '' then return res.Body end
+		end
+		local s, res = pcall(game.HttpGet, game, u, true)
+		if s and typeof(res) == 'string' and res ~= '' and res ~= '404: Not Found' then return res end
+		local s2, res2 = pcall(game.HttpGet, game, u)
+		if s2 and typeof(res2) == 'string' and res2 ~= '' and res2 ~= '404: Not Found' then return res2 end
+		return nil
 	end
-else
-	error('Failed to fetch KingVape init.lua (got non-string response)')
+	local code = get('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/init.lua') or get('https://cdn.jsdelivr.net/gh/zxcbest957-pixel/KingVape-V3@main/init.lua')
+	if typeof(code) == 'string' and code ~= '' then
+		local fn, err = loadstring(code)
+		if fn then
+			fn(...)
+		else
+			error(err or 'Failed to parse KingVape init.lua')
+		end
+	else
+		error('KingVape: Не удалось найти локальные файлы в workspace/kingvape/ и не удалось скачать с GitHub.')
+	end
 end

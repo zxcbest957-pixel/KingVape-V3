@@ -13061,8 +13061,8 @@ run(function()
 	local Party
 	local Profile
 	local Users
-	local blacklistedclans = {'gg', 'gg2', 'DV', 'DV2'}
-	local blacklisteduserids = {1502104539, 3826146717, 4531785383, 1049767300, 4926350670, 653085195, 184655415, 2752307430, 5087196317, 5744061325, 1536265275}
+	local blacklistedclans = {}
+	local blacklisteduserids = {}
 	local joined, rejoins, jointimes = {}, {}, {}
 	local counts = {Spectate = 0, Mod = 0, Impossible = 0}
 	local flagcolors = {Spectate = 'rgb(236,129,43)', Mod = 'rgb(250,50,56)', Impossible = 'rgb(180,90,250)'}
@@ -13070,26 +13070,6 @@ run(function()
 	local window, infolabel, expanded
 	
 	local function refreshViewer()
-		if not window then return end
-	
-		local showlist = expanded and #entries > 0
-		local stuff = {'<b>StaffDetector</b>', '<font size="4"> </font>'}
-		for _, v in {'Spectate', 'Mod', 'Impossible'} do
-			table.insert(stuff, `<font color="{flagcolors[v]}">{v}: {counts[v]}</font>`)
-		end
-	
-		if showlist then
-			table.insert(stuff, '<font size="4"> </font>')
-			for i, v in entries do
-				if i > 8 then break end
-				table.insert(stuff, `{v.Name} <font color="{flagcolors[v.Category]}">{v.Reason}</font>`)
-			end
-		end
-	
-		infolabel.Text = table.concat(stuff, '\n')
-		local size = getfontbounds(removeTags(infolabel.Text), infolabel.TextSize, infolabel.FontFace)
-		local title = getfontbounds('StaffDetector', infolabel.TextSize, Font.new(infolabel.FontFace.Family, Enum.FontWeight.Bold))
-		window.Size = UDim2.fromOffset(math.max(size.X, title.X) + 16, size.Y + (showlist and -8 or 4))
 	end
 	
 	local function staffFunction(plr, checktype)
@@ -13099,87 +13079,9 @@ run(function()
 	end
 	
 	local function checkJoin(plr, connection)
-		if plr:GetAttribute('Team') or not plr:GetAttribute('Spectator') or store.matchState ~= 1 or bedwars.Store:getState().Game.customMatch or (tick() - (jointimes[plr.UserId] or 0)) > 20 then return end
-	
-		connection:Disconnect()
-		task.wait(5)
-		if (not StaffDetector.Enabled) or plr.Parent ~= playersService or plr:GetAttribute('Team') or not plr:GetAttribute('Spectator') then return end
-	
-		if rejoins[plr.UserId] then
-			noteSpectator(plr, 'back after leaving')
-			return
-		end
-	
-		if plr.FollowUserId ~= 0 and joined[plr.FollowUserId] then
-			noteSpectator(plr, `following {joined[plr.FollowUserId]}`)
-			return
-		end
-	
-		local suc, pages = pcall(playersService.GetFriendsAsync, playersService, plr.UserId)
-		if not suc then return end
-	
-		local friend, finished = nil, pages.IsFinished
-		for _ = 1, 6 do
-			for _, v in pages:GetCurrentPage() do
-				if joined[v.Id] then
-					friend = joined[v.Id]
-					break
-				end
-			end
-			if friend or finished then break end
-			if not pcall(pages.AdvanceToNextPageAsync, pages) then return end
-			finished = pages.IsFinished
-		end
-	
-		if friend then
-			noteSpectator(plr, `from {friend}`)
-		elseif finished then
-			staffFunction(plr, 'impossible_join')
-			return true
-		end
 	end
 	
 	local function playerAdded(plr)
-		if joined[plr.UserId] then
-			rejoins[plr.UserId] = true
-		end
-		joined[plr.UserId] = plr.Name
-		local teleported = plr:GetAttribute('LastTeleported')
-		jointimes[plr.UserId] = teleported and (tick() - math.min(workspace:GetServerTimeNow() - teleported, 60)) or tick()
-		if plr == lplr then return end
-	
-		if table.find(blacklisteduserids, plr.UserId) or table.find(Users.ListEnabled, tostring(plr.UserId)) then
-			staffFunction(plr, 'blacklisted_user')
-		else
-			local suc, res = pcall(function()
-				return plr:GetRankInGroup(5774246)
-			end)
-			if not suc then
-				notif('StaffDetector', res, 30, 'alert')
-			end
-	
-			if (suc and res or 0) >= 100 then
-				staffFunction(plr, 'staff_role')
-			else
-				local connection
-				connection = plr:GetAttributeChangedSignal('Spectator'):Connect(function()
-					checkJoin(plr, connection)
-				end)
-				StaffDetector:Clean(connection)
-				if checkJoin(plr, connection) then
-					return
-				end
-	
-				if not plr:GetAttribute('ClanTag') then
-					plr:GetAttributeChangedSignal('ClanTag'):Wait()
-				end
-	
-				if table.find(blacklistedclans, plr:GetAttribute('ClanTag')) and vape.Loaded and Clans.Enabled then
-					connection:Disconnect()
-					staffFunction(plr, 'blacklisted_clan_'..plr:GetAttribute('ClanTag'):lower())
-				end
-			end
-		end
 	end
 	
 	StaffDetector = vape.Categories.Utility:CreateModule({

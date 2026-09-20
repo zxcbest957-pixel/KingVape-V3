@@ -13093,56 +13093,9 @@ run(function()
 	end
 	
 	local function staffFunction(plr, checktype)
-		if not vape.Loaded then
-			repeat task.wait() until vape.Loaded
-		end
-	
-		notif('StaffDetector', 'Staff Detected ('..checktype..'): '..plr.Name..' ('..plr.UserId..')', 60, 'alert')
-		whitelist.customtags[plr.Name] = {{text = 'GAME STAFF', color = Color3.new(1, 0, 0)}}
-		local category = checktype == 'impossible_join' and 'Impossible' or checktype == 'spectator' and 'Spectate' or 'Mod'
-		counts[category] += 1
-		table.insert(entries, 1, {Name = plr.Name, Reason = checktype, Category = category})
-		refreshViewer()
-	
-		if Party.Enabled and not checktype:find('clan') then
-			bedwars.PartyController:leaveParty()
-		end
-	
-		if Mode.Value == 'Uninject' then
-			task.spawn(function()
-				vape:Uninject()
-			end)
-			game:GetService('StarterGui'):SetCore('SendNotification', {
-				Title = 'StaffDetector',
-				Text = 'Staff Detected ('..checktype..')\n'..plr.Name..' ('..plr.UserId..')',
-				Duration = 60,
-			})
-		elseif Mode.Value == 'Requeue' then
-			bedwars.QueueController:joinQueue(store.queueType)
-		elseif Mode.Value == 'Profile' then
-			vape.Save = function() end
-			if vape.Profile ~= Profile.Value then
-				vape:Load(true, Profile.Value)
-			end
-		elseif Mode.Value == 'AutoConfig' then
-			local safe = {'AutoClicker', 'Reach', 'Sprint', 'HitFix', 'StaffDetector'}
-			vape.Save = function() end
-			for i, v in vape.Modules do
-				if not (table.find(safe, i) or v.Category == 'Render') then
-					if v.Enabled then
-						v:Toggle()
-					end
-					v:SetBind('')
-				end
-			end
-		end
 	end
 	
 	local function noteSpectator(plr, reason)
-		notif('StaffDetector', `Spectator {plr.Name} joined {reason}`, 20, 'warning')
-		counts.Spectate += 1
-		table.insert(entries, 1, {Name = plr.Name, Reason = 'spectator', Category = 'Spectate'})
-		refreshViewer()
 	end
 	
 	local function checkJoin(plr, connection)
@@ -13248,7 +13201,7 @@ run(function()
 	
 	Mode = StaffDetector:CreateDropdown({
 		Name = 'Mode',
-		List = {'Uninject', 'Profile', 'Requeue', 'AutoConfig', 'Notify'},
+		List = {'Notify', 'Profile', 'Requeue', 'AutoConfig'},
 		Function = function(val)
 			if Profile.Object then
 				Profile.Object.Visible = val == 'Profile'

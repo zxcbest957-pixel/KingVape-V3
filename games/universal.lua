@@ -6265,51 +6265,6 @@ run(function()
 	local Role
 	
 	local function playerAdded(plr)
-		if not vape.Loaded then
-			repeat task.wait() until vape.Loaded
-		end
-	
-		local user = table.find(Users.ListEnabled, tostring(plr.UserId))
-		local suc, rank
-		if not user then
-			for _ = 1, 3 do
-				suc, rank = pcall(function()
-					return plr:GetRankInGroup(tonumber(Group.Value) or 0)
-				end)
-				if suc then break end
-			end
-		end
-	
-		if user or (suc and rank or 0) >= (tonumber(Role.Value) or 1) then
-			notif('StaffDetector', 'Staff Detected ('..(user and 'blacklisted_user' or 'staff_role')..'): '..plr.Name, 60, 'alert')
-			whitelist.customtags[plr.Name] = {{text = 'GAME STAFF', color = Color3.new(1, 0, 0)}}
-	
-			if Mode.Value == 'Uninject' then
-				task.spawn(function()
-					vape:Uninject()
-				end)
-				game:GetService('StarterGui'):SetCore('SendNotification', {
-					Title = 'StaffDetector',
-					Text = 'Staff Detected\n'..plr.Name,
-					Duration = 60,
-				})
-			elseif Mode.Value == 'ServerHop' then
-				serverHop()
-			elseif Mode.Value == 'Profile' then
-				vape.Save = function() end
-				if vape.Profile ~= Profile.Value then
-					vape.Profile = Profile.Value
-					vape:Load(true, Profile.Value)
-				end
-			elseif Mode.Value == 'AutoConfig' then
-				vape.Save = function() end
-				for _, v in vape.Modules do
-					if v.Enabled then
-						v:Toggle()
-					end
-				end
-			end
-		end
 	end
 	
 	StaffDetector = vape.Categories.Utility:CreateModule({
@@ -6368,7 +6323,7 @@ run(function()
 	
 	Mode = StaffDetector:CreateDropdown({
 		Name = 'Mode',
-		List = {'Uninject', 'ServerHop', 'Profile', 'AutoConfig', 'Notify'},
+		List = {'Notify', 'ServerHop', 'Profile', 'AutoConfig'},
 		Function = function(val)
 			if Profile.Object then
 				Profile.Object.Visible = val == 'Profile'

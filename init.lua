@@ -116,23 +116,17 @@ end)
 
 
 local currentVersion = (isfile('kingvape/profiles/version.txt') and readfile('kingvape/profiles/version.txt')) or ''
-local targetVersion = '3.2.1'
+local targetVersion = '3.2.2'
 local currentCommit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or ''
 
-if not shared.VapeDeveloper and not shared.LocalMode then
-	if currentVersion ~= targetVersion or currentCommit ~= targetCommit then
-		wipeFolder('kingvape/guis')
-		wipeFolder('kingvape/games')
-		wipeFolder('kingvape/libraries')
-		pcall(delfile, 'kingvape/main.lua')
-		pcall(delfile, 'kingvape/features.json')
-	end
-
-	if shared.ForceUpdate or shared.vapereload then
-		wipeFolder('kingvape/guis')
-		wipeFolder('kingvape/games')
-		wipeFolder('kingvape/libraries')
-	end
+if currentVersion ~= targetVersion or currentCommit ~= targetCommit or shared.ForceUpdate or shared.vapereload then
+	wipeFolder('kingvape/guis')
+	wipeFolder('kingvape/games')
+	wipeFolder('kingvape/libraries')
+	pcall(delfile, 'kingvape/main.lua')
+	pcall(delfile, 'kingvape/features.json')
+	pcall(writefile, 'kingvape/profiles/version.txt', targetVersion)
+	pcall(writefile, 'kingvape/profiles/commit.txt', targetCommit)
 end
 
 local function loadAnalytics()

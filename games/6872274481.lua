@@ -1334,7 +1334,8 @@ Entity.start()
 
 local require, debug, CheatEngineLib = require, debug, nil
 Run(function()
-    getgenv().canDebug = not table.find({"Solara", "Xeno"}, ({identifyexecutor()})[1]) and true or false
+    local execName = identifyexecutor and ({identifyexecutor()})[1] or ""
+    getgenv().canDebug = not table.find({"Solara", "Xeno"}, execName) and true or false
     if not canDebug then
         CheatEngineLib = loadstring(DownloadFile("kingvape/libraries/cheatengine.lua"), "cheatengine")(vape, VapeEvents, Entity)
         require = function(Module: Instance)

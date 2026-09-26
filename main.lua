@@ -1,41 +1,21 @@
-﻿if isfolder('kingvape') and isfolder('kingvape/profiles') then
-	for _, v in listfiles('kingvape/profiles') do
-		if not v:find('commit.txt') and not v:find('version.txt') then
-			local old = v
-			local newTarget = v:gsub('kingvape', 'kingvape')
-			pcall(function()
-				if not isfile(newTarget) then
-					writefile(newTarget, readfile(old))
-				end
-			end)
-		end
-	end
-end
 local license = ... or {}
 repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
 license.Key = license.Key or '_key'
 
-if isfolder('kingvape') and isfolder('kingvape/profiles') then
-	for _, v in listfiles('kingvape/profiles') do
-		if not v:find('commit.txt') then
-			local old = v
-			v = v:gsub('kingvape', 'kingvape')
-			writefile(v, readfile(old))
-		end
-	end
-	delfolder('kingvape/profiles')
-end
-
 local vape
 local loadstring = function(...)
 	local str = ...
 	if typeof(str) ~= 'string' or str == '' then
+		warn('[KingVape] Attempted to load empty string!')
 		return function() end
 	end
 	local res, err = loadstring(...)
-	if err and vape then
-		vape:CreateNotification('KingVape', 'Failed to load : '..err, 30, 'alert')
+	if err then
+		warn('[KingVape Error]: ' .. tostring(err))
+		if vape and vape.CreateNotification then
+			pcall(function() vape:CreateNotification('KingVape', 'Failed to load : '..err, 30, 'alert') end)
+		end
 	end
 	return res or function() end
 end

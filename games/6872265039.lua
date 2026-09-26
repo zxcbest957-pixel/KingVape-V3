@@ -1,4 +1,5 @@
-﻿if table.find({"Solara", "Xeno"}, ({identifyexecutor()})[1]) then
+local execName = identifyexecutor and ({identifyexecutor()})[1] or ""
+if table.find({"Solara", "Xeno"}, execName) then
     return false
 end
 local BuildClock: number = os.clock()

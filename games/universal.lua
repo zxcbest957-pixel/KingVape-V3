@@ -1,9 +1,13 @@
-﻿local loadstring = function(...)
+local loadstring = function(...)
+    local str = ...
+    if typeof(str) ~= 'string' or str == '' or str == '404: Not Found' then
+        return function() return {} end
+    end
     local Chunk, Error = loadstring(...)
     if Error and vape then
         vape:CreateNotification("Vape", `Failed to load : {Error}`, 30, "alert")
     end
-    return Chunk
+    return Chunk or function() return {} end
 end
 local isfile = isfile or function(File: string)
     local Success, Contents = pcall(function()
@@ -11,20 +15,56 @@ local isfile = isfile or function(File: string)
     end)
     return Success and Contents ~= nil and Contents ~= ""
 end
-local function DownloadFile(Path: string, Func)
-    if not isfile(Path) then
-        local Success, Response = pcall(function()
-            return game:HttpGet(`https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/{select(1, Path:gsub("kingvape/", ""))}`, true)
-        end)
-        if not Success or Response == "404: Not Found" then
-            error(Response)
+local isfolder = isfolder or function() return true end
+local makefolder = makefolder or function() end
+
+local function ensureFolder(filePath: string)
+    local parts = filePath:split("/")
+    if #parts > 1 then
+        local current = ""
+        for i = 1, #parts - 1 do
+            current = current .. (i > 1 and "/" or "") .. parts[i]
+            if not isfolder(current) then
+                pcall(makefolder, current)
+            end
         end
-        if Path:find(".lua") then
-            Response = `--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n{Response}`
-        end
-        writefile(Path, Response)
     end
-    return (Func or readfile)(Path)
+end
+
+local function DownloadFile(Path: string, Func)
+    local content
+    if isfile(Path) then
+        pcall(function() content = readfile(Path) end)
+    end
+    if not content or content == "" or content == "404: Not Found" or typeof(content) ~= "string" then
+        local relPath = select(1, Path:gsub("kingvape/", ""))
+        local url = "https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/" .. relPath
+        local cdnUrl = "https://cdn.jsdelivr.net/gh/zxcbest957-pixel/KingVape-V3@main/" .. relPath
+        local Success, Response = pcall(function()
+            return game:HttpGet(url, true)
+        end)
+        if not Success or not Response or Response == "" or Response == "404: Not Found" then
+            pcall(function()
+                Response = game:HttpGet(cdnUrl, true)
+            end)
+        end
+        if Response and typeof(Response) == "string" and Response ~= "404: Not Found" and Response ~= "" then
+            content = Response
+            if Path:find("%.lua") and not content:find("--This watermark") then
+                content = "--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n" .. content
+            end
+            pcall(function()
+                ensureFolder(Path)
+                writefile(Path, content)
+            end)
+        end
+    end
+    if typeof(content) ~= "string" then content = "" end
+    if Func then
+        local suc, res = pcall(Func, Path)
+        return suc and res or content
+    end
+    return content
 end
 local BuildClock: number = os.clock()
 local BuildBudget: number = 0.004

@@ -1,4 +1,4 @@
-﻿--!nocheck
+--!nocheck
 local license = ... or {}
 license.Key = script_key or license.Key
 
@@ -116,7 +116,8 @@ end)
 
 
 local currentVersion = (isfile('kingvape/profiles/version.txt') and readfile('kingvape/profiles/version.txt')) or ''
-local targetVersion = '3.2.2'
+local targetVersion = '3.2.4'
+local targetCommit = 'main'
 local currentCommit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or ''
 
 if currentVersion ~= targetVersion or currentCommit ~= targetCommit or shared.ForceUpdate or shared.vapereload then

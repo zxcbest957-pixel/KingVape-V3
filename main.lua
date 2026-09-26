@@ -198,10 +198,29 @@ task.spawn(function()
 end)
 
 if not shared.VapeIndependent then
-	loadstring(downloadFile('kingvape/games/universal.lua'), 'universal')(license)
-	pcall(function()
-		loadstring(downloadFile('kingvape/games/'..game.PlaceId..'.lua'), tostring(game.PlaceId))(license)
-	end)
+	local universalCode = downloadFile('kingvape/games/universal.lua')
+	local ufn = loadstring(universalCode, 'universal')
+	if ufn then
+		local suc, err = pcall(ufn, license)
+		if not suc then
+			warn('[KingVape Universal Error]: ' .. tostring(err))
+		end
+	end
+
+	local gameCode = downloadFile('kingvape/games/'..game.PlaceId..'.lua')
+	if typeof(gameCode) == 'string' and gameCode ~= '' and gameCode ~= '404: Not Found' then
+		local gfn = loadstring(gameCode, tostring(game.PlaceId))
+		if gfn then
+			local suc, err = pcall(gfn, license)
+			if not suc then
+				warn('[KingVape Game Script Error ('..game.PlaceId..')]: ' .. tostring(err))
+				if vape and vape.CreateNotification then
+					vape:CreateNotification('KingVape', 'Bedwars script error: '..tostring(err), 15, 'alert')
+				end
+			end
+		end
+	end
+
 	pcall(function()
 		local mainLib = downloadFile('kingvape/libraries/main.lua')
 		if typeof(mainLib) == 'string' and mainLib ~= '' and mainLib ~= '404: Not Found' then

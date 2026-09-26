@@ -1528,50 +1528,58 @@ run(function()
 		return (entitylib.Raycast(selffeet, targetfeet - selffeet, wallcheckParams) or entitylib.Raycast(targetfeet, selffeet - targetfeet, wallcheckParams)) and (entitylib.Raycast(selfhead, targethead - selfhead, wallcheckParams) or entitylib.Raycast(targethead, selfhead - targethead, wallcheckParams)) and (entitylib.Raycast(selfmid, targetmid - selfmid, wallcheckParams) or entitylib.Raycast(targetmid, selfmid - targetmid, wallcheckParams)) or nil
 	end
 
-	OldBreak = bedwars.BlockController.isBlockBreakable
-	OldHit = bedwars.BlockBreaker.hitBlock
+	OldBreak = bedwars.BlockController and bedwars.BlockController.isBlockBreakable
+	OldHit = bedwars.BlockBreaker and bedwars.BlockBreaker.hitBlock
 
-	Client.Get = function(self, remoteName)
-		local call = OldGet(self, remoteName)
+	if Client and Client.Get and OldGet then
+		Client.Get = function(self, remoteName)
+			local call = OldGet(self, remoteName)
+			if not call then return call end
 
-		if remoteName == 'SwordHit' then
-			return {
-				instance = call.instance,
-				SendToServer = function(_, attackTable, ...)
-					local selfpos = attackTable.validate.selfPosition.value
-					local targetpos = attackTable.validate.targetPosition.value
-					store.attackReach = ((selfpos - targetpos).Magnitude * 100) // 1 / 100
-					store.attackReachUpdate = tick() + 1
+			if remoteName == 'SwordHit' then
+				return {
+					instance = call.instance,
+					SendToServer = function(_, attackTable, ...)
+						local selfpos = attackTable.validate.selfPosition.value
+						local targetpos = attackTable.validate.targetPosition.value
+						store.attackReach = ((selfpos - targetpos).Magnitude * 100) // 1 / 100
+						store.attackReachUpdate = tick() + 1
 
-					if Reach.Enabled or HitBoxes.Enabled then
-						local delta = targetpos - selfpos
-						attackTable.validate.raycast = attackTable.validate.raycast or {}
-						attackTable.validate.selfPosition.value += delta.Magnitude > 0.001 and delta.Unit * math.max(delta.Magnitude - (getReach(attackTable.weapon) - 0.001), 0) or Vector3.zero
+						if Reach.Enabled or HitBoxes.Enabled then
+							local delta = targetpos - selfpos
+							attackTable.validate.raycast = attackTable.validate.raycast or {}
+							attackTable.validate.selfPosition.value += delta.Magnitude > 0.001 and delta.Unit * math.max(delta.Magnitude - (getReach(attackTable.weapon) - 0.001), 0) or Vector3.zero
+						end
+
+						if ChargeSpoof.Enabled and attackTable.chargedAttack then
+							attackTable.chargedAttack.chargeRatio = math.max(attackTable.chargedAttack.chargeRatio or 0, ChargeRatio.Value / 100)
+						end
+
+						return call:SendToServer(attackTable, ...)
 					end
+				}
+			elseif TrapDisabler.Enabled and (remoteName == 'StepOnSnapTrap' and TrapSnap.Enabled or remoteName == 'TriggerInvisibleLandmine' and TrapMine.Enabled or remoteName == 'StepOnTeleportBlock' and TrapTeleport.Enabled or remoteName == 'StepOnVoidPortal' and TrapPortal.Enabled) then
+				return {SendToServer = function() end}
+			end
 
-					if ChargeSpoof.Enabled and attackTable.chargedAttack then
-						attackTable.chargedAttack.chargeRatio = math.max(attackTable.chargedAttack.chargeRatio or 0, ChargeRatio.Value / 100)
-					end
-
-					return call:SendToServer(attackTable, ...)
-				end
-			}
-		elseif TrapDisabler.Enabled and (remoteName == 'StepOnSnapTrap' and TrapSnap.Enabled or remoteName == 'TriggerInvisibleLandmine' and TrapMine.Enabled or remoteName == 'StepOnTeleportBlock' and TrapTeleport.Enabled or remoteName == 'StepOnVoidPortal' and TrapPortal.Enabled) then
-			return {SendToServer = function() end}
+			return call
 		end
-
-		return call
 	end
 
-
-	bedwars.BlockBreaker.hitBlock = function(self, ...)
-		store.lastHit = tick()
-		return OldHit(self, ...)
+	if bedwars.BlockBreaker and OldHit then
+		bedwars.BlockBreaker.hitBlock = function(self, ...)
+			store.lastHit = tick()
+			return OldHit(self, ...)
+		end
 	end
 
 	local pathcache, blockhealthbar = {}, {blockHealth = -1, breakingBlockPosition = Vector3.zero}
-	store.swordDistance = bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE
-	store.blockPlacer = bedwars.BlockPlacer.new(bedwars.BlockEngine, 'wool_white')
+	store.swordDistance = (bedwars.CombatConstant and bedwars.CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE) or 14.4
+	if bedwars.BlockPlacer and bedwars.BlockEngine and bedwars.BlockPlacer.new then
+		pcall(function()
+			store.blockPlacer = bedwars.BlockPlacer.new(bedwars.BlockEngine, 'wool_white')
+		end)
+	end
 
 	local function getBlockHealth(block, blockpos)
 		local blockdata = bedwars.BlockController:getStore():getBlockData(blockpos)
@@ -1909,61 +1917,87 @@ run(function()
 		end
 	end
 
-	local storeChanged = bedwars.Store.changed:connect(updateStore)
-	updateStore(bedwars.Store:getState(), {})
+	local storeChanged
+	pcall(function()
+		if bedwars.Store and bedwars.Store.changed then
+			storeChanged = bedwars.Store.changed:connect(updateStore)
+		end
+		if bedwars.Store and bedwars.Store.getState then
+			updateStore(bedwars.Store:getState(), {})
+		end
+	end)
 
 	for _, v in {'MatchEndEvent', 'EntityDeathEvent', 'BedwarsBedBreak', 'BalloonPopped', 'AngelProgress', 'GrapplingHookFunctions'} do
-		if not vape.Connections then return end
-		bedwars.Client:WaitFor(v):andThen(function(connection)
-			vape:Clean(connection:Connect(function(...)
-				vapeEvents[v]:Fire(...)
-			end))
+		pcall(function()
+			if bedwars.Client and bedwars.Client.WaitFor then
+				bedwars.Client:WaitFor(v):andThen(function(connection)
+					vape:Clean(connection:Connect(function(...)
+						vapeEvents[v]:Fire(...)
+					end))
+				end)
+			end
 		end)
 	end
 
-	vape:Clean(bedwars.ZapNetworking.EntityDamageEventZap.On(function(...)
-		local damageTable = {
-			entityInstance = ...,
-			damage = select(2, ...),
-			damageType = select(3, ...),
-			fromPosition = select(4, ...),
-			fromEntity = select(5, ...),
-			knockbackMultiplier = select(6, ...),
-			knockbackId = select(7, ...),
-			disableDamageHighlight = select(13, ...)
-		}
-		markKnockback(damageTable)
-		reportProjectileHit(damageTable)
-		vapeEvents.EntityDamageEvent:Fire(damageTable)
-	end))
-
-	local swordSwing = bedwars.SyncEvents.SwordSwing:setPriority(500):connect(function(event)
-		if store.swordSpeeds and event.swordType and typeof(event.attackSpeed) == 'number' then
-			store.swordSpeeds[event.swordType] = event.attackSpeed
+	pcall(function()
+		if bedwars.ZapNetworking and bedwars.ZapNetworking.EntityDamageEventZap and bedwars.ZapNetworking.EntityDamageEventZap.On then
+			vape:Clean(bedwars.ZapNetworking.EntityDamageEventZap.On(function(...)
+				local damageTable = {
+					entityInstance = ...,
+					damage = select(2, ...),
+					damageType = select(3, ...),
+					fromPosition = select(4, ...),
+					fromEntity = select(5, ...),
+					knockbackMultiplier = select(6, ...),
+					knockbackId = select(7, ...),
+					disableDamageHighlight = select(13, ...)
+				}
+				markKnockback(damageTable)
+				reportProjectileHit(damageTable)
+				vapeEvents.EntityDamageEvent:Fire(damageTable)
+			end))
 		end
 	end)
-	vape:Clean(function()
-		swordSwing:Destroy()
+
+	pcall(function()
+		if bedwars.SyncEvents and bedwars.SyncEvents.SwordSwing then
+			local swordSwing = bedwars.SyncEvents.SwordSwing:setPriority(500):connect(function(event)
+				if store.swordSpeeds and event.swordType and typeof(event.attackSpeed) == 'number' then
+					store.swordSpeeds[event.swordType] = event.attackSpeed
+				end
+			end)
+			vape:Clean(function()
+				pcall(function() swordSwing:Destroy() end)
+			end)
+		end
 	end)
 
-	local projectileLaunched = bedwars.SyncEvents.ProjectileLaunched:connect(function(event)
-		if not store.matchState or typeof(event.origin) ~= 'Vector3' or typeof(event.launchVelocity) ~= 'Vector3' or event.shooter == lplr.Character then return end
-		scanProjectile(event.origin, event.launchVelocity, event.projectileType, event.shooter)
-	end)
-	vape:Clean(function()
-		projectileLaunched:Destroy()
+	pcall(function()
+		if bedwars.SyncEvents and bedwars.SyncEvents.ProjectileLaunched then
+			local projectileLaunched = bedwars.SyncEvents.ProjectileLaunched:connect(function(event)
+				if not store.matchState or typeof(event.origin) ~= 'Vector3' or typeof(event.launchVelocity) ~= 'Vector3' or event.shooter == lplr.Character then return end
+				scanProjectile(event.origin, event.launchVelocity, event.projectileType, event.shooter)
+			end)
+			vape:Clean(function()
+				pcall(function() projectileLaunched:Destroy() end)
+			end)
+		end
 	end)
 
-	vape:Clean(bedwars.ZapNetworking.BreakBlockEventZap.On(function(...)
-		local data = {
-			blockRef = {
-				blockPosition = ...,
-			},
-			player = select(5, ...)
-		}
-		table.clear(pathcache)
-		vapeEvents.BreakBlockEvent:Fire(data)
-	end))
+	pcall(function()
+		if bedwars.ZapNetworking and bedwars.ZapNetworking.BreakBlockEventZap and bedwars.ZapNetworking.BreakBlockEventZap.On then
+			vape:Clean(bedwars.ZapNetworking.BreakBlockEventZap.On(function(...)
+				local data = {
+					blockRef = {
+						blockPosition = ...,
+					},
+					player = select(5, ...)
+				}
+				table.clear(pathcache)
+				vapeEvents.BreakBlockEvent:Fire(data)
+			end))
+		end
+	end)
 
 	store.blocks = collection('block', vape)
 	store.shop = collection({'BedwarsItemShop', 'TeamUpgradeShopkeeper'}, vape, function(tab, obj)
@@ -2220,21 +2254,23 @@ run(function()
 	end)
 	vape:Clean(function()
 		task.wait(1)
-		Client.Get = OldGet
-		bedwars.BlockBreaker.hitBlock = OldHit
-		bedwars.BlockController.isBlockBreakable = OldBreak
-		store.blockPlacer:disable()
+		if Client and OldGet then Client.Get = OldGet end
+		if bedwars.BlockBreaker and OldHit then bedwars.BlockBreaker.hitBlock = OldHit end
+		if bedwars.BlockController and OldBreak then bedwars.BlockController.isBlockBreakable = OldBreak end
+		if store.blockPlacer and store.blockPlacer.disable then pcall(function() store.blockPlacer:disable() end) end
 		for _, v in vapeEvents do
-			v:Destroy()
+			pcall(function() v:Destroy() end)
 		end
-		table.clear(store.blockPlacer)
+		if store.blockPlacer then table.clear(store.blockPlacer) end
 		table.clear(vapeEvents)
 		table.clear(bedwars)
 		table.clear(store)
 		table.clear(pathcache)
 		table.clear(sides)
-		storeChanged:disconnect()
-		storeChanged = nil
+		if storeChanged then
+			pcall(function() storeChanged:disconnect() end)
+			storeChanged = nil
+		end
 	end)
 end)
 

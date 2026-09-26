@@ -1,4 +1,5 @@
-if table.find({'Solara', 'Xeno'}, ({identifyexecutor()})[1]) then return false end
+local execName = identifyexecutor and ({identifyexecutor()})[1] or ''
+if table.find({'Solara', 'Xeno'}, execName) then return false end
 local buildclock = os.clock()
 local run = function(func)
 	xpcall(func, function(err)
@@ -37,13 +38,35 @@ run(function()
 	end
 
 	local KnitInit, Knit
+	local knitAttempts = 0
 	repeat
-		KnitInit, Knit = pcall(function() return debug.getupvalue(require(lplr.PlayerScripts.TS.knit).setup, 9) end)
-		if KnitInit then break end
-		task.wait()
-	until KnitInit
-	if not debug.getupvalue(Knit.Start, 1) then
-		repeat task.wait() until debug.getupvalue(Knit.Start, 1)
+		knitAttempts = knitAttempts + 1
+		KnitInit, Knit = pcall(function()
+			if debug.getupvalue then
+				local suc, res = pcall(function()
+					return debug.getupvalue(require(lplr.PlayerScripts.TS.knit).setup, 9)
+				end)
+				if suc and res then return res end
+			end
+			return require(replicatedStorage['rbxts_include']['node_modules']['@easy-games'].knit.src).KnitClient
+		end)
+		if KnitInit and Knit then break end
+		task.wait(0.05)
+	until (KnitInit and Knit) or knitAttempts > 30
+
+	if not Knit then
+		pcall(function()
+			Knit = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games'].knit.src).KnitClient
+		end)
+	end
+
+	if Knit and debug.getupvalue then
+		pcall(function()
+			if not debug.getupvalue(Knit.Start, 1) then
+				local startWait = tick()
+				repeat task.wait(0.05) until debug.getupvalue(Knit.Start, 1) or (tick() - startWait > 2)
+			end
+		end)
 	end
 	local Flamework = require(replicatedStorage['rbxts_include']['node_modules']['@flamework'].core.out).Flamework
 	local Client = require(replicatedStorage.TS.remotes).default.Client

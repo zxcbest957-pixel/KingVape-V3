@@ -1,24 +1,24 @@
-local Run = function(Func: () -> ())
-    Func()
+local run = function(func) 
+	func() 
 end
-local cloneref = cloneref or function(Reference: Instance)
-    return Reference
+local cloneref = cloneref or function(obj) 
+	return obj 
 end
-local Players: Players = cloneref(game:GetService("Players"))
-local UserInputService: UserInputService = cloneref(game:GetService("UserInputService"))
-local ReplicatedStorage: ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
-local CollectionService: CollectionService = cloneref(game:GetService("CollectionService"))
-local HttpService: HttpService = cloneref(game:GetService("HttpService"))
-local CoreGui: CoreGui = cloneref(game:GetService("CoreGui"))
-local Camera: Camera = workspace.CurrentCamera
-local LocalPlayer: Player = Players.LocalPlayer
+local playersService = cloneref(game:GetService('Players'))
+local inputService = cloneref(game:GetService('UserInputService'))
+local replicatedStorage = cloneref(game:GetService('ReplicatedStorage'))
+local collectionService = cloneref(game:GetService('CollectionService'))
+local httpService = cloneref(game:GetService('HttpService'))
+local coreGui = cloneref(game:GetService('CoreGui'))
+local gameCamera = workspace.CurrentCamera
+local lplr = playersService.LocalPlayer
 
 local vape = shared.vape
-local SessionInfo = vape.Libraries.sessioninfo
+local sessioninfo = vape.Libraries.sessioninfo
 
-Run(function()
-    local Kills = SessionInfo:AddItem("Kills")
-    local Eggs = SessionInfo:AddItem("Eggs")
-    local Wins = SessionInfo:AddItem("Wins")
-    local Games = SessionInfo:AddItem("Games")
+run(function()
+	local kills = sessioninfo:AddItem('Kills')
+	local eggs = sessioninfo:AddItem('Eggs')
+	local wins = sessioninfo:AddItem('Wins')
+	local games = sessioninfo:AddItem('Games')
 end)

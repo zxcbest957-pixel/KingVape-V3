@@ -122,7 +122,7 @@ end)
 
 
 local currentVersion = (isfile('kingvape/profiles/version.txt') and readfile('kingvape/profiles/version.txt')) or ''
-local targetVersion = '3.2.7'
+local targetVersion = '3.2.8'
 local targetCommit = 'main'
 local currentCommit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or ''
 

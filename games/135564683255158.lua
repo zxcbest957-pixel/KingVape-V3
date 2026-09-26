@@ -1,4 +1,4 @@
-﻿local vape = shared.vape
+local vape = shared.vape
 local loadstring = function(...)
     local Chunk, Message = loadstring(...)
     if Message and vape then

@@ -75,6 +75,7 @@ local function downloadFile(path, func)
 		end
 
 		if content and typeof(content) == 'string' and content ~= '404: Not Found' and content ~= '' then
+			content = content:gsub('^\239\187\191', '')
 			if path:find('%.lua') then
 				content = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..content
 			end

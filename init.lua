@@ -69,6 +69,7 @@ local function downloadFile(path, func)
 		end
 
 		if content and typeof(content) == 'string' and content ~= '404: Not Found' and content ~= '' then
+			content = content:gsub('^\239\187\191', '')
 			if path:find('%.lua') then
 				content = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..content
 			end
@@ -116,7 +117,7 @@ end)
 
 
 local currentVersion = (isfile('kingvape/profiles/version.txt') and readfile('kingvape/profiles/version.txt')) or ''
-local targetVersion = '3.2.5'
+local targetVersion = '3.2.6'
 local targetCommit = 'main'
 local currentCommit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or ''
 

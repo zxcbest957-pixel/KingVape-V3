@@ -1,4 +1,4 @@
-﻿local Run = function(Func: () -> ())
+local Run = function(Func: () -> ())
     Func()
 end
 local cloneref = cloneref or function(Reference: Instance)

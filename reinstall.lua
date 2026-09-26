@@ -1,2 +1,2 @@
-﻿delfolder('kingvape')
+delfolder('kingvape')
 pcall(delfolder, 'kingvape')

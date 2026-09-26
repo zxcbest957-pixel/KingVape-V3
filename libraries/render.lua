@@ -1,4 +1,4 @@
-﻿local Render = {
+local Render = {
     Fonts = {
         UI = 0,
         System = 1,

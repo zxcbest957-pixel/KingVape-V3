@@ -1,4 +1,4 @@
-﻿local loadstring = function(...)
+local loadstring = function(...)
     local Chunk, Message = loadstring(...)
     if Message and vape then
         vape:CreateNotification("Vape", `Failed to load : {Message}`, 30, "alert")

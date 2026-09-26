@@ -1,4 +1,4 @@
-﻿local License = ... or {}
+local License = ... or {}
 local vape = {
     ActiveBinds = {},
     Categories = {},

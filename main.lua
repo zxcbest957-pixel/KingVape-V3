@@ -207,15 +207,25 @@ if not shared.VapeIndependent then
 		end
 	end
 
-	local gameCode = downloadFile('kingvape/games/'..game.PlaceId..'.lua')
+	local targetPlaceId = game.PlaceId
+	local bedwarsMatches = {[6872274481] = true, [8444591321] = true, [8560631822] = true}
+	if bedwarsMatches[game.PlaceId] or (game.GameId == 2619619496 and game.PlaceId ~= 6872265039) then
+		targetPlaceId = 6872274481
+	end
+
+	local gameCode = downloadFile('kingvape/games/'..targetPlaceId..'.lua')
+	if (not gameCode or gameCode == '' or gameCode == '404: Not Found') and targetPlaceId ~= game.PlaceId then
+		gameCode = downloadFile('kingvape/games/'..game.PlaceId..'.lua')
+	end
+
 	if typeof(gameCode) == 'string' and gameCode ~= '' and gameCode ~= '404: Not Found' then
-		local gfn = loadstring(gameCode, tostring(game.PlaceId))
+		local gfn = loadstring(gameCode, tostring(targetPlaceId))
 		if gfn then
 			local suc, err = pcall(gfn, license)
 			if not suc then
-				warn('[KingVape Game Script Error ('..game.PlaceId..')]: ' .. tostring(err))
+				warn('[KingVape Game Script Error ('..targetPlaceId..')]: ' .. tostring(err))
 				if vape and vape.CreateNotification then
-					vape:CreateNotification('KingVape', 'Bedwars script error: '..tostring(err), 15, 'alert')
+					vape:CreateNotification('KingVape', 'Game script error: '..tostring(err), 15, 'alert')
 				end
 			end
 		end

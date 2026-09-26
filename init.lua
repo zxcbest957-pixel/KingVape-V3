@@ -92,8 +92,11 @@ local function wipeFolder(path)
 		pcall(function()
 			for _, file in listfiles(path) do
 				if isfile(file) and not file:find('color.txt') and not file:find('font.txt') and not file:find('favorites.txt') and not file:find('gui.txt') then
-					pcall(delfile, file)
-					pcall(writefile, file, '')
+					if delfile then
+						pcall(delfile, file)
+					else
+						pcall(writefile, file, '')
+					end
 				end
 			end
 		end)
@@ -120,18 +123,17 @@ pcall(function()
 	end
 end)
 
-
 local currentVersion = (isfile('kingvape/profiles/version.txt') and readfile('kingvape/profiles/version.txt')) or ''
-local targetVersion = '3.3.1'
+local targetVersion = '3.3.2'
 local targetCommit = 'main'
 local currentCommit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or ''
 
-if currentVersion ~= targetVersion or currentCommit ~= targetCommit or shared.ForceUpdate or shared.vapereload then
+if currentVersion ~= targetVersion or currentCommit ~= targetCommit or shared.ForceUpdate then
 	wipeFolder('kingvape/guis')
 	wipeFolder('kingvape/games')
 	wipeFolder('kingvape/libraries')
-	pcall(delfile, 'kingvape/main.lua')
-	pcall(delfile, 'kingvape/features.json')
+	pcall(function() if delfile then delfile('kingvape/main.lua') end end)
+	pcall(function() if delfile then delfile('kingvape/features.json') end end)
 	pcall(writefile, 'kingvape/profiles/version.txt', targetVersion)
 	pcall(writefile, 'kingvape/profiles/commit.txt', targetCommit)
 end

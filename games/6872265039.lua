@@ -1,5 +1,3 @@
-local execName = identifyexecutor and ({identifyexecutor()})[1] or ''
-if table.find({'Solara', 'Xeno'}, execName) then return false end
 local buildclock = os.clock()
 local run = function(func)
 	xpcall(func, function(err)
@@ -68,24 +66,49 @@ run(function()
 			end
 		end)
 	end
-	local Flamework = require(replicatedStorage['rbxts_include']['node_modules']['@flamework'].core.out).Flamework
-	local Client = require(replicatedStorage.TS.remotes).default.Client
+
+	local function safeRequire(path)
+		local suc, res = pcall(function() return require(path) end)
+		return suc and res or nil
+	end
+
+	local Flamework
+	pcall(function()
+		Flamework = require(replicatedStorage['rbxts_include']['node_modules']['@flamework'].core.out).Flamework
+	end)
+	local Client
+	pcall(function()
+		Client = require(replicatedStorage.TS.remotes).default.Client
+	end)
+
+	local crateMeta = nil
+	if Flamework and debug.getupvalue then
+		pcall(function()
+			local controller = Flamework.resolveDependency('client/controllers/global/reward-crate/crate-controller@CrateController')
+			if controller and controller.onStart then
+				crateMeta = debug.getupvalue(controller.onStart, 3)
+			end
+		end)
+	end
 
 	bedwars = setmetatable({
-		Client = Client,
-		CrateItemMeta = debug.getupvalue(Flamework.resolveDependency('client/controllers/global/reward-crate/crate-controller@CrateController').onStart, 3),
-		EmoteDisplayMeta = require(replicatedStorage.TS.locker.emote['emote-display-meta']).EmoteDisplayMeta,
-		EmoteMeta = require(replicatedStorage.TS.locker.emote['emote-meta']).EmoteMeta,
-		EmoteType = require(replicatedStorage.TS.locker.emote['emote-type']).EmoteType,
-		GameAnimationUtil = require(replicatedStorage.TS.animation['animation-util']).GameAnimationUtil,
-		GamePlayerUtil = require(replicatedStorage.TS.player['player-util']).GamePlayerUtil,
-		MilestoneRewards = require(replicatedStorage.TS.milestones.milestones).MilestoneRewards,
-		QueueMeta = require(replicatedStorage.TS.game['queue-meta']).QueueMeta,
-		Store = require(lplr.PlayerScripts.TS.ui.store).ClientStore
+		Client = Client or {},
+		CrateItemMeta = crateMeta,
+		EmoteDisplayMeta = safeRequire(replicatedStorage:FindFirstChild('TS') and replicatedStorage.TS:FindFirstChild('locker') and replicatedStorage.TS.locker:FindFirstChild('emote') and replicatedStorage.TS.locker.emote:FindFirstChild('emote-display-meta')) and safeRequire(replicatedStorage.TS.locker.emote['emote-display-meta']).EmoteDisplayMeta,
+		EmoteMeta = safeRequire(replicatedStorage:FindFirstChild('TS') and replicatedStorage.TS:FindFirstChild('locker') and replicatedStorage.TS.locker:FindFirstChild('emote') and replicatedStorage.TS.locker.emote:FindFirstChild('emote-meta')) and safeRequire(replicatedStorage.TS.locker.emote['emote-meta']).EmoteMeta,
+		EmoteType = safeRequire(replicatedStorage:FindFirstChild('TS') and replicatedStorage.TS:FindFirstChild('locker') and replicatedStorage.TS.locker:FindFirstChild('emote') and replicatedStorage.TS.locker.emote:FindFirstChild('emote-type')) and safeRequire(replicatedStorage.TS.locker.emote['emote-type']).EmoteType,
+		GameAnimationUtil = safeRequire(replicatedStorage:FindFirstChild('TS') and replicatedStorage.TS:FindFirstChild('animation') and replicatedStorage.TS.animation:FindFirstChild('animation-util')) and safeRequire(replicatedStorage.TS.animation['animation-util']).GameAnimationUtil,
+		GamePlayerUtil = safeRequire(replicatedStorage:FindFirstChild('TS') and replicatedStorage.TS:FindFirstChild('player') and replicatedStorage.TS.player:FindFirstChild('player-util')) and safeRequire(replicatedStorage.TS.player['player-util']).GamePlayerUtil,
+		MilestoneRewards = safeRequire(replicatedStorage:FindFirstChild('TS') and replicatedStorage.TS:FindFirstChild('milestones') and replicatedStorage.TS.milestones:FindFirstChild('milestones')) and safeRequire(replicatedStorage.TS.milestones.milestones).MilestoneRewards,
+		QueueMeta = safeRequire(replicatedStorage:FindFirstChild('TS') and replicatedStorage.TS:FindFirstChild('game') and replicatedStorage.TS.game:FindFirstChild('queue-meta')) and safeRequire(replicatedStorage.TS.game['queue-meta']).QueueMeta,
+		Store = safeRequire(lplr:FindFirstChild('PlayerScripts') and lplr.PlayerScripts:FindFirstChild('TS') and lplr.PlayerScripts.TS:FindFirstChild('ui') and lplr.PlayerScripts.TS.ui:FindFirstChild('store')) and safeRequire(lplr.PlayerScripts.TS.ui.store).ClientStore
 	}, {
 		__index = function(self, ind)
-			rawset(self, ind, Knit.Controllers[ind])
-			return rawget(self, ind)
+			if Knit and Knit.Controllers then
+				rawset(self, ind, Knit.Controllers[ind])
+				return rawget(self, ind)
+			end
+			return nil
 		end
 	})
 

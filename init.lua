@@ -25,8 +25,11 @@ downloader.Parent = Instance.new('ScreenGui', gethui and gethui() or cloneref(ga
 
 local function downloadFile(path, func)
 	local content
-	if isfile(path) then
+	if isfile(path) and not shared.ForceUpdate then
 		pcall(function() content = readfile(path) end)
+	end
+	if typeof(content) == 'string' then
+		content = content:gsub('\239\187\191', ''):gsub('\239\191\189', '')
 	end
 	if not content or content == '' or content == '404: Not Found' or typeof(content) ~= 'string' then
 		if not license.Closet then
@@ -69,7 +72,7 @@ local function downloadFile(path, func)
 		end
 
 		if content and typeof(content) == 'string' and content ~= '404: Not Found' and content ~= '' then
-			content = content:gsub('^\239\187\191', '')
+			content = content:gsub('\239\187\191', ''):gsub('\239\191\189', '')
 			if path:find('%.lua') then
 				content = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..content
 			end
@@ -78,6 +81,7 @@ local function downloadFile(path, func)
 		downloader.Text = ''
 	end
 	if typeof(content) ~= 'string' then content = '' end
+	content = content:gsub('\239\187\191', ''):gsub('\239\191\189', '')
 	return (func or function() return content end)(path)
 end
 
@@ -89,6 +93,7 @@ local function wipeFolder(path)
 			for _, file in listfiles(path) do
 				if isfile(file) and not file:find('color.txt') and not file:find('font.txt') and not file:find('favorites.txt') and not file:find('gui.txt') then
 					pcall(delfile, file)
+					pcall(writefile, file, '')
 				end
 			end
 		end)
@@ -117,7 +122,7 @@ end)
 
 
 local currentVersion = (isfile('kingvape/profiles/version.txt') and readfile('kingvape/profiles/version.txt')) or ''
-local targetVersion = '3.2.6'
+local targetVersion = '3.2.7'
 local targetCommit = 'main'
 local currentCommit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or ''
 

@@ -10,7 +10,8 @@ local loadstring = function(...)
 		warn('[KingVape] Attempted to load empty string!')
 		return function() end
 	end
-	local res, err = loadstring(...)
+	str = str:gsub('\239\187\191', ''):gsub('\239\191\189', '')
+	local res, err = loadstring(str, select(2, ...))
 	if err then
 		warn('[KingVape Error]: ' .. tostring(err))
 		if vape and vape.CreateNotification then
@@ -34,8 +35,11 @@ local httpService = cloneref(game:GetService("HttpService"))
 
 local function downloadFile(path, func)
 	local content
-	if isfile(path) then
+	if isfile(path) and not shared.ForceUpdate then
 		pcall(function() content = readfile(path) end)
+	end
+	if typeof(content) == 'string' then
+		content = content:gsub('\239\187\191', ''):gsub('\239\191\189', '')
 	end
 	if not content or content == '' or content == '404: Not Found' or typeof(content) ~= 'string' then
 		local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
@@ -75,7 +79,7 @@ local function downloadFile(path, func)
 		end
 
 		if content and typeof(content) == 'string' and content ~= '404: Not Found' and content ~= '' then
-			content = content:gsub('^\239\187\191', '')
+			content = content:gsub('\239\187\191', ''):gsub('\239\191\189', '')
 			if path:find('%.lua') then
 				content = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..content
 			end
@@ -83,6 +87,7 @@ local function downloadFile(path, func)
 		end
 	end
 	if typeof(content) ~= 'string' then content = '' end
+	content = content:gsub('\239\187\191', ''):gsub('\239\191\189', '')
 	return (func or function() return content end)(path)
 end
 

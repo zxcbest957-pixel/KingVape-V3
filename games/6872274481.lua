@@ -1175,27 +1175,52 @@ local calculatePath
 run(function()
 	local Client, OldGet, OldBreak, OldHit, OldWallcheck
 	local KnitInit, Knit
+	local knitAttempts = 0
 	repeat
+		knitAttempts = knitAttempts + 1
 		KnitInit, Knit = pcall(function()
-			if not canDebug then
-				return require(replicatedStorage['rbxts_include']['node_modules']['@easy-games'].knit.src).KnitClient
+			if canDebug and debug.getupvalue then
+				local suc, res = pcall(function()
+					return debug.getupvalue(require(lplr.PlayerScripts.TS.knit).setup, 9)
+				end)
+				if suc and res then return res end
 			end
-			return debug.getupvalue(require(lplr.PlayerScripts.TS.knit).setup, 9)
+			return require(replicatedStorage['rbxts_include']['node_modules']['@easy-games'].knit.src).KnitClient
 		end)
 		if KnitInit and Knit then break end
-		task.wait()
-	until KnitInit and Knit
+		task.wait(0.05)
+	until (KnitInit and Knit) or knitAttempts > 40
 
-	if canDebug and not debug.getupvalue(Knit.Start, 1) then
-		repeat task.wait() until debug.getupvalue(Knit.Start, 1)
+	if not Knit then
+		pcall(function()
+			Knit = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games'].knit.src).KnitClient
+		end)
+	end
+
+	if canDebug and Knit and debug.getupvalue then
+		pcall(function()
+			if not debug.getupvalue(Knit.Start, 1) then
+				local startWait = tick()
+				repeat task.wait(0.05) until debug.getupvalue(Knit.Start, 1) or (tick() - startWait > 2)
+			end
+		end)
 	end
 
 	local Flamework = require(replicatedStorage['rbxts_include']['node_modules']['@flamework'].core.out).Flamework
-	local InventoryUtil = require(replicatedStorage.TS.inventory['inventory-util']).InventoryUtil
-	local ItemMetaModule = require(replicatedStorage.TS.item['item-meta'])
-	local TeamUpgradeModule = require(replicatedStorage.TS.games.bedwars['team-upgrade']['team-upgrade-meta'])
-	local Remotes = require(replicatedStorage.TS.remotes).default
-	Client = Remotes.Client
+	local function safeRequire(path)
+		local suc, res = pcall(require, path)
+		return suc and res or {}
+	end
+	local function safeResolve(dep)
+		local suc, res = pcall(Flamework.resolveDependency, dep)
+		return suc and res or nil
+	end
+
+	local InventoryUtil = safeRequire(replicatedStorage.TS.inventory['inventory-util']).InventoryUtil
+	local ItemMetaModule = safeRequire(replicatedStorage.TS.item['item-meta'])
+	local TeamUpgradeModule = safeRequire(replicatedStorage.TS.games.bedwars['team-upgrade']['team-upgrade-meta'])
+	local Remotes = safeRequire(replicatedStorage.TS.remotes).default or {}
+	Client = Remotes.Client or {}
 	OldGet = Client.Get
 
 	local RemoteHandler = {}
@@ -1203,14 +1228,13 @@ run(function()
 	RemoteHandler.__index = RemoteHandler
 
 	local RemoteDefinitionConstruct, RemotesInConstruct
-	if canDebug then
-		RemoteDefinitionConstruct, RemotesInConstruct = next(getupvalue(getrawmetatable(Remotes.Server).Get, 1))
+	if canDebug and Remotes.Server then
+		pcall(function()
+			RemoteDefinitionConstruct, RemotesInConstruct = next(getupvalue(getrawmetatable(Remotes.Server).Get, 1))
+		end)
 	end
 
-	local GlobalMiddleware = RemoteDefinitionConstruct and getupvalue(RemoteDefinitionConstruct.globalMiddleware[2], 1)
-	if canDebug and (not GlobalMiddleware or typeof(GlobalMiddleware) ~= 'table') then
-		notif('KingVape', 'Failed to load ratelimits, report this to a developer.', 30, 'alert')
-	end
+	local GlobalMiddleware = RemoteDefinitionConstruct and getupvalue and pcall(getupvalue, RemoteDefinitionConstruct.globalMiddleware[2], 1) and getupvalue(RemoteDefinitionConstruct.globalMiddleware[2], 1)
 
 	function RemoteHandler.Get(self, RemoteID)
 		if RemoteHandler.CachedRemotes[RemoteID] then
@@ -1230,7 +1254,6 @@ run(function()
 		Remote.Remote = AttempedRemote
 
 		if not Success or not Remote.Remote then
-			notif('KingVape', `Tried to Get remote {Remote.ID}, remote is invalid`, 15, 'alert')
 			Remote.Remote = nil
 		end
 
@@ -1289,12 +1312,12 @@ run(function()
 		local RateLimitValue = (typeof(GlobalFind) ~= 'number' and 300) or GlobalFind
 
 		if not GlobalFind then
-			local TargetRemote = RemotesInConstruct[RemoteName]
+			local TargetRemote = RemotesInConstruct and RemotesInConstruct[RemoteName]
 			local RemoteRateLimit = (TargetRemote and TargetRemote.ServerMiddleware)
 			if RemoteRateLimit and typeof(RemoteRateLimit) == 'table' then
 				for _, v in RemoteRateLimit do
-					if typeof(v) == 'function' and (#getupvalues(v) >= 6 and tostring(getupvalue(v, 6)):find('Request limit')) then
-						local Value = getupvalue(v, 3)
+					if typeof(v) == 'function' and debug.getupvalues and (#debug.getupvalues(v) >= 6 and tostring(debug.getupvalue(v, 6)):find('Request limit')) then
+						local Value = debug.getupvalue(v, 3)
 						RateLimitValue = (typeof(Value) == 'number' and Value) or RateLimitValue
 						break
 					end
@@ -1305,55 +1328,68 @@ run(function()
 		return RateLimitValue
 	end
 
+	local function findBowConstants()
+		local projCtrl = Knit and Knit.Controllers and Knit.Controllers.ProjectileController
+		local enableBeam = projCtrl and projCtrl.enableBeam
+		if typeof(enableBeam) == 'function' and debug.getupvalues then
+			for _, val in debug.getupvalues(enableBeam) do
+				if typeof(val) == 'table' and val.RelX and val.RelY and val.RelZ then
+					return val
+				end
+			end
+		end
+		return cheatenginelib and cheatenginelib.BowConstantsTable
+	end
+
 	bedwars = setmetatable({
-		AbilityController = Flamework.resolveDependency('@easy-games/game-core:client/controllers/ability/ability-controller@AbilityController'),
-		AbilityIndicatorUtil = require(replicatedStorage.TS.games.bedwars.items['ability-indicator']['ability-indicator-util']).AbilityIndicatorUtil,
-		AnimationType = require(replicatedStorage.TS.animation['animation-type']).AnimationType,
-		AnimationUtil = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out['shared'].util['animation-util']).AnimationUtil,
-		AdetundeUtil = require(replicatedStorage.TS.games.bedwars.items['frosty-hammer']['frosty-hammer-util']).FrostyHammerUtil,
-		AdetundeUpgradeMeta = require(replicatedStorage.TS.games.bedwars.items['frosty-hammer']['frosty-hammer-upgrades']).FrostyHammerUpgradeMeta,
-		AppController = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out.client.controllers['app-controller']).AppController,
-		BalanceFile = require(replicatedStorage.TS.balance['balance-file']).BalanceFile,
-		BedBreakEffectMeta = require(replicatedStorage.TS.locker['bed-break-effect']['bed-break-effect-meta']).BedBreakEffectMeta,
-		BedDefenseMeta = require(replicatedStorage.TS['no-build']['bed-defense-meta']).BedDefenseMeta,
-		BedwarsKitMeta = require(replicatedStorage.TS.games.bedwars.kit['bedwars-kit-meta']).BedwarsKitMeta,
-		BlackMarketeerBalance = require(replicatedStorage.TS.balance['black-marketeer-balance']).BlackMarketeerBalance,
-		BlockBreaker = Knit.Controllers.BlockBreakController.blockBreaker,
-		BlockController = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['block-engine'].out).BlockEngine,
-		BlockEngine = require(lplr.PlayerScripts.TS.lib['block-engine']['client-block-engine']).ClientBlockEngine,
-		BlockPlacer = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['block-engine'].out.client.placement['block-placer']).BlockPlacer,
-		BowConstantsTable = debug.getupvalue(Knit.Controllers.ProjectileController.enableBeam, 8) or (cheatenginelib and cheatenginelib.BowConstantsTable),
-		BlockSelector = require(replicatedStorage.rbxts_include.node_modules['@easy-games']['block-engine'].out.client.select['block-selector']).BlockSelector,
-		BountyHunterUtil = require(replicatedStorage.TS.games.bedwars.kit.kits.bountyhunter['bounty-hunter-util']).BountyHunterUtil,
-		BlockSelectorMode = require(replicatedStorage.rbxts_include.node_modules['@easy-games']['block-engine'].out.client.select['block-selector']).BlockSelectorMode,
-		ArmorTrimColor = require(replicatedStorage.TS['armor-trim']['armor-trim-colors']).ArmorTrimColor,
-		ArmorTrimEffectMeta = require(replicatedStorage.TS['armor-trim']['armor-trim-effect-meta']).ArmorTrimEffectMeta,
-		ArmorTrimEffectRankMeta = require(replicatedStorage.TS['armor-trim']['armor-trim-rank']).ArmorTrimEffectRankMeta,
-		ArmorTrimEffectType = require(replicatedStorage.TS['armor-trim']['armor-trim-effect-type']).ArmorTrimEffectType,
-		ArmorTrimMeta = require(replicatedStorage.TS['armor-trim']['armor-trim-meta']).ArmorTrimMeta,
-		ArmorTrimType = require(replicatedStorage.TS['armor-trim']['armor-trim-type']).ArmorTrimType,
-		ChargeState = require(replicatedStorage.TS.combat['charge-state']).ChargeState,
-		ClickHold = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out.client.ui.lib.util['click-hold']).ClickHold,
+		AbilityController = safeResolve('@easy-games/game-core:client/controllers/ability/ability-controller@AbilityController'),
+		AbilityIndicatorUtil = safeRequire(replicatedStorage.TS.games.bedwars.items['ability-indicator']['ability-indicator-util']).AbilityIndicatorUtil,
+		AnimationType = safeRequire(replicatedStorage.TS.animation['animation-type']).AnimationType,
+		AnimationUtil = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out['shared'].util['animation-util']).AnimationUtil,
+		AdetundeUtil = safeRequire(replicatedStorage.TS.games.bedwars.items['frosty-hammer']['frosty-hammer-util']).FrostyHammerUtil,
+		AdetundeUpgradeMeta = safeRequire(replicatedStorage.TS.games.bedwars.items['frosty-hammer']['frosty-hammer-upgrades']).FrostyHammerUpgradeMeta,
+		AppController = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out.client.controllers['app-controller']).AppController,
+		BalanceFile = safeRequire(replicatedStorage.TS.balance['balance-file']).BalanceFile,
+		BedBreakEffectMeta = safeRequire(replicatedStorage.TS.locker['bed-break-effect']['bed-break-effect-meta']).BedBreakEffectMeta,
+		BedDefenseMeta = safeRequire(replicatedStorage.TS['no-build']['bed-defense-meta']).BedDefenseMeta,
+		BedwarsKitMeta = safeRequire(replicatedStorage.TS.games.bedwars.kit['bedwars-kit-meta']).BedwarsKitMeta or {},
+		BlackMarketeerBalance = safeRequire(replicatedStorage.TS.balance['black-marketeer-balance']).BlackMarketeerBalance,
+		BlockBreaker = Knit and Knit.Controllers and Knit.Controllers.BlockBreakController and Knit.Controllers.BlockBreakController.blockBreaker,
+		BlockController = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['block-engine'].out).BlockEngine,
+		BlockEngine = safeRequire(lplr.PlayerScripts.TS.lib['block-engine']['client-block-engine']).ClientBlockEngine,
+		BlockPlacer = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['block-engine'].out.client.placement['block-placer']).BlockPlacer,
+		BowConstantsTable = findBowConstants(),
+		BlockSelector = safeRequire(replicatedStorage.rbxts_include.node_modules['@easy-games']['block-engine'].out.client.select['block-selector']).BlockSelector,
+		BountyHunterUtil = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits.bountyhunter['bounty-hunter-util']).BountyHunterUtil,
+		BlockSelectorMode = safeRequire(replicatedStorage.rbxts_include.node_modules['@easy-games']['block-engine'].out.client.select['block-selector']).BlockSelectorMode,
+		ArmorTrimColor = safeRequire(replicatedStorage.TS['armor-trim']['armor-trim-colors']).ArmorTrimColor,
+		ArmorTrimEffectMeta = safeRequire(replicatedStorage.TS['armor-trim']['armor-trim-effect-meta']).ArmorTrimEffectMeta,
+		ArmorTrimEffectRankMeta = safeRequire(replicatedStorage.TS['armor-trim']['armor-trim-rank']).ArmorTrimEffectRankMeta,
+		ArmorTrimEffectType = safeRequire(replicatedStorage.TS['armor-trim']['armor-trim-effect-type']).ArmorTrimEffectType,
+		ArmorTrimMeta = safeRequire(replicatedStorage.TS['armor-trim']['armor-trim-meta']).ArmorTrimMeta,
+		ArmorTrimType = safeRequire(replicatedStorage.TS['armor-trim']['armor-trim-type']).ArmorTrimType,
+		ChargeState = safeRequire(replicatedStorage.TS.combat['charge-state']).ChargeState,
+		ClickHold = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out.client.ui.lib.util['click-hold']).ClickHold,
 		Client = Client,
-		ClientConstructor = require(replicatedStorage['rbxts_include']['node_modules']['@rbxts'].net.out.client),
-		ClientDamageBlock = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['block-engine'].out.shared.remotes).BlockEngineRemotes.Client,
-		CombatConstant = require(replicatedStorage.TS.combat['combat-constant']).CombatConstant,
-		ConquerorBalance = require(replicatedStorage.TS.balance['conqueror-balance']).ConquerorBalance,
-		DamageIndicator = Knit.Controllers.DamageIndicatorController.spawnDamageIndicator,
-		DefaultKillEffect = require(lplr.PlayerScripts.TS.controllers.global.locker['kill-effect'].effects['default-kill-effect']),
-		EmoteType = require(replicatedStorage.TS.locker.emote['emote-type']).EmoteType,
-		EmoteDisplayMeta = require(replicatedStorage.TS.locker.emote['emote-display-meta']).EmoteDisplayMeta,
-		EmoteMeta = require(replicatedStorage.TS.locker.emote['emote-meta']).EmoteMeta,
-		EnchantMeta = require(replicatedStorage.TS.enchant['enchant-meta']).EnchantMeta,
-		FishermanUtil = require(replicatedStorage.TS.games.bedwars.kit.kits.fisherman['fisherman-util']).FishermanUtil,
-		FrostyGunMode = require(replicatedStorage.TS.games.bedwars.kit.kits['frosty-gun']['frosty-gun-util']).FrostyGunMode,
-		GameAnimationUtil = require(replicatedStorage.TS.animation['animation-util']).GameAnimationUtil,
-		GamePlayerUtil = require(replicatedStorage.TS.player['player-util']).GamePlayerUtil,
+		ClientConstructor = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@rbxts'].net.out.client),
+		ClientDamageBlock = (safeRequire(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['block-engine'].out.shared.remotes).BlockEngineRemotes or {}).Client,
+		CombatConstant = safeRequire(replicatedStorage.TS.combat['combat-constant']).CombatConstant or {RAYCAST_SWORD_CHARACTER_DISTANCE = 14.4},
+		ConquerorBalance = safeRequire(replicatedStorage.TS.balance['conqueror-balance']).ConquerorBalance,
+		DamageIndicator = Knit and Knit.Controllers and Knit.Controllers.DamageIndicatorController and Knit.Controllers.DamageIndicatorController.spawnDamageIndicator,
+		DefaultKillEffect = safeRequire(lplr.PlayerScripts.TS.controllers.global.locker['kill-effect'].effects['default-kill-effect']),
+		EmoteType = safeRequire(replicatedStorage.TS.locker.emote['emote-type']).EmoteType,
+		EmoteDisplayMeta = safeRequire(replicatedStorage.TS.locker.emote['emote-display-meta']).EmoteDisplayMeta,
+		EmoteMeta = safeRequire(replicatedStorage.TS.locker.emote['emote-meta']).EmoteMeta,
+		EnchantMeta = safeRequire(replicatedStorage.TS.enchant['enchant-meta']).EnchantMeta,
+		FishermanUtil = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits.fisherman['fisherman-util']).FishermanUtil,
+		FrostyGunMode = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits['frosty-gun']['frosty-gun-util']).FrostyGunMode,
+		GameAnimationUtil = safeRequire(replicatedStorage.TS.animation['animation-util']).GameAnimationUtil,
+		GamePlayerUtil = safeRequire(replicatedStorage.TS.player['player-util']).GamePlayerUtil,
 		getIcon = function(item, showinv)
-			local itemmeta = bedwars.ItemMeta[item.itemType]
+			local itemmeta = bedwars.ItemMeta and bedwars.ItemMeta[item.itemType]
 			return itemmeta and showinv and itemmeta.image or ''
 		end,
-		getItemSkinMeta = require(replicatedStorage.TS.games.bedwars['item-skin']['item-skin-meta']).getItemSkinMeta,
+		getItemSkinMeta = safeRequire(replicatedStorage.TS.games.bedwars['item-skin']['item-skin-meta']).getItemSkinMeta,
 		getInventory = function(plr)
 			local suc, res = pcall(function()
 				return InventoryUtil.getInventory(plr)
@@ -1364,58 +1400,62 @@ run(function()
 			}
 		end,
 		Handler = RemoteHandler,
-		HudAliveCount = require(lplr.PlayerScripts.TS.controllers.global['top-bar'].ui.game['hud-alive-player-counts']).HudAlivePlayerCounts,
-		ImageList = require(replicatedStorage.TS.image['image-id']).BedwarsImageId,
-		ItemMeta = debug.getupvalue(ItemMetaModule.getItemMeta, 1) or ItemMetaModule.items,
-		IsItemClaw = require(replicatedStorage.TS.games.bedwars.kit.kits.summoner['summoner-kit-util']).summoner_isItemClaw,
-		ItemSkinType = require(replicatedStorage.TS.games.bedwars['item-skin']['item-skin-types']).ItemSkinType,
-		JadeBalance = require(replicatedStorage.TS.balance['jade-balance']).JadeBalance,
-		KillEffectMeta = require(replicatedStorage.TS.locker['kill-effect']['kill-effect-meta']).KillEffectMeta,
-		KillFeedController = Flamework.resolveDependency('client/controllers/game/kill-feed/kill-feed-controller@KillFeedController'),
+		HudAliveCount = safeRequire(lplr.PlayerScripts.TS.controllers.global['top-bar'].ui.game['hud-alive-player-counts']).HudAlivePlayerCounts,
+		ImageList = safeRequire(replicatedStorage.TS.image['image-id']).BedwarsImageId,
+		ItemMeta = (debug.getupvalue and ItemMetaModule and ItemMetaModule.getItemMeta and debug.getupvalue(ItemMetaModule.getItemMeta, 1)) or (ItemMetaModule and ItemMetaModule.items) or {},
+		IsItemClaw = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits.summoner['summoner-kit-util']).summoner_isItemClaw,
+		ItemSkinType = safeRequire(replicatedStorage.TS.games.bedwars['item-skin']['item-skin-types']).ItemSkinType,
+		JadeBalance = safeRequire(replicatedStorage.TS.balance['jade-balance']).JadeBalance,
+		KillEffectMeta = safeRequire(replicatedStorage.TS.locker['kill-effect']['kill-effect-meta']).KillEffectMeta,
+		KillFeedController = safeResolve('client/controllers/game/kill-feed/kill-feed-controller@KillFeedController'),
 		Knit = Knit,
-		KnockbackUtil = require(replicatedStorage.TS.damage['knockback-util']).KnockbackUtil,
-		LumenBalance = require(replicatedStorage.TS.games.bedwars.kit.kits.lumen['lumen-balance']).LumenBalance,
-		MageKitUtil = require(replicatedStorage.TS.games.bedwars.kit.kits.mage['mage-kit-util']).MageKitUtil,
-		MelodyKitBalance = require(replicatedStorage.TS.games.bedwars.kit.kits.melody['melody-kit-balance']).MelodyKitBalance,
-		NametagController = Knit.Controllers.NametagController,
-		NoBuildUtil = require(replicatedStorage.TS['no-build']['no-build-util']).NoBuildUtil,
-		NotificationController = Flamework.resolveDependency('@easy-games/game-core:client/controllers/notification-controller@NotificationController'),
-		PartyController = Flamework.resolveDependency('@easy-games/lobby:client/controllers/party-controller@PartyController'),
-		ProjectileMeta = require(replicatedStorage.TS.projectile['projectile-meta']).ProjectileMeta,
-		QueryUtil = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).GameQueryUtil,
-		QueueCard = require(lplr.PlayerScripts.TS.controllers.global.queue.ui['queue-card']).QueueCard,
-		QueueMeta = require(replicatedStorage.TS.game['queue-meta']).QueueMeta,
-		RankMeta = require(replicatedStorage.TS.rank['rank-meta']).RankMeta,
-		Roact = require(replicatedStorage['rbxts_include']['node_modules']['@rbxts']['roact'].src),
-		RuntimeLib = require(replicatedStorage['rbxts_include'].RuntimeLib),
-		scaleTool = require(replicatedStorage['rbxts_include']['node_modules']['@rbxts']['scale-model'].out).scaleTool,
-		StatusEffectUtil = require(replicatedStorage.TS['status-effect']['status-effect-util']).StatusEffectUtil,
-		StatusEffectMeta = require(replicatedStorage.TS['status-effect']['status-effect-type']).StatusEffectType,
-		SummonerKitBalance = require(replicatedStorage.TS.games.bedwars.kit.kits.summoner['summoner-kit-balance']).SummonerKitBalance,
-		SoundList = require(replicatedStorage.TS.sound['game-sound']).GameSound,
-		SettingsMeta = require(replicatedStorage.TS.settings['settings-meta']).SettingMeta,
-		SharedConstants = require(replicatedStorage.TS['shared-constants']).CpsConstants,
-		SoulBrokerConstants = require(replicatedStorage.TS.games.bedwars.kit.kits['soul-broker']['soul-broker-constants']).SoulBrokerConstants,
-		SorcererBalance = require(replicatedStorage.TS.balance['sorcerer-balance']).SorcererBalance,
-		SorcererTierMeta = require(replicatedStorage.TS.balance['sorcerer-balance']).SorcererTierMeta,
-		SummonerUtil = require(replicatedStorage.TS.games.bedwars.kit.kits.summoner['summoner-kit-util']),
-		AudioManager = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).AudioManager,
-		Store = require(lplr.PlayerScripts.TS.ui.store).ClientStore,
-		SyncEvents = require(lplr.PlayerScripts.TS['client-sync-events']).ClientSyncEvents,
-		TeamUpgradeMeta = debug.getupvalue(TeamUpgradeModule.getTeamUpgradeMetaForQueue, 2) or (cheatenginelib and cheatenginelib.TeamUpgradeMeta),
-		UILayers = require(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).UILayers,
-		VisualizerUtils = require(lplr.PlayerScripts.TS.lib.visualizer['visualizer-utils']).VisualizerUtils,
-		VoidRegentBalance = require(replicatedStorage.TS.balance['void-regent-balance']).VoidRegentBalance,
-		VoidHunterBalance = require(replicatedStorage.TS.games.bedwars.kit.kits['void-hunter']['void-hunter-kit-balance']).VoidHunterKitBalance,
-		WarlockBalance = require(replicatedStorage.TS.balance['balance-file']).WarlockBalance,
-		WeldTable = require(replicatedStorage.TS.util['weld-util']).WeldUtil,
-		WinEffectMeta = require(replicatedStorage.TS.locker['win-effect']['win-effect-meta']).WinEffectMeta,
-		WizardUtil = require(replicatedStorage.TS.games.bedwars.kit.kits.wizard['wizard-util']).WizardUtil,
-		ZapNetworking = require(lplr.PlayerScripts.TS.lib.network)
+		KnockbackUtil = safeRequire(replicatedStorage.TS.damage['knockback-util']).KnockbackUtil,
+		LumenBalance = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits.lumen['lumen-balance']).LumenBalance,
+		MageKitUtil = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits.mage['mage-kit-util']).MageKitUtil,
+		MelodyKitBalance = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits.melody['melody-kit-balance']).MelodyKitBalance,
+		NametagController = Knit and Knit.Controllers and Knit.Controllers.NametagController,
+		NoBuildUtil = safeRequire(replicatedStorage.TS['no-build']['no-build-util']).NoBuildUtil,
+		NotificationController = safeResolve('@easy-games/game-core:client/controllers/notification-controller@NotificationController'),
+		PartyController = safeResolve('@easy-games/lobby:client/controllers/party-controller@PartyController'),
+		ProjectileMeta = safeRequire(replicatedStorage.TS.projectile['projectile-meta']).ProjectileMeta,
+		QueryUtil = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).GameQueryUtil,
+		QueueCard = safeRequire(lplr.PlayerScripts.TS.controllers.global.queue.ui['queue-card']).QueueCard,
+		QueueMeta = safeRequire(replicatedStorage.TS.game['queue-meta']).QueueMeta,
+		RankMeta = safeRequire(replicatedStorage.TS.rank['rank-meta']).RankMeta,
+		Roact = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@rbxts']['roact'].src),
+		RuntimeLib = safeRequire(replicatedStorage['rbxts_include'].RuntimeLib),
+		scaleTool = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@rbxts']['scale-model'].out).scaleTool,
+		StatusEffectUtil = safeRequire(replicatedStorage.TS['status-effect']['status-effect-util']).StatusEffectUtil,
+		StatusEffectMeta = safeRequire(replicatedStorage.TS['status-effect']['status-effect-type']).StatusEffectType,
+		SummonerKitBalance = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits.summoner['summoner-kit-balance']).SummonerKitBalance,
+		SoundList = safeRequire(replicatedStorage.TS.sound['game-sound']).GameSound,
+		SettingsMeta = safeRequire(replicatedStorage.TS.settings['settings-meta']).SettingMeta,
+		SharedConstants = safeRequire(replicatedStorage.TS['shared-constants']).CpsConstants,
+		SoulBrokerConstants = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits['soul-broker']['soul-broker-constants']).SoulBrokerConstants,
+		SorcererBalance = safeRequire(replicatedStorage.TS.balance['sorcerer-balance']).SorcererBalance,
+		SorcererTierMeta = safeRequire(replicatedStorage.TS.balance['sorcerer-balance']).SorcererTierMeta,
+		SummonerUtil = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits.summoner['summoner-kit-util']),
+		AudioManager = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).AudioManager,
+		Store = safeRequire(lplr.PlayerScripts.TS.ui.store).ClientStore,
+		SyncEvents = safeRequire(lplr.PlayerScripts.TS['client-sync-events']).ClientSyncEvents,
+		TeamUpgradeMeta = (debug.getupvalue and TeamUpgradeModule and TeamUpgradeModule.getTeamUpgradeMetaForQueue and debug.getupvalue(TeamUpgradeModule.getTeamUpgradeMetaForQueue, 2)) or (cheatenginelib and cheatenginelib.TeamUpgradeMeta),
+		UILayers = safeRequire(replicatedStorage['rbxts_include']['node_modules']['@easy-games']['game-core'].out).UILayers,
+		VisualizerUtils = safeRequire(lplr.PlayerScripts.TS.lib.visualizer['visualizer-utils']).VisualizerUtils,
+		VoidRegentBalance = safeRequire(replicatedStorage.TS.balance['void-regent-balance']).VoidRegentBalance,
+		VoidHunterBalance = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits['void-hunter']['void-hunter-kit-balance']).VoidHunterKitBalance,
+		WarlockBalance = safeRequire(replicatedStorage.TS.balance['balance-file']).WarlockBalance,
+		WeldTable = safeRequire(replicatedStorage.TS.util['weld-util']).WeldUtil,
+		WinEffectMeta = safeRequire(replicatedStorage.TS.locker['win-effect']['win-effect-meta']).WinEffectMeta,
+		WizardUtil = safeRequire(replicatedStorage.TS.games.bedwars.kit.kits.wizard['wizard-util']).WizardUtil,
+		ZapNetworking = safeRequire(lplr.PlayerScripts.TS.lib.network)
 	}, {
 		__index = function(self, ind)
-			rawset(self, ind, Knit.Controllers[ind])
-			return rawget(self, ind)
+			local ctrl = Knit and Knit.Controllers and Knit.Controllers[ind]
+			if ctrl then
+				rawset(self, ind, ctrl)
+				return ctrl
+			end
+			return nil
 		end
 	})
 	store.enchants = setmetatable({}, {

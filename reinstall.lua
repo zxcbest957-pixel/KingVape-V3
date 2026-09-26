@@ -1,2 +1,2 @@
-delfolder('kingvape')
-pcall(delfolder, 'catsix')
+﻿delfolder('kingvape')
+pcall(delfolder, 'kingvape')

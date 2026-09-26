@@ -12,7 +12,7 @@ local isfile = isfile or function(File: string)
     end)
     return Success and Result ~= nil and Result ~= ""
 end
-vape.Place = 6872274481
+vape.Place = 1962086868
 local FilePath: string = `kingvape/games/{vape.Place}.lua`
 if not isfile(FilePath) then
     local Success, Result = pcall(function()
@@ -24,4 +24,4 @@ if not isfile(FilePath) then
 
     writefile(FilePath, `--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n{Result}`)
 end
-loadstring(readfile(FilePath), "bedwars")()
+loadstring(readfile(FilePath), "towerofhell")()

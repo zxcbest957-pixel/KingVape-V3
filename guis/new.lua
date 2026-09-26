@@ -1,2273 +1,2398 @@
-local license = ... or {}
+﻿local License = ... or {}
 local vape = {
-	ActiveBinds = {},
-	Categories = {},
-	FavoriteCount = 0,
-	GUIColor = {
-		Hue = 0.46,
-		Sat = 0.96,
-		Value = 0.52
-	},
-	HeldKeybinds = {},
-	Keybind = {'RightShift'},
-	Loaded = false,
-	Libraries = {},
-	Modules = {},
-	Place = game.PlaceId,
-	Profile = 'default',
-	RainbowSliders = {},
-	Settings = {},
-	SettingToggleNotifications = {},
-	ThreadFix = setthreadidentity and true or false,
-	ToggleNotifications = {},
-	Version = '4.22',
-	Windows = {}
+    ActiveBinds = {},
+    Categories = {},
+    FavoriteCount = 0,
+    GUIColor = {
+        Hue = 0.46,
+        Sat = 0.96,
+        Value = 0.52
+    },
+    HeldKeybinds = {},
+    Loaded = false,
+    Libraries = {},
+    Modules = {},
+    Place = game.PlaceId,
+    Profile = "default",
+    RainbowSliders = {},
+    Settings = {},
+    SettingToggleNotifications = {},
+    ThreadFix = setthreadidentity and true or false,
+    ToggleNotifications = {},
+    Version = "4.22",
+    Windows = {}
 }
 
-local run = function(func)
-	func()
+local Run = function(Callback: () -> ())
+    Callback()
 end
-local cloneref = cloneref or function(obj)
-	return obj
+local cloneref = cloneref or function(Reference: Instance)
+    return Reference
 end
-local tweenService = cloneref(game:GetService('TweenService'))
-local inputService = cloneref(game:GetService('UserInputService'))
-local textService = cloneref(game:GetService('TextService'))
-local guiService = cloneref(game:GetService('GuiService'))
-local runService = cloneref(game:GetService('RunService'))
-local httpService = cloneref(game:GetService('HttpService'))
-local lighting = cloneref(game:GetService('Lighting'))
+local TweenService = cloneref(game:GetService("TweenService"))
+local UserInputService = cloneref(game:GetService("UserInputService"))
+local TextService = cloneref(game:GetService("TextService"))
+local GuiService = cloneref(game:GetService("GuiService"))
+local RunService = cloneref(game:GetService("RunService"))
+local HttpService = cloneref(game:GetService("HttpService"))
+local Lighting = cloneref(game:GetService("Lighting"))
 
-local fontsize = Instance.new('GetTextBoundsParams')
-fontsize.Width = math.huge
-local notificationcache = {}
-local notificationlist = {}
-local notifications
-local getvapeasset
-local vapecolors
-local components
-local clickgui
-local scaledgui
-local blureffect
-local blurfocus
-local blurtween
-local glassconnection
-local glassshown = true
-local glassparts = {}
-local toolblur
-local tooltip
+local FontSize: GetTextBoundsParams = Instance.new("GetTextBoundsParams")
+FontSize.Width = math.huge
+local NotificationCache = {}
+local NotificationList = {}
+local Notifications
+local GetVapeAsset
+local VapeColors
+local Components
+local ClickGUI
+local ScaledGUI
+local BlurEffect
+local BlurFocus
+local BlurTween
+local GlassConnection
+local GlassShown: boolean = true
+local GlassParts = {}
+local ToolBlur
+local Tooltip
 local TextGUI
-local scale = {Scale = 1}
-local blurinfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local gui
-local buildclock = os.clock()
+local Scale = {Scale = 1}
+local BlurInfo: TweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local GUI
+local SortQueued: boolean = false
+local BuildClock: number = os.clock()
+local BuildBudget: number = 0.004
 
-local function yieldBuild(budget)
-	if os.clock() - buildclock > (budget or 0.004) then
-		task.wait()
-		buildclock = os.clock()
-	end
+local function YieldBuild(Budget: number?)
+    if os.clock() - BuildClock > (Budget or BuildBudget) then
+        BuildBudget = math.clamp(task.wait() * 0.75, 0.004, 0.02)
+        BuildClock = os.clock()
+    end
 end
 
-local isfile = isfile or function(file)
-	local success, data = pcall(function()
-		return readfile(file)
-	end)
+local isfile = isfile or function(FilePath: string)
+    local Success, Data = pcall(function()
+        return readfile(FilePath)
+    end)
 
-	return success and data ~= nil and data ~= ''
+    return Success and Data ~= nil and Data ~= ""
 end
 
-local function loadJson(path)
-	local success, data = pcall(function()
-		return httpService:JSONDecode(readfile(path))
-	end)
+local function LoadJSON(FilePath: string)
+    local Success, Data = pcall(function()
+        return HttpService:JSONDecode(readfile(FilePath))
+    end)
 
-	return success and type(data) == 'table' and data or nil
+    return Success and type(Data) == "table" and Data or nil
 end
 
-local function writeJson(path, data)
-	local success, encoded = pcall(httpService.JSONEncode, httpService, data)
-	if not success then
-		return false, encoded
-	end
+local function WriteJSON(FilePath: string, Data)
+    local Success, Encoded = pcall(HttpService.JSONEncode, HttpService, Data)
+    if not Success then
+        return false, Encoded
+    end
 
-	return pcall(writefile, path, encoded)
+    return pcall(writefile, FilePath, Encoded)
 end
 
-local loadfailures = 0
-local deferredloads = 0
-local loadgeneration = 0
-local loadcalled = false
-local cansave = true
-local needssave = false
-local function attemptLoad(obj, data, name)
-	local success, err = pcall(obj.Load, obj, data)
-	if not success then
-		loadfailures += 1
-		warn('[KingVape] failed to load '..name..': '..tostring(err))
-	end
+local NotificationsOff = isfile("kingvape/profiles/notifications.txt") and readfile("kingvape/profiles/notifications.txt") == "false"
+local LoadFailures: number = 0
+local DeferredLoads: number = 0
+local LoadGeneration: number = 0
+local LoadCalled: boolean = false
+local CanSave: boolean = true
+local NeedsSave: boolean = false
+local function AttemptLoad(Object, Data, Name: string)
+    local Success, Error = pcall(Object.Load, Object, Data)
+    if not Success then
+        LoadFailures += 1
+        warn(`[catvape] failed to load {Name}: {Error}`)
+    end
 end
 
-local function finishLoad()
-	if not loadcalled or deferredloads > 0 or vape.Loaded == nil then
-		return
-	end
+local function FinishLoad()
+    if not LoadCalled or DeferredLoads > 0 or vape.Loaded == nil then
+        return
+    end
 
-	vape.Loaded = cansave
+    vape.Loaded = CanSave
 
-	if vape.Downloader then
-		vape.Downloader:Destroy()
-		vape.Downloader = nil
-	end
+    if SortQueued then
+        vape:SortCategories(true)
+    end
 
-	if needssave then
-		needssave = false
-		vape:Save()
-	end
+    if vape.Downloader then
+        vape.Downloader:Destroy()
+        vape.Downloader = nil
+    end
+
+    if NeedsSave then
+        NeedsSave = false
+        vape:Save()
+    end
 end
 
-local featureTags
-local function getFeatureTag(name)
-	return nil
+local FeatureTags
+local function GetFeatureTag(Name: string)
+    if not FeatureTags then
+        FeatureTags = {}
+
+        if not isfile("kingvape/features.json") then
+            pcall(function()
+                writefile("kingvape/features.json", game:HttpGet("https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/features.json", true))
+            end)
+        end
+
+        local Features = LoadJSON("kingvape/features.json")
+        for Tag: string, v: string in {updated = "updated", new = "added"} do
+            local List = Features and Features[v]
+
+            if type(List) == "table" then
+                for _, Feature: any in List do
+                    if type(Feature) == "string" then
+                        FeatureTags[Feature] = Tag
+                    end
+                end
+            end
+        end
+    end
+
+    return FeatureTags[Name]
 end
 
-local color = {}
-local uipallet = {}
+local Color = {}
+local UIPallet = {}
 do
-	function color.Dark(col, num)
-		local h, s, v = col:ToHSV()
-		return Color3.fromHSV(h, s, math.clamp(select(3, uipallet.Main:ToHSV()) > 0.5 and v + num or v - num, 0, 1))
-	end
+    function Color.Dark(Color: Color3, Amount: number)
+        local Hue, Sat, Val = Color:ToHSV()
+        return Color3.fromHSV(Hue, Sat, math.clamp(select(3, UIPallet.Main:ToHSV()) > 0.5 and Val + Amount or Val - Amount, 0, 1))
+    end
 
-	function color.Light(col, num)
-		local h, s, v = col:ToHSV()
-		return Color3.fromHSV(h, s, math.clamp(select(3, uipallet.Main:ToHSV()) > 0.5 and v - num or v + num, 0, 1))
-	end
+    function Color.Light(Color: Color3, Amount: number)
+        local Hue, Sat, Val = Color:ToHSV()
+        return Color3.fromHSV(Hue, Sat, math.clamp(select(3, UIPallet.Main:ToHSV()) > 0.5 and Val - Amount or Val + Amount, 0, 1))
+    end
 
-	function vape:Color(h)
-		local s = 0.74 + (0.26 * math.min(h / 0.045, 1))
+    function vape:Color(Hue: number)
+        local Sat: number = 0.74 + (0.26 * math.min(Hue / 0.045, 1))
 
-		if h > 0.577 then
-			s = 1 - (0.48 * math.min((h - 0.577) / 0.088, 1))
-		end
+        if Hue > 0.577 then
+            Sat = 1 - (0.48 * math.min((Hue - 0.577) / 0.088, 1))
+        end
 
-		if h > 0.674 then
-			s = 0.52 + (0.48 * math.min((h - 0.674) / 0.149, 1))
-		end
+        if Hue > 0.674 then
+            Sat = 0.52 + (0.48 * math.min((Hue - 0.674) / 0.149, 1))
+        end
 
-		if h > 0.869 then
-			s = 1 - (0.26 * math.min((h - 0.869) / 0.131, 1))
-		end
+        if Hue > 0.869 then
+            Sat = 1 - (0.26 * math.min((Hue - 0.869) / 0.131, 1))
+        end
 
-		return h, s, 1
-	end
+        return Hue, Sat, 1
+    end
 
-	function vape:TextColor(h, s, v)
-		if v >= 0.7 and (s < 0.6 or h > 0.04 and h < 0.56) then
-			return Color3.new(0.19, 0.19, 0.19)
-		end
+    function vape:TextColor(Hue: number, Sat: number, Val: number)
+        if Val >= 0.7 and (Sat < 0.6 or Hue > 0.04 and Hue < 0.56) then
+            return Color3.new(0.19, 0.19, 0.19)
+        end
 
-		return Color3.new(1, 1, 1)
-	end
+        return Color3.new(1, 1, 1)
+    end
 end
 
-local boundscache = {}
-local boundscount = 0
+local BoundsCache, OldCache = {}, {}
+local BoundsCount: number = 0
 
-local function getfontbounds(text, size, font, width)
-	local key = typeof(font) == 'Font' and `{text}|{size}|{width or 0}|{font.Family}|{font.Weight.Name}|{font.Style.Name}`
-	if key and boundscache[key] then return boundscache[key] end
+local function GetFontBounds(Text: string, Size: number, FontFace, Width: number?)
+    local Key = typeof(FontFace) == "Font" and `{Text}|{Size}|{Width or 0}|{FontFace.Family}|{FontFace.Weight.Name}|{FontFace.Style.Name}`
+    if Key then
+        local Cached: Vector2? = BoundsCache[Key] or OldCache[Key]
+        if Cached then
+            if not BoundsCache[Key] then
+                BoundsCache[Key] = Cached
+                BoundsCount += 1
+            end
+            return Cached
+        end
+    end
 
-	fontsize.Text = text
-	fontsize.Size = size
-	fontsize.Width = width or math.huge
-	if typeof(font) == 'Font' then
-		fontsize.Font = font
-	end
+    FontSize.Text = Text
+    FontSize.Size = Size
+    FontSize.Width = Width or math.huge
+    if typeof(FontFace) == "Font" then
+        FontSize.Font = FontFace
+    end
 
-	local bounds = textService:GetTextBoundsAsync(fontsize)
+    local Bounds: Vector2 = TextService:GetTextBoundsAsync(FontSize)
 
-	if key then
-		if boundscount > 2048 then
-			table.clear(boundscache)
-			boundscount = 0
-		end
+    if Key then
+        if BoundsCount > 2048 then
+            OldCache, BoundsCache = BoundsCache, {}
+            BoundsCount = 0
+        end
 
-		boundscache[key] = bounds
-		boundscount += 1
-	end
+        BoundsCache[Key] = Bounds
+        BoundsCount += 1
+    end
 
-	return bounds
+    return Bounds
 end
 
 do
-	local vapeAssets = {
-		['kingvape/assets/new/add.png'] = 'rbxassetid://121642387707174',
-		['kingvape/assets/new/aim.png'] = 'rbxassetid://122207028123421',
-		['kingvape/assets/new/allowedicon.png'] = 'rbxassetid://112336790299036',
-		['kingvape/assets/new/allowediconmini.png'] = 'rbxassetid://90142384730147',
-		['kingvape/assets/new/back.png'] = 'rbxassetid://80523803497740',
-		['kingvape/assets/new/backmini.png'] = 'rbxassetid://85859225495272',
-		['kingvape/assets/new/bind.png'] = 'rbxassetid://81399857677684',
-		['kingvape/assets/new/bindbkg.png'] = 'rbxassetid://101996225428926',
-		['kingvape/assets/new/blatant.png'] = 'rbxassetid://126929923309265',
-		['kingvape/assets/new/blur.png'] = 'rbxassetid://79246816170155',
-		['kingvape/assets/new/blurnoti.png'] = 'rbxassetid://124705876663719',
-		['kingvape/assets/new/cheat_switch.png'] = 'rbxassetid://99437817306124',
-		['kingvape/assets/new/close.png'] = 'rbxassetid://121816018671466',
-		['kingvape/assets/new/closemini.png'] = 'rbxassetid://108320409341289',
-		['kingvape/assets/new/closetiny.png'] = 'rbxassetid://71393233149714',
-		['kingvape/assets/new/colorpreview.png'] = 'rbxassetid://140438628568318',
-		['kingvape/assets/new/combat.png'] = 'rbxassetid://94762732349053',
-		['kingvape/assets/new/combo_display.png'] = 'rbxassetid://97746985576116',
-		['kingvape/assets/new/compassarrow.png'] = 'rbxassetid://100463923923900',
-		['kingvape/assets/new/customtheme.png'] = 'rbxassetid://91756736022800',
-		['kingvape/assets/new/discord.png'] = 'rbxassetid://99871463341003',
-		['kingvape/assets/new/dislike.png'] = 'rbxassetid://135092704977606',
-		['kingvape/assets/new/downexpand.png'] = 'rbxassetid://94197751291504',
-		['kingvape/assets/new/downexpandslider.png'] = 'rbxassetid://90289944682645',
-		['kingvape/assets/new/edit.png'] = 'rbxassetid://105801951237137',
-		['kingvape/assets/new/editlarge.png'] = 'rbxassetid://119233876755282',
-		['kingvape/assets/new/empty.png'] = 'rbxassetid://89525157373515',
-		['kingvape/assets/new/expandarrow.png'] = 'rbxassetid://86360332526471',
-		['kingvape/assets/new/expandright.png'] = 'rbxassetid://14368316544',
-		['kingvape/assets/new/expandup.png'] = 'rbxassetid://14368317595',
-		['kingvape/assets/new/favoritesicon.png'] = 'rbxassetid://133471112203189',
-		['kingvape/assets/new/friends.png'] = 'rbxassetid://92957214042038',
-		['kingvape/assets/new/hide.png'] = 'rbxassetid://129675456133478',
-		['kingvape/assets/new/inventory.png'] = 'rbxassetid://93264756888499',
-		['kingvape/assets/new/key_down.png'] = 'rbxassetid://',
-		['kingvape/assets/new/key_left.png'] = 'rbxassetid://',
-		['kingvape/assets/new/key_lmb.png'] = 'rbxassetid://',
-		['kingvape/assets/new/key_mmb.png'] = 'rbxassetid://',
-		['kingvape/assets/new/key_right.png'] = 'rbxassetid://',
-		['kingvape/assets/new/key_rmb.png'] = 'rbxassetid://',
-		['kingvape/assets/new/key_up.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_atmosphere.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_bedalarm.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_bedbreakeffect.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_breadcrumbs.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_bullettracers.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_cape.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_chinahat.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_cleankit.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_clock.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_compass.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_coords.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_crosshair.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_damageindicator.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_disguise.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_fflageditor.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_fixguis.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_fov.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_fps.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_fpsboost.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_fpsunlocker.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_hideshield.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_hitcolor.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_hitfix.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_hitsound.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_interface.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_keystrokes.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_killeffect.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_killsound.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_memory.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_mode_icon.png'] = 'rbxassetid://102858626075156',
-		['kingvape/assets/new/legit_ping.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_potionstatus.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_reachdisplay.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_songbeats.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_soundchanger.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_speedmeter.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_switch.png'] = 'rbxassetid://127508881124779',
-		['kingvape/assets/new/legit_timechanger.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_uicleanup.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_viewmodel.png'] = 'rbxassetid://',
-		['kingvape/assets/new/legit_wineffect.png'] = 'rbxassetid://',
-		['kingvape/assets/new/like.png'] = 'rbxassetid://80039972048538',
-		['kingvape/assets/new/min.png'] = 'rbxassetid://82175054487146',
-		['kingvape/assets/new/newhide.png'] = 'rbxassetid://74295679301920',
-		['kingvape/assets/new/noti_alert.png'] = 'rbxassetid://82356478726846',
-		['kingvape/assets/new/noti_info.png'] = 'rbxassetid://102614825645099',
-		['kingvape/assets/new/noti_warning.png'] = 'rbxassetid://119631730212167',
-		['kingvape/assets/new/notification.png'] = 'rbxassetid://90300780458781',
-		['kingvape/assets/new/npcs.png'] = 'rbxassetid://104434365485227',
-		['kingvape/assets/new/overlaydots.png'] = 'rbxassetid://78012624671930',
-		['kingvape/assets/new/overlays.png'] = 'rbxassetid://136535637407545',
-		['kingvape/assets/new/overlayslarge.png'] = 'rbxassetid://127574141208160',
-		['kingvape/assets/new/pin.png'] = 'rbxassetid://92459145800579',
-		['kingvape/assets/new/players.png'] = 'rbxassetid://105137446428129',
-		['kingvape/assets/new/profiles.png'] = 'rbxassetid://126051451865127',
-		['kingvape/assets/new/profilesicon.png'] = 'rbxassetid://14397465323',
-		['kingvape/assets/new/profileworld.png'] = 'rbxassetid://122650686344133',
-		['kingvape/assets/new/radar.png'] = 'rbxassetid://97983828696086',
-		['kingvape/assets/new/rainbow_1.png'] = 'rbxassetid://101329996188554',
-		['kingvape/assets/new/rainbow_2.png'] = 'rbxassetid://72739074644654',
-		['kingvape/assets/new/rainbow_3.png'] = 'rbxassetid://100716555253397',
-		['kingvape/assets/new/rainbow_4.png'] = 'rbxassetid://133424174227092',
-		['kingvape/assets/new/range.png'] = 'rbxassetid://107794917650053',
-		['kingvape/assets/new/rangearrow.png'] = 'rbxassetid://14368348640',
-		['kingvape/assets/new/rangeindicator.png'] = 'rbxassetid://107038094175283',
-		['kingvape/assets/new/render.png'] = 'rbxassetid://125472576898654',
-		['kingvape/assets/new/search.png'] = 'rbxassetid://115611852955611',
-		['kingvape/assets/new/settingdots.png'] = 'rbxassetid://130896840048276',
-		['kingvape/assets/new/settings.png'] = 'rbxassetid://73820177347303',
-		['kingvape/assets/new/settingsmini.png'] = 'rbxassetid://115732118290997',
-		['kingvape/assets/new/show.png'] = 'rbxassetid://85547987939285',
-		['kingvape/assets/new/star.png'] = 'rbxassetid://96102671351955',
-		['kingvape/assets/new/sword_header.png'] = 'rbxassetid://121706791793204',
-		['kingvape/assets/new/targetinfo.png'] = 'rbxassetid://121604266095276',
-		['kingvape/assets/new/targetnpc1.png'] = 'rbxassetid://14497400332',
-		['kingvape/assets/new/targetplayers1.png'] = 'rbxassetid://14497396015',
-		['kingvape/assets/new/targetstab.png'] = 'rbxassetid://14497393895',
-		['kingvape/assets/new/textgui.png'] = 'rbxassetid://99438663817412',
-		['kingvape/assets/new/textguiline.png'] = 'rbxassetid://',
-		['kingvape/assets/new/theme.png'] = 'rbxassetid://111525258317113',
-		['kingvape/assets/new/triangle.png'] = 'rbxassetid://75441874213844',
-		['kingvape/assets/new/utility.png'] = 'rbxassetid://108303206513893',
-		['kingvape/assets/new/v4.png'] = 'rbxassetid://102549752760489',
-		['kingvape/assets/new/v4mini.png'] = 'rbxassetid://115213099001611',
-		['kingvape/assets/new/vape.png'] = 'rbxassetid://92153855792786',
-		['kingvape/assets/new/vapelogo.png'] = 'rbxassetid://126205920310261',
-		['kingvape/assets/new/vapelogomini.png'] = 'rbxassetid://109041903452149',
-		['kingvape/assets/new/world.png'] = 'rbxassetid://118917453153459'
-	}
+    local VapeAssets: {[string]: string} = {
+        ["kingvape/assets/new/add.png"] = "rbxassetid://121642387707174",
+        ["kingvape/assets/new/aim.png"] = "rbxassetid://122207028123421",
+        ["kingvape/assets/new/allowedicon.png"] = "rbxassetid://112336790299036",
+        ["kingvape/assets/new/allowediconmini.png"] = "rbxassetid://90142384730147",
+        ["kingvape/assets/new/back.png"] = "rbxassetid://80523803497740",
+        ["kingvape/assets/new/backmini.png"] = "rbxassetid://85859225495272",
+        ["kingvape/assets/new/bind.png"] = "rbxassetid://81399857677684",
+        ["kingvape/assets/new/bindbkg.png"] = "rbxassetid://101996225428926",
+        ["kingvape/assets/new/blatant.png"] = "rbxassetid://126929923309265",
+        ["kingvape/assets/new/blur.png"] = "rbxassetid://79246816170155",
+        ["kingvape/assets/new/blurnoti.png"] = "rbxassetid://124705876663719",
+        ["kingvape/assets/new/cheat_switch.png"] = "rbxassetid://99437817306124",
+        ["kingvape/assets/new/close.png"] = "rbxassetid://121816018671466",
+        ["kingvape/assets/new/closemini.png"] = "rbxassetid://108320409341289",
+        ["kingvape/assets/new/closetiny.png"] = "rbxassetid://71393233149714",
+        ["kingvape/assets/new/colorpreview.png"] = "rbxassetid://140438628568318",
+        ["kingvape/assets/new/combat.png"] = "rbxassetid://94762732349053",
+        ["kingvape/assets/new/combo_display.png"] = "rbxassetid://97746985576116",
+        ["kingvape/assets/new/compassarrow.png"] = "rbxassetid://100463923923900",
+        ["kingvape/assets/new/customtheme.png"] = "rbxassetid://91756736022800",
+        ["kingvape/assets/new/discord.png"] = "rbxassetid://99871463341003",
+        ["kingvape/assets/new/dislike.png"] = "rbxassetid://135092704977606",
+        ["kingvape/assets/new/downexpand.png"] = "rbxassetid://94197751291504",
+        ["kingvape/assets/new/downexpandslider.png"] = "rbxassetid://90289944682645",
+        ["kingvape/assets/new/edit.png"] = "rbxassetid://105801951237137",
+        ["kingvape/assets/new/editlarge.png"] = "rbxassetid://119233876755282",
+        ["kingvape/assets/new/empty.png"] = "rbxassetid://89525157373515",
+        ["kingvape/assets/new/expandarrow.png"] = "rbxassetid://86360332526471",
+        ["kingvape/assets/new/expandright.png"] = "rbxassetid://14368316544",
+        ["kingvape/assets/new/expandup.png"] = "rbxassetid://14368317595",
+        ["kingvape/assets/new/favoritesicon.png"] = "rbxassetid://133471112203189",
+        ["kingvape/assets/new/friends.png"] = "rbxassetid://92957214042038",
+        ["kingvape/assets/new/hide.png"] = "rbxassetid://129675456133478",
+        ["kingvape/assets/new/inventory.png"] = "rbxassetid://93264756888499",
+        ["kingvape/assets/new/key_down.png"] = "rbxassetid://",
+        ["kingvape/assets/new/key_left.png"] = "rbxassetid://",
+        ["kingvape/assets/new/key_lmb.png"] = "rbxassetid://",
+        ["kingvape/assets/new/key_mmb.png"] = "rbxassetid://",
+        ["kingvape/assets/new/key_right.png"] = "rbxassetid://",
+        ["kingvape/assets/new/key_rmb.png"] = "rbxassetid://",
+        ["kingvape/assets/new/key_up.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_atmosphere.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_bedalarm.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_bedbreakeffect.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_breadcrumbs.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_bullettracers.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_cape.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_chinahat.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_cleankit.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_clock.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_compass.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_coords.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_crosshair.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_damageindicator.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_disguise.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_fflageditor.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_fixguis.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_fov.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_fps.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_fpsboost.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_fpsunlocker.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_hideshield.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_hitcolor.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_hitfix.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_hitsound.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_interface.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_keystrokes.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_killeffect.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_killsound.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_memory.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_mode_icon.png"] = "rbxassetid://102858626075156",
+        ["kingvape/assets/new/legit_ping.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_potionstatus.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_reachdisplay.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_songbeats.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_soundchanger.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_speedmeter.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_switch.png"] = "rbxassetid://127508881124779",
+        ["kingvape/assets/new/legit_timechanger.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_uicleanup.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_viewmodel.png"] = "rbxassetid://",
+        ["kingvape/assets/new/legit_wineffect.png"] = "rbxassetid://",
+        ["kingvape/assets/new/like.png"] = "rbxassetid://80039972048538",
+        ["kingvape/assets/new/min.png"] = "rbxassetid://82175054487146",
+        ["kingvape/assets/new/newhide.png"] = "rbxassetid://74295679301920",
+        ["kingvape/assets/new/noti_alert.png"] = "rbxassetid://82356478726846",
+        ["kingvape/assets/new/noti_info.png"] = "rbxassetid://102614825645099",
+        ["kingvape/assets/new/noti_warning.png"] = "rbxassetid://119631730212167",
+        ["kingvape/assets/new/notification.png"] = "rbxassetid://90300780458781",
+        ["kingvape/assets/new/npcs.png"] = "rbxassetid://104434365485227",
+        ["kingvape/assets/new/overlaydots.png"] = "rbxassetid://78012624671930",
+        ["kingvape/assets/new/overlays.png"] = "rbxassetid://136535637407545",
+        ["kingvape/assets/new/overlayslarge.png"] = "rbxassetid://127574141208160",
+        ["kingvape/assets/new/pin.png"] = "rbxassetid://92459145800579",
+        ["kingvape/assets/new/players.png"] = "rbxassetid://105137446428129",
+        ["kingvape/assets/new/profiles.png"] = "rbxassetid://126051451865127",
+        ["kingvape/assets/new/profilesicon.png"] = "rbxassetid://14397465323",
+        ["kingvape/assets/new/profileworld.png"] = "rbxassetid://122650686344133",
+        ["kingvape/assets/new/radar.png"] = "rbxassetid://97983828696086",
+        ["kingvape/assets/new/rainbow_1.png"] = "rbxassetid://101329996188554",
+        ["kingvape/assets/new/rainbow_2.png"] = "rbxassetid://72739074644654",
+        ["kingvape/assets/new/rainbow_3.png"] = "rbxassetid://100716555253397",
+        ["kingvape/assets/new/rainbow_4.png"] = "rbxassetid://133424174227092",
+        ["kingvape/assets/new/range.png"] = "rbxassetid://107794917650053",
+        ["kingvape/assets/new/rangearrow.png"] = "rbxassetid://14368348640",
+        ["kingvape/assets/new/rangeindicator.png"] = "rbxassetid://107038094175283",
+        ["kingvape/assets/new/render.png"] = "rbxassetid://125472576898654",
+        ["kingvape/assets/new/search.png"] = "rbxassetid://115611852955611",
+        ["kingvape/assets/new/settingdots.png"] = "rbxassetid://130896840048276",
+        ["kingvape/assets/new/settings.png"] = "rbxassetid://73820177347303",
+        ["kingvape/assets/new/settingsmini.png"] = "rbxassetid://115732118290997",
+        ["kingvape/assets/new/show.png"] = "rbxassetid://85547987939285",
+        ["kingvape/assets/new/star.png"] = "rbxassetid://96102671351955",
+        ["kingvape/assets/new/sword_header.png"] = "rbxassetid://121706791793204",
+        ["kingvape/assets/new/targetinfo.png"] = "rbxassetid://121604266095276",
+        ["kingvape/assets/new/targetnpc1.png"] = "rbxassetid://14497400332",
+        ["kingvape/assets/new/targetplayers1.png"] = "rbxassetid://14497396015",
+        ["kingvape/assets/new/targetstab.png"] = "rbxassetid://14497393895",
+        ["kingvape/assets/new/textgui.png"] = "rbxassetid://99438663817412",
+        ["kingvape/assets/new/textguiline.png"] = "rbxassetid://",
+        ["kingvape/assets/new/theme.png"] = "rbxassetid://111525258317113",
+        ["kingvape/assets/new/triangle.png"] = "rbxassetid://75441874213844",
+        ["kingvape/assets/new/utility.png"] = "rbxassetid://108303206513893",
+        ["kingvape/assets/new/v4.png"] = "rbxassetid://102549752760489",
+        ["kingvape/assets/new/v4mini.png"] = "rbxassetid://115213099001611",
+        ["kingvape/assets/new/vape.png"] = "rbxassetid://92153855792786",
+        ["kingvape/assets/new/vapelogo.png"] = "rbxassetid://126205920310261",
+        ["kingvape/assets/new/vapelogomini.png"] = "rbxassetid://109041903452149",
+        ["kingvape/assets/new/world.png"] = "rbxassetid://118917453153459"
+    }
 
-	local function createDownloader(text)
-		if vape.Loaded ~= true and vape.gui then
-			local downloader = vape.Downloader
-			if not downloader then
-				downloader = Instance.new('TextLabel')
-				downloader.BackgroundTransparency = 1
-				downloader.FontFace = uipallet.Font
-				downloader.Size = UDim2.new(1, 0, 0, 40)
-				downloader.TextColor3 = Color3.new(1, 1, 1)
-				downloader.TextSize = 20
-				downloader.TextStrokeTransparency = 0
-				downloader.Parent = vape.gui
-				vape.Downloader = downloader
-			end
+    local function CreateDownloader(Text: string)
+        if vape.Loaded ~= true and vape.gui then
+            local Downloader: TextLabel? = vape.Downloader
+            if not Downloader then
+                Downloader = Instance.new("TextLabel")
+                Downloader.BackgroundTransparency = 1
+                Downloader.FontFace = UIPallet.Font
+                Downloader.Size = UDim2.new(1, 0, 0, 40)
+                Downloader.TextColor3 = Color3.new(1, 1, 1)
+                Downloader.TextSize = 20
+                Downloader.TextStrokeTransparency = 0
+                Downloader.Parent = vape.gui
+                vape.Downloader = Downloader
+            end
 
-			downloader.Text = 'Downloading '..text
-		end
-	end
+            Downloader.Text = `Downloading {Text}`
+        end
+    end
 
-	local function downloadFile(path, callback)
-		local content
-		if isfile(path) then
-			pcall(function() content = readfile(path) end)
-		end
+    local function DownloadFile(FilePath: string, Callback: ((string) -> any)?)
+        if not isfile(FilePath) then
+            CreateDownloader(FilePath)
 
-		if not content or content == '' or content == '404: Not Found' or typeof(content) ~= 'string' then
-			createDownloader(path)
+            local Success, Data = pcall(function()
+                return game:HttpGet(`https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/{select(1, FilePath:gsub("kingvape/", ""))}`, true)
+            end)
 
-			local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
-			commit = (commit or 'main'):gsub('%s+', '')
-			if commit == '' then commit = 'main' end
-			local relPath = select(1, path:gsub('kingvape/', ''))
-		local url = 'https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/'..relPath
-		local cdnUrl = 'https://cdn.jsdelivr.net/gh/zxcbest957-pixel/KingVape-V3@'..commit..'/'..relPath
+            if not Success or Data == "404: Not Found" then
+                error(Data)
+            end
 
-			local httpRequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-			if httpRequest then
-				pcall(function()
-					local res = httpRequest({Url = url, Method = 'GET'})
-					if res and res.StatusCode == 200 and typeof(res.Body) == 'string' and res.Body ~= '' then
-						content = res.Body
-					end
-				end)
-			end
+            if FilePath:find(".lua", 1, true) then
+                Data = `--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n{Data}`
+            end
 
-			if not content or typeof(content) ~= 'string' or content == '' then
-				pcall(function()
-					local res = game:HttpGet(url, true)
-					if typeof(res) == 'string' and res ~= '' and res ~= '404: Not Found' then
-						content = res
-					end
-				end)
-			end
+            writefile(FilePath, Data)
+        end
 
-			if content and typeof(content) == 'string' and content ~= '404: Not Found' and content ~= '' then
-				if path:find('%.lua') then
-					content = '--This watermark is used to delete the file if its cached, remove it to make the file persist after vape updates.\n'..content
-				end
-				pcall(writefile, path, content)
-			end
-		end
+        return (Callback or readfile)(FilePath)
+    end
 
-		if callback and isfile(path) then
-			local suc, res = pcall(callback, path)
-			if suc and res and typeof(res) == 'string' and res ~= '' then
-				return res
-			end
-		end
+    local AssetCache, AssetFailed = {}
 
-		if typeof(content) == 'string' and content ~= '' then
-			return content
-		end
+    GetVapeAsset = getcustomasset and function(FilePath: string)
+        local Asset: string? = AssetCache[FilePath]
 
-		return vapeAssets[path] or ''
-	end
+        if Asset == nil then
+            Asset = DownloadFile(FilePath, function()
+                local Success, Result = pcall(getcustomasset, FilePath)
+                if Success then
+                    return Result
+                end
 
-	getvapeasset = function(path)
-		local res
-		if getcustomasset then
-			local suc, result = pcall(downloadFile, path, getcustomasset)
-			if suc and typeof(result) == 'string' and result ~= '' then
-				res = result
-			end
-		end
-		if not res or res == '' then
-			res = vapeAssets[path] or vapeAssets[path:gsub('catsix/', 'kingvape/')] or vapeAssets[path:gsub('kingvape/', 'catsix/')] or ''
-		end
-		return res
-	end
+                if not AssetFailed then
+                    AssetFailed = true
+                    task.spawn(function()
+                        repeat task.wait() until vape.Loaded ~= false
+                        if vape.Loaded then
+                            vape:CreateNotification("Vape", `Your executor could not load custom assets, so icons and fonts use backups ({Result})`, 15, "warning")
+                        end
+                    end)
+                end
+                return VapeAssets[FilePath] or ""
+            end)
+            AssetCache[FilePath] = Asset
+        end
+
+        return Asset
+    end or function(FilePath: string)
+        return VapeAssets[FilePath] or ""
+    end
 end
 
-local tween = setmetatable({}, {
-	__index = function()
-		return {}
-	end
+local Tween = setmetatable({}, {
+    __index = function()
+        return {}
+    end
 })
 
 do
-	function tween:Tween(obj, info, goal, index)
-		index = self[index or 'tweens']
-		if index[obj] then
-			index[obj]:Cancel()
-			index[obj] = nil
-		end
+    function Tween:Tween(Object: Instance, Info: TweenInfo, Goal: {[string]: any}, Index)
+        Index = self[Index or "tweens"]
+        if Index[Object] then
+            Index[Object]:Cancel()
+            Index[Object] = nil
+        end
 
-		if obj.Parent and (obj:IsA('UIStroke') or obj.Visible) then
-			index[obj] = tweenService:Create(obj, info, goal)
-			index[obj].Completed:Once(function()
-				if index then
-					index[obj] = nil
-					index = nil
-				end
-			end)
+        if Object.Parent and (Object:IsA("UIStroke") or Object.Visible) then
+            Index[Object] = TweenService:Create(Object, Info, Goal)
+            Index[Object].Completed:Once(function()
+                if Index then
+                    Index[Object] = nil
+                    Index = nil
+                end
+            end)
 
-			index[obj]:Play()
-		else
-			for prop, value in goal do
-				obj[prop] = value
-			end
-		end
-	end
+            Index[Object]:Play()
+        else
+            for Property: string, Value: any in Goal do
+                Object[Property] = Value
+            end
+        end
+    end
 
-	function tween:Cancel(obj, index)
-		index = self[index or 'tweens']
+    function Tween:Cancel(Object: Instance, Index)
+        Index = self[Index or "tweens"]
 
-		if index[obj] then
-			index[obj]:Cancel()
-			index[obj] = nil
-		end
-	end
+        if Index[Object] then
+            Index[Object]:Cancel()
+            Index[Object] = nil
+        end
+    end
 end
 
-uipallet = {
-	Main = Color3.fromRGB(26, 25, 26),
-	Text = Color3.fromRGB(200, 200, 200),
-	Font = Font.fromEnum(Enum.Font.Arial),
-	FontSemiBold = Font.fromEnum(Enum.Font.Arial, Enum.FontWeight.SemiBold),
-	FontBold = Font.fromEnum(Enum.Font.Arial, Enum.FontWeight.Bold),
-	FontDisplay = Font.new(Font.fromEnum(Enum.Font.Roboto).Family, Enum.FontWeight.Medium),
-	DisplayScale = 0.845,
-	Tween = TweenInfo.new(0.16, Enum.EasingStyle.Linear)
+UIPallet = {
+    Main = Color3.fromRGB(26, 25, 26),
+    Text = Color3.fromRGB(200, 200, 200),
+    Font = Font.fromEnum(Enum.Font.Arial),
+    FontSemiBold = Font.fromEnum(Enum.Font.Arial, Enum.FontWeight.SemiBold),
+    FontBold = Font.fromEnum(Enum.Font.Arial, Enum.FontWeight.Bold),
+    FontDisplay = Font.new(Font.fromEnum(Enum.Font.Roboto).Family, Enum.FontWeight.Medium),
+    DisplayScale = 0.845,
+    Tween = TweenInfo.new(0.16, Enum.EasingStyle.Linear)
 }
 
 do
-	local success, family = pcall(function()
-		local regular = getvapeasset('kingvape/assets/new/proxima.ttf')
-		local bold = getvapeasset('kingvape/assets/new/proximabd.ttf')
-		if regular == '' or bold == '' then return end
+    local Success, Family = pcall(function()
+        local Regular: string = GetVapeAsset("kingvape/assets/new/proxima.ttf")
+        local Bold: string = GetVapeAsset("kingvape/assets/new/proximabd.ttf")
+        if Regular == "" or Bold == "" then return end
 
-		writefile('kingvape/assets/new/proxima.json', httpService:JSONEncode({
-			name = 'Proxima',
-			faces = {
-				{name = 'Regular', weight = 400, style = 'normal', assetId = regular},
-				{name = 'SemiBold', weight = 600, style = 'normal', assetId = bold},
-				{name = 'Bold', weight = 700, style = 'normal', assetId = bold}
-			}
-		}))
+        writefile("kingvape/assets/new/proxima.json", HttpService:JSONEncode({
+            name = "Proxima",
+            faces = {
+                {name = "Regular", weight = 400, style = "normal", assetId = Regular},
+                {name = "SemiBold", weight = 600, style = "normal", assetId = Bold},
+                {name = "Bold", weight = 700, style = "normal", assetId = Bold}
+            }
+        }))
 
-		return getcustomasset('kingvape/assets/new/proxima.json')
-	end)
+        return getcustomasset("kingvape/assets/new/proxima.json")
+    end)
 
-	if success and family and family ~= '' then
-		uipallet.Font = Font.new(family, Enum.FontWeight.Regular)
-	end
+    if Success and Family and Family ~= "" then
+        UIPallet.Font = Font.new(Family, Enum.FontWeight.Regular)
+    end
 
-	local displayok, displayfamily = pcall(function()
-		local regular = getvapeasset('kingvape/assets/new/bahnschrift.ttf')
-		if regular == '' then return end
+    local DisplaySuccess, DisplayFamily = pcall(function()
+        local Regular: string = GetVapeAsset("kingvape/assets/new/bahnschrift.ttf")
+        if Regular == "" then return end
 
-		writefile('kingvape/assets/new/bahnschrift.json', httpService:JSONEncode({
-			name = 'Bahnschrift',
-			faces = {
-				{name = 'Regular', weight = 400, style = 'normal', assetId = regular}
-			}
-		}))
+        writefile("kingvape/assets/new/bahnschrift.json", HttpService:JSONEncode({
+            name = "Bahnschrift",
+            faces = {
+                {name = "Regular", weight = 400, style = "normal", assetId = Regular}
+            }
+        }))
 
-		return getcustomasset('kingvape/assets/new/bahnschrift.json')
-	end)
+        return getcustomasset("kingvape/assets/new/bahnschrift.json")
+    end)
 
-	if displayok and displayfamily and displayfamily ~= '' then
-		uipallet.FontDisplay = Font.new(displayfamily, Enum.FontWeight.Regular)
-		uipallet.DisplayScale = 0.845
-	else
-		uipallet.DisplayScale = 1
-	end
+    if DisplaySuccess and DisplayFamily and DisplayFamily ~= "" then
+        UIPallet.FontDisplay = Font.new(DisplayFamily, Enum.FontWeight.Regular)
+        UIPallet.DisplayScale = 0.845
+    else
+        UIPallet.DisplayScale = 1
+    end
 
-	local data = isfile('kingvape/profiles/color.txt') and loadJson('kingvape/profiles/color.txt')
-	if data then
-		uipallet.Main = data.Main and Color3.fromRGB(unpack(data.Main)) or uipallet.Main
-		uipallet.Text = data.Text and Color3.fromRGB(unpack(data.Text)) or uipallet.Text
-		uipallet.Font = data.Font and Font.new(
-			data.Font:find('rbxasset') and data.Font
-			or string.format('rbxasset://fonts/families/%s.json', data.Font)
-		) or uipallet.Font
-	end
+    local Data = isfile("kingvape/profiles/color.txt") and LoadJSON("kingvape/profiles/color.txt")
+    if Data then
+        UIPallet.Main = Data.Main and Color3.fromRGB(unpack(Data.Main)) or UIPallet.Main
+        UIPallet.Text = Data.Text and Color3.fromRGB(unpack(Data.Text)) or UIPallet.Text
+        UIPallet.Font = Data.Font and Font.new(
+            Data.Font:find("rbxasset") and Data.Font
+            or string.format("rbxasset://fonts/families/%s.json", Data.Font)
+        ) or UIPallet.Font
+    end
 
-	uipallet.FontSemiBold = Font.new(uipallet.Font.Family, Enum.FontWeight.SemiBold)
-	uipallet.FontBold = Font.new(uipallet.Font.Family, Enum.FontWeight.Bold)
-	fontsize.Font = uipallet.Font
+    UIPallet.FontSemiBold = Font.new(UIPallet.Font.Family, Enum.FontWeight.SemiBold)
+    UIPallet.FontBold = Font.new(UIPallet.Font.Family, Enum.FontWeight.Bold)
+    FontSize.Font = UIPallet.Font
 end
 
-vapecolors = {
-	Primary = Color3.fromRGB(209, 209, 209),
-	Secondary = Color3.fromRGB(163, 163, 163),
-	Muted = Color3.fromRGB(89, 88, 89),
-	Icon = Color3.fromRGB(122, 122, 122),
-	IconHover = color.Light(Color3.fromRGB(122, 122, 122), 0.35),
-	Panel = Color3.fromRGB(31, 30, 31),
-	Raised = Color3.fromRGB(40, 39, 40),
-	Outline = Color3.fromRGB(54, 53, 54),
-	Input = Color3.fromRGB(20, 20, 20),
-	Accent = Color3.fromRGB(5, 134, 105),
-	AccentHover = Color3.fromRGB(6, 161, 126),
-	Danger = Color3.fromRGB(250, 50, 56),
-	Favorite = Color3.fromRGB(236, 129, 44),
-	Share = Color3.fromRGB(236, 170, 118)
+VapeColors = {
+    Primary = Color3.fromRGB(209, 209, 209),
+    Secondary = Color3.fromRGB(163, 163, 163),
+    Muted = Color3.fromRGB(89, 88, 89),
+    Icon = Color3.fromRGB(122, 122, 122),
+    IconHover = Color.Light(Color3.fromRGB(122, 122, 122), 0.35),
+    Panel = Color3.fromRGB(31, 30, 31),
+    Raised = Color3.fromRGB(40, 39, 40),
+    Outline = Color3.fromRGB(54, 53, 54),
+    Input = Color3.fromRGB(20, 20, 20),
+    Accent = Color3.fromRGB(5, 134, 105),
+    AccentHover = Color3.fromRGB(6, 161, 126),
+    Danger = Color3.fromRGB(250, 50, 56),
+    Favorite = Color3.fromRGB(236, 129, 44),
+    Share = Color3.fromRGB(236, 170, 118)
 }
-
 
 vape.Libraries = {
-	color = color,
-	getfontbounds = getfontbounds,
-	getvapeasset = getvapeasset,
-	tween = tween,
-	uipallet = uipallet,
-	vapecolors = vapecolors,
+	color = Color,
+	getfontbounds = GetFontBounds,
+	getvapeasset = GetVapeAsset,
+	tween = Tween,
+	uipallet = UIPallet,
+	vapecolors = VapeColors,
 }
 
-local function addBlur(parent, notif, old)
-	local blur
-	if old then
-		blur = Instance.new('ImageLabel')
-		blur.Name = 'Blur'
-		blur.Size = UDim2.new(1, 89, 1, 52)
-		blur.Position = UDim2.fromOffset(-48, -31)
-		blur.BackgroundTransparency = 1
-		blur.Image = getvapeasset('kingvape/assets/new/'..(notif and 'blurnoti' or 'blur')..'.png')
-		blur.ScaleType = Enum.ScaleType.Slice
-		blur.SliceCenter = Rect.new(52, 31, 261, 502)
-		blur.Parent = parent
-	else
-		blur = Instance.new('UIShadow')
-		blur.BlurRadius = UDim.new(0, 13)
-		blur.Transparency = 0.25
-		blur.Parent = parent
-	end
+local function AddBlur(Parent: Instance, Notification: boolean?, Old: boolean?)
+    local Blur
+    if Old then
+        Blur = Instance.new("ImageLabel")
+        Blur.Name = "Blur"
+        Blur.Size = UDim2.new(1, 89, 1, 52)
+        Blur.Position = UDim2.fromOffset(-48, -31)
+        Blur.BackgroundTransparency = 1
+        Blur.Image = GetVapeAsset(`kingvape/assets/new/{Notification and "blurnoti" or "blur"}.png`)
+        Blur.ScaleType = Enum.ScaleType.Slice
+        Blur.SliceCenter = Rect.new(52, 31, 261, 502)
+        Blur.Parent = Parent
+    else
+        Blur = Instance.new("UIShadow")
+        Blur.BlurRadius = UDim.new(0, 13)
+        Blur.Transparency = 0.25
+        Blur.Parent = Parent
+    end
 
-	return blur
+    return Blur
 end
 
-local function addShadow(parent, blur, transparency)
-	local shadow = Instance.new('UIShadow')
-	shadow.Name = 'Shadow'
-	shadow.Color = Color3.new()
-	shadow.Offset = UDim2.new()
-	shadow.Spread = UDim2.new()
-	shadow.BlurRadius = UDim.new(0, blur or 16)
-	shadow.Transparency = transparency or 0.404
-	shadow.Parent = parent
+local function AddShadow(Parent: Instance, Blur: number?, Transparency: number?)
+    local Shadow: UIShadow = Instance.new("UIShadow")
+    Shadow.Name = "Shadow"
+    Shadow.Color = Color3.new()
+    Shadow.Offset = UDim2.new()
+    Shadow.Spread = UDim2.new()
+    Shadow.BlurRadius = UDim.new(0, Blur or 16)
+    Shadow.Transparency = Transparency or 0.404
+    Shadow.Parent = Parent
 
-	return shadow
+    return Shadow
 end
 
-local function addCorner(parent, radius)
-	local corner = Instance.new('UICorner')
-	corner.CornerRadius = radius or UDim.new(0, 5)
-	corner.Parent = parent
+local function AddCorner(Parent: Instance, Radius: UDim?)
+    local Corner: UICorner = Instance.new("UICorner")
+    Corner.CornerRadius = Radius or UDim.new(0, 5)
+    Corner.Parent = Parent
 
-	return corner
+    return Corner
 end
 
-local function addCloseButton(parent, mini, offset)
-	local close = Instance.new('ImageButton')
-	close.AutoButtonColor = false
-	close.BackgroundColor3 = Color3.new(1, 1, 1)
-	close.BackgroundTransparency = 1
-	close.Image = getvapeasset('kingvape/assets/new/'..(mini and 'closemini' or 'close')..'.png')
-	close.ImageColor3 = color.Light(uipallet.Text, 0.2)
-	close.ImageTransparency = 0.5
-	close.Name = 'Close'
-	close.Position = offset or (mini and UDim2.new(1, -28, 0, 11) or UDim2.new(1, -35, 0, 9))
-	close.Size = mini and UDim2.fromOffset(20, 20) or UDim2.fromOffset(24, 24)
-	close.Parent = parent
-	addCorner(close, UDim.new(1, 0))
+local function AddCloseButton(Parent: Instance, Mini: boolean?, Offset: UDim2?)
+    local Close: ImageButton = Instance.new("ImageButton")
+    Close.AutoButtonColor = false
+    Close.BackgroundColor3 = Color3.new(1, 1, 1)
+    Close.BackgroundTransparency = 1
+    Close.Image = GetVapeAsset(`kingvape/assets/new/{Mini and "closemini" or "close"}.png`)
+    Close.ImageColor3 = Color.Light(UIPallet.Text, 0.2)
+    Close.ImageTransparency = 0.5
+    Close.Name = "Close"
+    Close.Position = Offset or (Mini and UDim2.new(1, -28, 0, 11) or UDim2.new(1, -35, 0, 9))
+    Close.Size = Mini and UDim2.fromOffset(20, 20) or UDim2.fromOffset(24, 24)
+    Close.Parent = Parent
+    AddCorner(Close, UDim.new(1, 0))
 
-	close.MouseEnter:Connect(function()
-		close.ImageTransparency = 0.3
-		tween:Tween(close, uipallet.Tween, {
-			BackgroundTransparency = 0.6
-		})
-	end)
+    Close.MouseEnter:Connect(function()
+        Close.ImageTransparency = 0.3
+        Tween:Tween(Close, UIPallet.Tween, {
+            BackgroundTransparency = 0.6
+        })
+    end)
 
-	close.MouseLeave:Connect(function()
-		close.ImageTransparency = 0.5
-		tween:Tween(close, uipallet.Tween, {
-			BackgroundTransparency = 1
-		})
-	end)
+    Close.MouseLeave:Connect(function()
+        Close.ImageTransparency = 0.5
+        Tween:Tween(Close, UIPallet.Tween, {
+            BackgroundTransparency = 1
+        })
+    end)
 
-	return close
+    return Close
 end
 
-local function addDragHandler(gui, window)
-	gui.InputBegan:Connect(function(input)
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+local function AddDragHandler(Gui: GuiObject, Window)
+    Gui.InputBegan:Connect(function(Input: InputObject)
+        if vape.ThreadFix then
+            setthreadidentity(8)
+        end
 
-		if window and not window.Visible then return end
+        if Window and not Window.Visible then return end
 
-		if
-			(input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch)
-			and (input.Position.Y - gui.AbsolutePosition.Y < 40 or window)
-		then
-			local dragPosition = Vector2.new(
-				gui.AbsolutePosition.X - input.Position.X,
-				gui.AbsolutePosition.Y - input.Position.Y + guiService:GetGuiInset().Y
-			) / scale.Scale
+        if
+            (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
+            and (Input.Position.Y - Gui.AbsolutePosition.Y < 40 or Window)
+        then
+            local DragPosition: Vector2 = Vector2.new(
+                Gui.AbsolutePosition.X - Input.Position.X,
+                Gui.AbsolutePosition.Y - Input.Position.Y + GuiService:GetGuiInset().Y
+            ) / Scale.Scale
 
-			local releaseConnection
-			local moveConnection = inputService.InputChanged:Connect(function(newInput)
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+            local ReleaseConnection
+            local MoveConnection: RBXScriptConnection = UserInputService.InputChanged:Connect(function(NewInput: InputObject)
+                if vape.ThreadFix then
+                    setthreadidentity(8)
+                end
 
-				if newInput.UserInputType == (input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
-					local position = newInput.Position
-					if inputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-						dragPosition = (dragPosition // 3) * 3
-						position = (position // 3) * 3
-					end
+                if NewInput.UserInputType == (Input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
+                    local Position: Vector3 = NewInput.Position
+                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                        DragPosition = (DragPosition // 3) * 3
+                        Position = (Position // 3) * 3
+                    end
 
-					gui.Position = UDim2.fromOffset((position.X / scale.Scale) + dragPosition.X, (position.Y / scale.Scale) + dragPosition.Y)
-				end
-			end)
+                    Gui.Position = UDim2.fromOffset((Position.X / Scale.Scale) + DragPosition.X, (Position.Y / Scale.Scale) + DragPosition.Y)
+                end
+            end)
 
-			releaseConnection = input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					moveConnection:Disconnect()
-					releaseConnection:Disconnect()
-					vape:QueueSave()
-				end
-			end)
-		end
-	end)
+            ReleaseConnection = Input.Changed:Connect(function()
+                if Input.UserInputState == Enum.UserInputState.End then
+                    MoveConnection:Disconnect()
+                    ReleaseConnection:Disconnect()
+                    vape:QueueSave()
+                end
+            end)
+        end
+    end)
 end
 
-local function addMaid(obj)
-	obj.Connections = {}
+local function AddMaid(Object)
+    Object.Connections = {}
 
-	function obj:Clean(callback)
-		if typeof(callback) == 'Instance' then
-			table.insert(self.Connections, {
-				Disconnect = function()
-					callback:ClearAllChildren()
-					callback:Destroy()
-				end
-			})
-		elseif type(callback) == 'thread' then
-			table.insert(self.Connections, {
-				Disconnect = function()
-					if coroutine.status(callback) ~= 'dead' then
-						task.cancel(callback)
-					end
-				end
-			})
-		elseif type(callback) == 'function' then
-			table.insert(self.Connections, {
-				Disconnect = callback
-			})
-		else
-			table.insert(self.Connections, callback)
-		end
-	end
+    function Object:Clean(Callback)
+        if typeof(Callback) == "Instance" then
+            table.insert(self.Connections, {
+                Disconnect = function()
+                    Callback:ClearAllChildren()
+                    Callback:Destroy()
+                end
+            })
+        elseif type(Callback) == "thread" then
+            table.insert(self.Connections, {
+                Disconnect = function()
+                    if coroutine.status(Callback) ~= "dead" then
+                        task.cancel(Callback)
+                    end
+                end
+            })
+        elseif type(Callback) == "function" then
+            table.insert(self.Connections, {
+                Disconnect = Callback
+            })
+        else
+            table.insert(self.Connections, Callback)
+        end
+    end
 end
 
-local function addTooltip(gui, text, customText, visCheck)
-	if not text then return end
+local function AddTooltip(Gui: GuiObject, Text: string?, CustomText: (() -> string)?, VisibleCheck: (() -> boolean)?)
+    if not Text then return end
 
-	local function tooltipMoved(x, y)
-		if visCheck and visCheck() then
-			return
-		end
+    local function TooltipMoved(X: number, Y: number)
+        if VisibleCheck and VisibleCheck() then
+            return
+        end
 
-		local isRight = x + 16 + tooltip.Size.X.Offset > (scale.Scale * 1920)
-		tooltip.Position = UDim2.fromOffset(
-			(isRight and x - (tooltip.Size.X.Offset * scale.Scale) - 16 or x + 16) / scale.Scale,
-			((y + 11) - (tooltip.Size.Y.Offset / 2)) / scale.Scale
-		)
+        local IsRight: boolean = X + 16 + Tooltip.Size.X.Offset > (Scale.Scale * 1920)
+        Tooltip.Position = UDim2.fromOffset(
+            (IsRight and X - (Tooltip.Size.X.Offset * Scale.Scale) - 16 or X + 16) / Scale.Scale,
+            ((Y + 11) - (Tooltip.Size.Y.Offset / 2)) / Scale.Scale
+        )
 
-		tooltip.Visible = toolblur.Enabled
-	end
+        Tooltip.Visible = ToolBlur.Enabled
+    end
 
-	local function callback()
-		local newText = customText()
-		tooltip.Text = newText
-		local tooltipSize = getfontbounds(tooltip.ContentText, tooltip.TextSize, uipallet.Font)
-		tooltip.Size = UDim2.fromOffset(tooltipSize.X + 10, tooltipSize.Y + 10)
-	end
+    local function Callback()
+        local NewText: string = CustomText()
+        Tooltip.Text = NewText
+        local TooltipSize: Vector2 = GetFontBounds(Tooltip.ContentText, Tooltip.TextSize, UIPallet.Font)
+        Tooltip.Size = UDim2.fromOffset(TooltipSize.X + 10, TooltipSize.Y + 10)
+    end
 
-	gui.MouseEnter:Connect(function(x, y)
-		if visCheck and visCheck() then
-			return
-		end
+    Gui.MouseEnter:Connect(function(X: number, Y: number)
+        if VisibleCheck and VisibleCheck() then
+            return
+        end
 
-		tooltip.Text = text
-		local tooltipSize = getfontbounds(tooltip.ContentText, tooltip.TextSize, uipallet.Font)
-		tooltip.Size = UDim2.fromOffset(tooltipSize.X + 10, tooltipSize.Y + 10)
-		tooltipMoved(x, y)
+        Tooltip.Text = Text
+        local TooltipSize: Vector2 = GetFontBounds(Tooltip.ContentText, Tooltip.TextSize, UIPallet.Font)
+        Tooltip.Size = UDim2.fromOffset(TooltipSize.X + 10, TooltipSize.Y + 10)
+        TooltipMoved(X, Y)
 
-		if customText then
-			vape.CurrentTooltip = callback
-			callback()
-		end
-	end)
-	gui.MouseMoved:Connect(tooltipMoved)
-	gui.MouseLeave:Connect(function()
-		if visCheck and visCheck() then
-			return
-		end
+        if CustomText then
+            vape.CurrentTooltip = Callback
+            Callback()
+        end
+    end)
+    Gui.MouseMoved:Connect(TooltipMoved)
+    Gui.MouseLeave:Connect(function()
+        if VisibleCheck and VisibleCheck() then
+            return
+        end
 
-		tooltip.Visible = false
-		vape.CurrentTooltip = nil
-	end)
+        Tooltip.Visible = false
+        vape.CurrentTooltip = nil
+    end)
 end
 
-local function buildOptionsView(module, parent, order)
-	local frame = Instance.new('Frame')
-	frame.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-	frame.BorderSizePixel = 0
-	frame.LayoutOrder = order
-	frame.Name = module.Name..'Children'
-	frame.Size = UDim2.new(1, 0, 0, 0)
-	frame.Visible = false
-	frame.Parent = parent
-	local layout = Instance.new('UIListLayout')
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = frame
+local function BuildOptionsView(Module, Parent: Instance, Order: number)
+    local Frame: Frame = Instance.new("Frame")
+    Frame.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+    Frame.BorderSizePixel = 0
+    Frame.LayoutOrder = Order
+    Frame.Name = `{Module.Name}Children`
+    Frame.Size = UDim2.new(1, 0, 0, 0)
+    Frame.Visible = false
+    Frame.Parent = Parent
+    local Layout: UIListLayout = Instance.new("UIListLayout")
+    Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    Layout.SortOrder = Enum.SortOrder.LayoutOrder
+    Layout.Parent = Frame
 
-	layout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+    Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        if vape.ThreadFix then
+            setthreadidentity(8)
+        end
 
-		frame.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y / scale.Scale)
-	end)
+        Frame.Size = UDim2.new(1, 0, 0, Layout.AbsoluteContentSize.Y / Scale.Scale)
+    end)
 
-	if module.CreateOptionsView then
-		module:CreateOptionsView(frame)
-	end
+    if Module.CreateOptionsView then
+        Module:CreateOptionsView(Frame)
+    end
 
-	return frame
+    return Frame
 end
 
-local function convertBind(bind)
-	if type(bind) ~= 'table' then
-		return {Keys = {}}
-	end
+local function ConvertBind(Bind)
+    if type(Bind) ~= "table" then
+        return {Keys = {}}
+    end
 
-	if bind.Keys then
-		return bind
-	end
+    if Bind.Keys then
+        return Bind
+    end
 
-	if bind.Mobile then
-		return {Keys = {}, Mobile = {X = bind.X, Y = bind.Y}}
-	end
+    if Bind.Mobile then
+        return {Keys = {}, Mobile = {X = Bind.X, Y = Bind.Y}}
+    end
 
-	return {Keys = bind}
+    return {Keys = Bind}
 end
 
-local function stripLegacyMax(container)
-	for _, v in container or {} do
-		for _, v2 in v.Options or {} do
-			if type(v2) == 'table' then
-				v2.Max = nil
-			end
-		end
-	end
+local function StripLegacyMax(Container)
+    for _, v: any in Container or {} do
+        for _, Option: any in v.Options or {} do
+            if type(Option) == "table" then
+                Option.Max = nil
+            end
+        end
+    end
 end
 
-local function readProfile(profile)
-	local path = 'kingvape/profiles/'..profile..vape.Place..'.txt'
-	if not isfile(path) then
-		return nil
-	end
+local function ReadProfile(Profile: string)
+    local FilePath: string = `kingvape/profiles/{Profile}{vape.Place}.txt`
+    if not isfile(FilePath) then
+        return nil
+    end
 
-	local data = loadJson(path)
-	if not data then
-		return false
-	end
+    local Data = LoadJSON(FilePath)
+    if not Data then
+        return false
+    end
 
-	data.Categories = data.Categories or {}
-	data.Modules = data.Modules or {}
-	data.Legit = data.Legit or {}
+    Data.Categories = Data.Categories or {}
+    Data.Modules = Data.Modules or {}
+    Data.Legit = Data.Legit or {}
 
-	if data.v ~= 1 then
-		for _, module in data.Modules do
-			module.Bind = convertBind(module.Bind)
-			module.Visible = true
-		end
+    if Data.v ~= 1 then
+        for _, Module: any in Data.Modules do
+            Module.Bind = ConvertBind(Module.Bind)
+            Module.Visible = true
+        end
 
-		stripLegacyMax(data.Modules)
-		stripLegacyMax(data.Categories)
-		stripLegacyMax(data.Legit)
-	end
+        StripLegacyMax(Data.Modules)
+        StripLegacyMax(Data.Categories)
+        StripLegacyMax(Data.Legit)
+    end
 
-	return data
+    return Data
 end
 
-local function findLegacy(container, name)
-	name = name:gsub(' ', '')
-	for i, v in container do
-		if i:gsub(' ', '') == name or (v.ConfigName or ''):gsub(' ', '') == name then
-			return v
-		end
-	end
+local function FindLegacy(Container, Name)
+    Name = Name:gsub(" ", "")
+    for Key: string, v: any in Container do
+        if Key:gsub(" ", "") == Name or (v.ConfigName or ""):gsub(" ", "") == Name then
+            return v
+        end
+    end
 end
 
-local function loadNew(container, list, existing)
-	for name, data in list do
-		local component = container[name] or findLegacy(container, name)
+local function LoadNew(Container, List, Existing)
+    for Name: string, Data: any in List do
+        local Component = Container[Name] or FindLegacy(Container, Name)
 
-		if component and not existing[component] then
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+        if Component and not Existing[Component] then
+            if vape.ThreadFix then
+                setthreadidentity(8)
+            end
 
-			attemptLoad(component, data, name)
-		end
-	end
+            AttemptLoad(Component, Data, Name)
+        end
+    end
 end
 
-local function createSignal()
-	local signal = {
-		Connections = {}
-	}
+local function CreateSignal()
+    local Signal = {
+        Connections = {}
+    }
 
-	function signal:Connect(callback)
-		table.insert(self.Connections, callback)
+    function Signal:Connect(Callback)
+        table.insert(self.Connections, Callback)
 
-		return {
-			Disconnect = function()
-				local index = table.find(signal.Connections, callback)
-				if index then
-					table.remove(signal.Connections, index)
-				end
-			end
-		}
-	end
+        return {
+            Disconnect = function()
+                local Index: number? = table.find(Signal.Connections, Callback)
+                if Index then
+                    table.remove(Signal.Connections, Index)
+                end
+            end
+        }
+    end
 
-	function signal:Fire(...)
-		for _, callback in self.Connections do
-			task.spawn(callback, ...)
-		end
-	end
+    function Signal:Fire(...)
+        for _, Callback: (...any) -> ...any in self.Connections do
+            task.spawn(Callback, ...)
+        end
+    end
 
-	return signal
+    return Signal
 end
 
-local function checkKeybinds(compare, target, key)
-	if type(target) == 'table' then
-		if table.find(target, key) then
-			for _, key in target do
-				if not table.find(compare, key) then
-					return false
-				end
-			end
+local function CheckKeybinds(Compare: {string}, Target, Key: string)
+    if type(Target) == "table" then
+        if table.find(Target, Key) then
+            for _, TargetKey: any in Target do
+                if not table.find(Compare, TargetKey) then
+                    return false
+                end
+            end
 
-			return true
-		end
-	end
+            return true
+        end
+    end
 
-	return false
+    return false
 end
 
-local function isFinite(value)
-	return type(value) == 'number' and value == value and value ~= math.huge and value ~= -math.huge
+local function IsFinite(Value)
+    return type(Value) == "number" and Value == Value and Value ~= math.huge and Value ~= -math.huge
 end
 
-local function getTableSize(dict)
-	local size = 0
-	for _ in dict do
-		size += 1
-	end
+local function GetTableSize(Dictionary: {[any]: any})
+    local Size: number = 0
+    for _ in Dictionary do
+        Size += 1
+    end
 
-	return size
+    return Size
 end
 
-local function listenProperty(src, dest, prop, obj)
-	dest[prop] = src[prop]
-	local connection = src:GetPropertyChangedSignal(prop):Connect(function()
-		dest[prop] = src[prop]
-	end)
+local function ListenProperty(Source: Instance, Destination, Property: string, Object: Instance)
+    Destination[Property] = Source[Property]
+    local Connection: RBXScriptConnection = Source:GetPropertyChangedSignal(Property):Connect(function()
+        Destination[Property] = Source[Property]
+    end)
 
-	obj.Destroying:Once(function()
-		connection:Disconnect()
-	end)
+    Object.Destroying:Once(function()
+        Connection:Disconnect()
+    end)
 end
 
-local function loopClean(obj)
-	for index, value in obj do
-		if type(value) == 'table' then
-			loopClean(value)
-		end
+local function LoopClean(Object)
+    for Key: any, Value: any in Object do
+        if type(Value) == "table" then
+            LoopClean(Value)
+        end
 
-		obj[index] = nil
-	end
+        Object[Key] = nil
+    end
 end
 
-local function randomString()
-	local array = {}
-	for i = 1, math.random(10, 100) do
-		array[i] = string.char(math.random(32, 126))
-	end
+local function RandomString()
+    local Array: {string} = {}
+    for i: number = 1, math.random(10, 100) do
+        Array[i] = string.char(math.random(32, 126))
+    end
 
-	return table.concat(array)
+    return table.concat(Array)
 end
 
-local function isRendered(obj)
-	while obj do
-		if obj:IsA('LayerCollector') then
-			return obj.Enabled
-		end
+local function IsRendered(Object: Instance?)
+    while Object do
+        if Object:IsA("LayerCollector") then
+            return Object.Enabled
+        end
 
-		if obj:IsA('GuiObject') and not obj.Visible then
-			return false
-		end
+        if Object:IsA("GuiObject") and not Object.Visible then
+            return false
+        end
 
-		obj = obj.Parent
-	end
+        Object = Object.Parent
+    end
 
-	return false
+    return false
 end
 
-local function refreshGlass()
-	if vape.HUDBlur and not vape.HUDBlur.Enabled then
-		if glassshown then
-			glassshown = false
-			for _, v in glassparts do
-				v.Part.Parent = nil
-			end
-		end
+local function RefreshGlass()
+    if vape.HUDBlur and not vape.HUDBlur.Enabled then
+        if GlassShown then
+            GlassShown = false
+            for _, v: {Frame: GuiObject, Mesh: SpecialMesh, Part: Part} in GlassParts do
+                v.Part.Parent = nil
+            end
+        end
 
-		return
-	end
+        return
+    end
 
-	glassshown = true
-	local camera = workspace.CurrentCamera
-	local offset = ((camera.ViewportSize.Y * 48) / 2560) + 8
-	local cframe = camera.CFrame
-	local xvector, yvector, zvector = cframe.XVector, cframe.YVector, cframe.ZVector
+    GlassShown = true
+    local Camera: Camera = workspace.CurrentCamera
+    local Offset: number = ((Camera.ViewportSize.Y * 48) / 2560) + 8
+    local CameraCFrame: CFrame = Camera.CFrame
+    local XVector, YVector, ZVector = CameraCFrame.XVector, CameraCFrame.YVector, CameraCFrame.ZVector
 
-	for _, v in glassparts do
-		local frame = v.Frame
+    for _, v: {Frame: GuiObject, Mesh: SpecialMesh, Part: Part} in GlassParts do
+        local Frame: GuiObject = v.Frame
 
-		if frame.BackgroundTransparency >= 1 or not isRendered(frame) then
-			v.Part.Parent = nil
-			continue
-		end
+        if Frame.BackgroundTransparency >= 1 or not IsRendered(Frame) then
+            v.Part.Parent = nil
+            continue
+        end
 
-		local size = frame.AbsoluteSize - Vector2.new(offset, offset)
-		local corner = frame.AbsolutePosition + Vector2.new(offset / 2, offset / 2)
+        local Size: Vector2 = Frame.AbsoluteSize - Vector2.new(Offset, Offset)
+        local Corner: Vector2 = Frame.AbsolutePosition + Vector2.new(Offset / 2, Offset / 2)
 
-		if size.X <= 0 or size.Y <= 0 then
-			v.Part.Parent = nil
-			continue
-		end
+        if Size.X <= 0 or Size.Y <= 0 then
+            v.Part.Parent = nil
+            continue
+        end
 
-		local topleft = camera:ScreenPointToRay(corner.X, corner.Y)
-		local bottomright = camera:ScreenPointToRay(corner.X + size.X, corner.Y + size.Y)
-		topleft = topleft.Origin + (topleft.Direction * 0.001)
-		bottomright = bottomright.Origin + (bottomright.Direction * 0.001)
-		local delta = bottomright - topleft
+        local TopLeft = Camera:ScreenPointToRay(Corner.X, Corner.Y)
+        local BottomRight = Camera:ScreenPointToRay(Corner.X + Size.X, Corner.Y + Size.Y)
+        TopLeft = TopLeft.Origin + (TopLeft.Direction * 0.001)
+        BottomRight = BottomRight.Origin + (BottomRight.Direction * 0.001)
+        local Delta: Vector3 = BottomRight - TopLeft
 
-		if v.Part.Parent ~= camera then
-			v.Part.Parent = camera
-		end
+        if v.Part.Parent ~= Camera then
+            v.Part.Parent = Camera
+        end
 
-		v.Part.CFrame = CFrame.fromMatrix((topleft + bottomright) / 2, xvector, yvector, zvector)
-		v.Mesh.Scale = Vector3.new(delta:Dot(xvector), -delta:Dot(yvector), 0)
-	end
+        v.Part.CFrame = CFrame.fromMatrix((TopLeft + BottomRight) / 2, XVector, YVector, ZVector)
+        v.Mesh.Scale = Vector3.new(Delta:Dot(XVector), -Delta:Dot(YVector), 0)
+    end
 end
 
-local function addGlass(frame)
-	if inputService.TouchEnabled then return end
+local function AddGlass(Frame: GuiObject)
+    if UserInputService.TouchEnabled then return end
 
-	local glasspart = Instance.new('Part')
-	glasspart.Anchored = true
-	glasspart.CanCollide = false
-	glasspart.CanQuery = false
-	glasspart.CanTouch = false
-	glasspart.CastShadow = false
-	glasspart.Color = Color3.new()
-	glasspart.Locked = true
-	glasspart.Material = Enum.Material.Glass
-	glasspart.Name = randomString()
-	glasspart.Size = Vector3.new(1, 1, 0)
-	glasspart.Transparency = 0.98
-	local glassmesh = Instance.new('SpecialMesh')
-	glassmesh.MeshType = Enum.MeshType.Brick
-	glassmesh.Offset = Vector3.new(0, 0, -0.000001)
-	glassmesh.Parent = glasspart
+    local GlassPart: Part = Instance.new("Part")
+    GlassPart.Anchored = true
+    GlassPart.CanCollide = false
+    GlassPart.CanQuery = false
+    GlassPart.CanTouch = false
+    GlassPart.CastShadow = false
+    GlassPart.Color = Color3.new()
+    GlassPart.Locked = true
+    GlassPart.Material = Enum.Material.Glass
+    GlassPart.Name = RandomString()
+    GlassPart.Size = Vector3.new(1, 1, 0)
+    GlassPart.Transparency = 0.98
+    local GlassMesh: SpecialMesh = Instance.new("SpecialMesh")
+    GlassMesh.MeshType = Enum.MeshType.Brick
+    GlassMesh.Offset = Vector3.new(0, 0, -0.000001)
+    GlassMesh.Parent = GlassPart
 
-	if #glassparts == 0 then
-		glassconnection = runService.RenderStepped:Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+    if #GlassParts == 0 then
+        GlassConnection = RunService.RenderStepped:Connect(function()
+            if vape.ThreadFix then
+                setthreadidentity(8)
+            end
 
-			refreshGlass()
-		end)
-	end
+            RefreshGlass()
+        end)
+    end
 
-	table.insert(glassparts, {Frame = frame, Mesh = glassmesh, Part = glasspart})
+    table.insert(GlassParts, {Frame = Frame, Mesh = GlassMesh, Part = GlassPart})
 
-	return glasspart
+    return GlassPart
 end
 
-local function removeTags(text)
-	text = text:gsub('<br%s*/>', '\n')
-	return text:gsub('<[^<>]->', '')
+local function RemoveTags(Text: string)
+    Text = Text:gsub("<br%s*/>", "\n")
+    return Text:gsub("<[^<>]->", "")
 end
 
-local function parseTimestamp(value)
-	if type(value) == 'number' then return value end
-	if type(value) ~= 'string' then return 0 end
+local function ParseTimestamp(Value)
+    if type(Value) == "number" then return Value end
+    if type(Value) ~= "string" then return 0 end
 
-	local year, month, day, hour, min, sec = value:match('(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)')
-	if not year then return tonumber(value) or 0 end
+    local Year, Month, Day, Hour, Minute, Second = Value:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
+    if not Year then return tonumber(Value) or 0 end
 
-	return os.time({
-		year = tonumber(year),
-		month = tonumber(month),
-		day = tonumber(day),
-		hour = tonumber(hour),
-		min = tonumber(min),
-		sec = tonumber(sec)
-	})
+    return os.time({
+        year = tonumber(Year),
+        month = tonumber(Month),
+        day = tonumber(Day),
+        hour = tonumber(Hour),
+        min = tonumber(Minute),
+        sec = tonumber(Second)
+    })
 end
 
-local function parseFilename(entry)
-	local id, name = tostring(entry.filename or ''):match('^%((%d+)%)%-%((.+)%)%.json$')
+local function ParseFilename(Entry)
+    local Id, Name = tostring(Entry.filename or ""):match("^%((%d+)%)%-%((.+)%)%.json$")
 
-	return name or (entry.config_name ~= 'unknown' and entry.config_name) or 'Unnamed', (entry.discord_username ~= 'unknown' and entry.discord_username) or id or 'unknown'
+    return Name or (Entry.config_name ~= "unknown" and Entry.config_name) or "Unnamed", (Entry.discord_username ~= "unknown" and Entry.discord_username) or Id or "unknown"
 end
 
-local avatarCache = {}
-local avatarPlaceholder = 'rbxasset://textures/ui/GuiImagePlaceholder.png'
+local AvatarCache = {}
+local AvatarPlaceholder: string = "rbxasset://textures/ui/GuiImagePlaceholder.png"
 
-local function applyAvatar(image, url)
-	image.Image = avatarPlaceholder
-	if type(url) ~= 'string' or not url:find('^https?://') then return end
+local function ApplyAvatar(Image: ImageLabel, Url: string?)
+    Image.Image = AvatarPlaceholder
+    if type(Url) ~= "string" or not Url:find("^https?://") then return end
 
-	url = url:gsub('%.webp', '.png')
-	if avatarCache[url] then
-		image.Image = avatarCache[url]
-		return
-	end
+    Url = Url:gsub("%.webp", ".png")
+    if AvatarCache[Url] then
+        Image.Image = AvatarCache[Url]
+        return
+    end
 
-	task.spawn(function()
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+    task.spawn(function()
+        if vape.ThreadFix then
+            setthreadidentity(8)
+        end
 
-		if not isfolder('kingvape/assets/pfp') then
-			makefolder('kingvape/assets/pfp')
-		end
+        if not isfolder("kingvape/assets/pfp") then
+            makefolder("kingvape/assets/pfp")
+        end
 
-		local path = 'kingvape/assets/pfp/'..url:gsub('%W', ''):sub(-48)..'.png'
-		if not isfile(path) then
-			local success, res = pcall(request, {Url = url, Method = 'GET'})
-			if not success or not res or not res.Body or res.Body == '' then return end
-			writefile(path, res.Body)
-		end
+        local FilePath: string = `kingvape/assets/pfp/{Url:gsub("%W", ""):sub(-48)}.png`
+        if not isfile(FilePath) then
+            local Success, Response = pcall(request, {Url = Url, Method = "GET"})
+            if not Success or not Response or not Response.Body or Response.Body == "" then return end
+            writefile(FilePath, Response.Body)
+        end
 
-		local success, asset = pcall(getcustomasset, path)
-		if not success or not asset then return end
+        local Success, Asset = pcall(getcustomasset, FilePath)
+        if not Success or not Asset then return end
 
-		avatarCache[url] = asset
-		if image.Parent then
-			image.Image = asset
-		end
-	end)
+        AvatarCache[Url] = Asset
+        if Image.Parent then
+            Image.Image = Asset
+        end
+    end)
 end
 
-local function relativeDays(uploaded)
-	local days = math.floor((os.time() - (tonumber(uploaded) or os.time())) / 86400)
-	if days <= 0 then return 'Today' end
-	return days..(days == 1 and ' day ago' or ' days ago')
+local function RelativeDays(Uploaded)
+    local Days: number = math.floor((os.time() - (tonumber(Uploaded) or os.time())) / 86400)
+    if Days <= 0 then return "Today" end
+    return `{Days}{Days == 1 and " day ago" or " days ago"}`
 end
 
 function vape:BlurCheck()
-	if self.ThreadFix then
-		setthreadidentity(8)
-	end
+    if self.ThreadFix then
+        setthreadidentity(8)
+    end
 
-	local enabled = (clickgui.Visible or (self.Legit and self.Legit.Window.Visible) or guiService:GetErrorType() ~= Enum.ConnectionError.OK) and self.Blur.Enabled or false
+    local Enabled: boolean = (ClickGUI.Visible or (self.Legit and self.Legit.Window.Visible) or GuiService:GetErrorType() ~= Enum.ConnectionError.OK) and self.Blur.Enabled or false
 
-	if self.ThreadFix then
-		runService:SetRobloxGuiFocused(enabled)
-	end
+    if self.ThreadFix then
+        RunService:SetRobloxGuiFocused(Enabled)
+    end
 
-	if not blureffect then
-		blureffect = Instance.new('BlurEffect')
-		blureffect.Enabled = false
-		blureffect.Name = randomString()
-		blureffect.Size = 0
-		blureffect.Parent = lighting
-		blurfocus = Instance.new('DepthOfFieldEffect')
-		blurfocus.FarIntensity = 0
-		blurfocus.InFocusRadius = 0.1
-		blurfocus.Name = randomString()
-		blurfocus.NearIntensity = 1
-		blurfocus.Parent = lighting
-		self.BlurEffects = self.BlurEffects or {}
-		table.insert(self.BlurEffects, blureffect)
-		table.insert(self.BlurEffects, blurfocus)
-	end
+    if not BlurEffect then
+        BlurEffect = Instance.new("BlurEffect")
+        BlurEffect.Enabled = false
+        BlurEffect.Name = RandomString()
+        BlurEffect.Size = 0
+        BlurEffect.Parent = Lighting
+        BlurFocus = Instance.new("DepthOfFieldEffect")
+        BlurFocus.FarIntensity = 0
+        BlurFocus.InFocusRadius = 0.1
+        BlurFocus.Name = RandomString()
+        BlurFocus.NearIntensity = 1
+        BlurFocus.Parent = Lighting
+        self.BlurEffects = self.BlurEffects or {}
+        table.insert(self.BlurEffects, BlurEffect)
+        table.insert(self.BlurEffects, BlurFocus)
+    end
 
-	blureffect.Enabled = true
+    BlurEffect.Enabled = true
 
-	if blurtween then
-		blurtween:Cancel()
-	end
+    if BlurTween then
+        BlurTween:Cancel()
+    end
 
-	blurtween = tweenService:Create(blureffect, blurinfo, {
-		Size = enabled and (self.BlurIntensity and self.BlurIntensity.Value or 24) or 0
-	})
-	blurtween:Play()
+    BlurTween = TweenService:Create(BlurEffect, BlurInfo, {
+        Size = Enabled and (self.BlurIntensity and self.BlurIntensity.Value or 24) or 0
+    })
+    BlurTween:Play()
 
-	if not enabled then
-		task.delay(0.3, function()
-			if self.ThreadFix then
-				setthreadidentity(8)
-			end
+    if not Enabled then
+        task.delay(0.3, function()
+            if self.ThreadFix then
+                setthreadidentity(8)
+            end
 
-			if blureffect then
-				blureffect.Enabled = blureffect.Size > 0.5
-			end
-		end)
-	end
+            if BlurEffect then
+                BlurEffect.Enabled = BlurEffect.Size > 0.5
+            end
+        end)
+    end
 end
 
-function vape:CreateCategory(props)
-	local category = components.Category(props)
-	yieldBuild()
+function vape:CreateCategory(Properties)
+    local Category = Components.Category(Properties)
+    YieldBuild()
 
-	return category
+    return Category
 end
 
-function vape:CreateCategoryList(props)
-	local list = components.CategoryList(props)
-	yieldBuild()
+function vape:CreateCategoryList(Properties)
+    local List = Components.CategoryList(Properties)
+    YieldBuild()
 
-	return list
+    return List
 end
 
-local function reflowNotifications()
-	local offset = 32
+local function ReflowNotifications()
+    local Offset: number = 32
 
-	for _, v in notificationlist do
-		offset += v.Height
-		v.Object.Position = UDim2.new(1, 0, 1, -offset)
-		offset += 3
-	end
+    for _, v: any in NotificationList do
+        Offset += v.Height
+        if Tween.Tween and v.Object.Position.Y.Offset ~= 0 then
+            Tween:Tween(v.Object, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {
+                Position = UDim2.new(1, 0, 1, -Offset)
+            })
+        else
+            v.Object.Position = UDim2.new(1, 0, 1, -Offset)
+        end
+        Offset += 3
+    end
 end
 
-local function buildNotification()
-	local notification = Instance.new('ImageLabel')
-	notification.BackgroundTransparency = 1
-	notification.Image = getvapeasset('kingvape/assets/new/notification.png')
-	notification.Position = UDim2.new(1, 0, 1, 0)
-	notification.ScaleType = Enum.ScaleType.Slice
-	notification.SliceCenter = Rect.new(7, 7, 9, 9)
-	notification.ZIndex = 5
-	notification.Parent = notifications
-	addBlur(notification, true, true)
-	local iconshadow = Instance.new('ImageLabel')
-	iconshadow.BackgroundTransparency = 1
-	iconshadow.ImageColor3 = Color3.new()
-	iconshadow.ImageTransparency = 0.5
-	iconshadow.Position = UDim2.fromOffset(-5, -8)
-	iconshadow.Size = UDim2.fromOffset(60, 60)
-	iconshadow.ZIndex = 5
-	iconshadow.Parent = notification
-	local icon = iconshadow:Clone()
-	icon.ImageColor3 = Color3.new(1, 1, 1)
-	icon.ImageTransparency = 0
-	icon.Position = UDim2.fromOffset(-1, -1)
-	icon.Parent = iconshadow
-	local title = Instance.new('TextLabel')
-	title.BackgroundTransparency = 1
-	title.FontFace = uipallet.FontSemiBold
-	title.Position = UDim2.fromOffset(46, 16)
-	title.RichText = true
-	title.Size = UDim2.new(1, -56, 0, 20)
-	title.TextSize = 14
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.TextYAlignment = Enum.TextYAlignment.Top
-	title.ZIndex = 5
-	title.Parent = notification
-	local textshadow = title:Clone()
-	textshadow.FontFace = uipallet.Font
-	textshadow.Position = UDim2.fromOffset(47, 44)
-	textshadow.RichText = false
-	textshadow.TextColor3 = Color3.new()
-	textshadow.TextTransparency = 0.5
-	textshadow.TextWrapped = true
-	textshadow.Parent = notification
-	local text = textshadow:Clone()
-	text.Position = UDim2.fromOffset(-1, -1)
-	text.RichText = true
-	text.TextColor3 = Color3.fromRGB(170, 170, 170)
-	text.TextTransparency = 0
-	text.Parent = textshadow
-	local progress = Instance.new('Frame')
-	progress.BorderSizePixel = 0
-	progress.Position = UDim2.new(0, 3, 1, -4)
-	progress.Size = UDim2.new(1, -13, 0, 1)
-	progress.ZIndex = 5
-	progress.Parent = notification
+local function BuildNotification()
+    local Notification: ImageLabel = Instance.new("ImageLabel")
+    Notification.BackgroundTransparency = 1
+    Notification.Image = GetVapeAsset("kingvape/assets/new/notification.png")
+    Notification.Position = UDim2.new(1, 0, 1, 0)
+    Notification.ScaleType = Enum.ScaleType.Slice
+    Notification.SliceCenter = Rect.new(7, 7, 9, 9)
+    Notification.ZIndex = 5
+    Notification.Parent = Notifications
+    AddBlur(Notification, true, true)
+    local IconShadow: ImageLabel = Instance.new("ImageLabel")
+    IconShadow.BackgroundTransparency = 1
+    IconShadow.ImageColor3 = Color3.new()
+    IconShadow.ImageTransparency = 0.5
+    IconShadow.Position = UDim2.fromOffset(-5, -8)
+    IconShadow.Size = UDim2.fromOffset(60, 60)
+    IconShadow.ZIndex = 5
+    IconShadow.Parent = Notification
+    local Icon: ImageLabel = IconShadow:Clone()
+    Icon.ImageColor3 = Color3.new(1, 1, 1)
+    Icon.ImageTransparency = 0
+    Icon.Position = UDim2.fromOffset(-1, -1)
+    Icon.Parent = IconShadow
+    local Title: TextLabel = Instance.new("TextLabel")
+    Title.BackgroundTransparency = 1
+    Title.FontFace = UIPallet.FontSemiBold
+    Title.Position = UDim2.fromOffset(46, 16)
+    Title.RichText = true
+    Title.Size = UDim2.new(1, -56, 0, 20)
+    Title.TextSize = 14
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.TextYAlignment = Enum.TextYAlignment.Top
+    Title.ZIndex = 5
+    Title.Parent = Notification
+    local TextShadow: TextLabel = Title:Clone()
+    TextShadow.FontFace = UIPallet.Font
+    TextShadow.Position = UDim2.fromOffset(47, 44)
+    TextShadow.RichText = false
+    TextShadow.TextColor3 = Color3.new()
+    TextShadow.TextTransparency = 0.5
+    TextShadow.TextWrapped = true
+    TextShadow.Parent = Notification
+    local Text: TextLabel = TextShadow:Clone()
+    Text.Position = UDim2.fromOffset(-1, -1)
+    Text.RichText = true
+    Text.TextColor3 = Color3.fromRGB(170, 170, 170)
+    Text.TextTransparency = 0
+    Text.Parent = TextShadow
+    local Progress: Frame = Instance.new("Frame")
+    Progress.BorderSizePixel = 0
+    Progress.Position = UDim2.new(0, 3, 1, -4)
+    Progress.Size = UDim2.new(1, -13, 0, 1)
+    Progress.ZIndex = 5
+    Progress.Parent = Notification
 
-	return {
-		Height = 75,
-		Icon = icon,
-		IconShadow = iconshadow,
-		Object = notification,
-		Progress = progress,
-		Text = text,
-		TextShadow = textshadow,
-		Title = title
-	}
+    return {
+        Height = 75,
+        Icon = Icon,
+        IconShadow = IconShadow,
+        Object = Notification,
+        Progress = Progress,
+        Text = Text,
+        TextShadow = TextShadow,
+        Title = Title
+    }
 end
 
-local function startNotification(entry, title, text, duration, type)
-	local plain = removeTags(text)
-	local lineheight = getfontbounds('A', 14, uipallet.Font).Y
-	local bounds = getfontbounds(plain, 14, uipallet.Font, 200)
-	local count = math.max(math.round(bounds.Y / lineheight), 1)
-	local accent = type == 'alert' and Color3.fromRGB(250, 50, 56)
-		or type == 'warning' and Color3.fromRGB(236, 129, 44)
-		or Color3.new(1, 1, 1)
-	entry.Height = 75 + ((count - 1) * 16.8)
-	entry.Icon.Image = getvapeasset('kingvape/assets/new/noti_'..(type or 'info')..'.png')
-	entry.IconShadow.Image = entry.Icon.Image
-	entry.Object.Size = UDim2.fromOffset(math.max(bounds.X + 80, 266), entry.Height)
-	entry.Progress.BackgroundColor3 = accent
-	entry.Progress.Size = UDim2.new(1, -13, 0, 1)
-	entry.Text.LineHeight = 16.8 / lineheight
-	entry.Text.Size = UDim2.fromOffset(200, count * 16.8)
-	entry.Text.Text = text
-	entry.TextShadow.LineHeight = entry.Text.LineHeight
-	entry.TextShadow.Size = entry.Text.Size
-	entry.TextShadow.Text = plain
-	entry.Title.Text = "<stroke joins='round' thickness='0.3' transparency='0.5'>"..title..'</stroke>'
-	entry.Title.TextColor3 = type == 'alert' and accent or Color3.new(1, 1, 1)
-	reflowNotifications()
+local function StartNotification(Entry, Title: string, Text: string, Duration: number, Type: string?)
+    local Plain: string = RemoveTags(Text)
+    local LineHeight: number = GetFontBounds("A", 14, UIPallet.Font).Y
+    local Bounds: Vector2 = GetFontBounds(Plain, 14, UIPallet.Font, 200)
+    local Count: number = math.max(math.round(Bounds.Y / LineHeight), 1)
+    local Accent: Color3 = Type == "alert" and Color3.fromRGB(250, 50, 56)
+        or Type == "warning" and Color3.fromRGB(236, 129, 44)
+        or Color3.new(1, 1, 1)
+    Entry.Text.LineHeight = 16.8 / LineHeight
+    Entry.Text.Text = Text
+    Entry.Text.Size = UDim2.fromOffset(200, Count * 16.8 + 2)
+    while not Entry.Text.TextFits and Count < math.round(Bounds.Y / LineHeight) + 2 do
+        Count += 1
+        Entry.Text.Size = UDim2.fromOffset(200, Count * 16.8 + 2)
+    end
+    Entry.Height = 75 + ((Count - 1) * 16.8)
+    Entry.Icon.Image = GetVapeAsset(`kingvape/assets/new/noti_{Type or "info"}.png`)
+    Entry.IconShadow.Image = Entry.Icon.Image
+    Entry.Object.Size = UDim2.fromOffset(math.max(Bounds.X + 80, GetFontBounds(RemoveTags(Title), 14, UIPallet.FontSemiBold).X + 66, 266), Entry.Height)
+    Entry.Progress.BackgroundColor3 = Accent
+    Entry.Progress.Size = UDim2.new(1, -13, 0, 1)
+    Entry.Text.Size = UDim2.fromOffset(200, Count * 16.8)
+    Entry.TextShadow.LineHeight = Entry.Text.LineHeight
+    Entry.TextShadow.Size = Entry.Text.Size
+    Entry.TextShadow.Text = Plain
+    Entry.Title.Text = `<stroke joins='round' thickness='0.3' transparency='0.5'>{Title}</stroke>`
+    Entry.Title.TextColor3 = Type == "alert" and Accent or Color3.new(1, 1, 1)
+    ReflowNotifications()
 
-	if tween.Tween then
-		tween:Tween(entry.Object, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {
-			AnchorPoint = Vector2.new(1, 0)
-		}, 'tweenstwo')
+    if Tween.Tween then
+        Tween:Tween(Entry.Object, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {
+            AnchorPoint = Vector2.new(1, 0)
+        }, "tweenstwo")
 
-		tween:Tween(entry.Progress, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-			Size = UDim2.fromOffset(0, 1)
-		})
-	end
+        Tween:Tween(Entry.Progress, TweenInfo.new(Duration, Enum.EasingStyle.Linear), {
+            Size = UDim2.fromOffset(0, 1)
+        })
+    end
 
-	return task.delay(duration, function()
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+    return task.delay(Duration, function()
+        if vape.ThreadFix then
+            setthreadidentity(8)
+        end
 
-		if tween.Tween then
-			tween:Tween(entry.Object, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {
-				AnchorPoint = Vector2.new(0, 0)
-			}, 'tweenstwo')
-		end
+        if Tween.Tween then
+            Tween:Tween(Entry.Object, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {
+                AnchorPoint = Vector2.new(0, 0)
+            }, "tweenstwo")
+        end
 
-		task.wait(0.2)
-		local index = table.find(notificationlist, entry)
-		if index then
-			table.remove(notificationlist, index)
-		end
+        task.wait(0.2)
+        local Index: number? = table.find(NotificationList, Entry)
+        if Index then
+            table.remove(NotificationList, Index)
+        end
 
-		if entry.Reuse then
-			notificationcache[entry.Reuse] = nil
-		end
+        if Entry.Reuse then
+            NotificationCache[Entry.Reuse] = nil
+        end
 
-		entry.Object:ClearAllChildren()
-		entry.Object:Destroy()
-		reflowNotifications()
-	end)
+        Entry.Object:ClearAllChildren()
+        Entry.Object:Destroy()
+        ReflowNotifications()
+    end)
 end
 
-function vape:CreateNotification(title, text, duration, type, reuse)
-	if not self.Notifications.Enabled then
-		return
-	end
+function vape:CreateNotification(Title: string, Text: string, Duration: number, Type: string?, Reuse)
+    if not self.Notifications.Enabled or (NotificationsOff and not LoadCalled) then
+        return
+    end
 
-	task.delay(0, function()
-		if self.ThreadFix then
-			setthreadidentity(8)
-		end
+    task.delay(0, function()
+        if self.ThreadFix then
+            setthreadidentity(8)
+        end
 
-		local entry = reuse and notificationcache[reuse]
-		if entry and entry.Object.Parent and table.find(notificationlist, entry) then
-			task.cancel(entry.Thread)
-			entry.Thread = startNotification(entry, title, text, duration, type)
+        local Entry = Reuse and NotificationCache[Reuse]
+        if Entry and Entry.Object.Parent and table.find(NotificationList, Entry) then
+            task.cancel(Entry.Thread)
+            Entry.Thread = StartNotification(Entry, Title, Text, Duration, Type)
 
-			return
-		end
+            return
+        end
 
-		entry = buildNotification()
-		table.insert(notificationlist, entry)
-		entry.Thread = startNotification(entry, title, text, duration, type)
+        Entry = BuildNotification()
+        table.insert(NotificationList, Entry)
+        Entry.Thread = StartNotification(Entry, Title, Text, Duration, Type)
 
-		if reuse then
-			entry.Reuse = reuse
-			notificationcache[reuse] = entry
-		end
-	end)
+        if Reuse then
+            Entry.Reuse = Reuse
+            NotificationCache[Reuse] = Entry
+        end
+    end)
 end
 
-function vape:CreateOverlay(props)
-	return components.Overlay(props)
+function vape:CreateOverlay(Properties)
+    return Components.Overlay(Properties)
 end
 
-function vape:Load(skipgui, profile)
-	if self.ThreadFix then
-		setthreadidentity(8)
-	end
+local DefaultGUI, DefaultMain
 
-	self.Loaded = false
-	loadfailures = 0
-	loadgeneration += 1
-	cansave = true
-	needssave = false
+local function CollectConfig(GuiData, MainData, Skip)
+    for _, Category: any in vape.Categories do
+        local Target = Category.Type == "Overlay" and MainData or GuiData
 
-	local generation = loadgeneration
-	local guiData = {Categories = {}}
-	local oldProfile = self.Profile
-	local toggleCount = 0
+        if Target and (not Skip or not Skip[Category]) then
+            Category:Save(Target.Categories)
+        end
+    end
 
-	if isfile('kingvape/profiles/'..game.GameId..'.gui.txt') then
-		guiData = loadJson('kingvape/profiles/'..game.GameId..'.gui.txt')
-		if not guiData then
-			guiData = {Categories = {}}
-			self:CreateNotification('Vape', 'Failed to load GUI settings, saving is off until you fix or delete '..game.GameId..'.gui.txt', 15, 'alert')
-			cansave = false
-		end
+    if not MainData then return end
 
-		guiData.Categories = guiData.Categories or {}
+    for _, Module: any in vape.Modules do
+        if not Skip or not Skip[Module] then
+            Module:Save(MainData.Modules)
+        end
+    end
 
-		if guiData.v ~= 1 then
-			guiData.Categories.Main = nil
-
-			if guiData.Profiles then
-				local profiles = {}
-
-				for _, v in guiData.Profiles do
-					table.insert(profiles, {
-						Name = v.Name,
-						Bind = convertBind(v.Bind)
-					})
-				end
-
-				guiData.Categories.Profiles = guiData.Categories.Profiles or {}
-				guiData.Categories.Profiles.List = profiles
-			end
-
-			if guiData.Keybind and self.GUIBind then
-				self.GUIBind:SetBind(guiData.Keybind)
-			end
-
-			stripLegacyMax(guiData.Categories)
-		end
-
-		self.Profile = profile or guiData.Profile or 'default'
-		if self.ProfileLabel then
-			self.ProfileLabel.Text = #self.Profile > 10 and self.Profile:sub(1, 10)..'...' or self.Profile
-			self.ProfileLabel.Size = UDim2.fromOffset(getfontbounds(self.ProfileLabel.Text, self.ProfileLabel.TextSize, self.ProfileLabel.Font).X + 16, 24)
-		end
-
-		if not skipgui then
-			for name, data in guiData.Categories do
-				local category = self.Categories[name]
-				if category then
-					if self.ThreadFix then
-						setthreadidentity(8)
-					end
-
-					attemptLoad(category, data, name)
-				end
-			end
-		end
-	end
-
-	if not self.Categories.Profiles:GetValue('default') then
-		self.Categories.Profiles:ChangeValue('default', true)
-	end
-
-	local mainData = readProfile(self.Profile)
-	if mainData == false then
-		mainData = {Categories = {}, Modules = {}, Legit = {}}
-		self:CreateNotification('Vape', 'Failed to load '..self.Profile..' profile, saving is off until you fix or delete it', 15, 'alert')
-		cansave = false
-	end
-
-	if mainData then
-		for name, data in mainData.Categories do
-			local category = self.Categories[name]
-			if category then
-				if self.ThreadFix then
-					setthreadidentity(8)
-				end
-
-				attemptLoad(category, data, name)
-				yieldBuild(0.0015)
-
-				if loadgeneration ~= generation then return end
-			end
-		end
-
-		for name, data in mainData.Modules do
-			local module = self.Modules[name] or findLegacy(self.Modules, name)
-			if module then
-				if self.ThreadFix then
-					setthreadidentity(8)
-				end
-
-				attemptLoad(module, data, name)
-				toggleCount += module.Enabled and 1 or 0
-				yieldBuild(0.0015)
-
-				if loadgeneration ~= generation then return end
-			end
-		end
-
-		for name, data in mainData.Legit do
-			local module = self.Legit.Modules[name] or findLegacy(self.Legit.Modules, name)
-			if module then
-				if self.ThreadFix then
-					setthreadidentity(8)
-				end
-
-				attemptLoad(module, data, name)
-				yieldBuild(0.0015)
-
-				if loadgeneration ~= generation then return end
-			end
-		end
-
-		self:UpdateTextGUI(true)
-	else
-		needssave = true
-	end
-
-	if self.Profile ~= oldProfile and skipgui then
-		self:CreateNotification('Profile swap to <font color="#FFAA00">'..self.Profile..'</font>', toggleCount..' modules enabled', 3)
-	end
-
-	if loadfailures > 0 then
-		self:CreateNotification('Vape', loadfailures..' settings failed to load, check the developer console (F9) for the errors', 15, 'alert')
-	end
-
-	loadcalled = true
-	finishLoad()
-	gui.Enabled = true
-
-	if (not inputService.KeyboardEnabled or inputService.TouchEnabled or shared.VapeDeveloper) and not skipgui and not self.VapeButton then
-		local hide = isfile('kingvape/profiles/hide.txt') and readfile('kingvape/profiles/hide.txt') == 'true'
-		local button = Instance.new('TextButton')
-		button.BackgroundColor3 = Color3.new()
-		button.BackgroundTransparency = hide and 1 or 0.35
-		button.Name = 'VapeButton'
-		button.Position = UDim2.new(1, -90, 0, 4)
-		button.Size = UDim2.fromOffset(32, 32)
-		button.Text = ''
-		button.Parent = gui
-		self.VapeButton = button
-		addCorner(button, UDim.new(0, 8))
-		local image = Instance.new('ImageLabel')
-		image.AnchorPoint = Vector2.new(0.5, 0.5)
-		image.BackgroundTransparency = 1
-		image.Image = getvapeasset('kingvape/assets/new/vape.png')
-		image.ImageTransparency = hide and 1 or 0
-		image.Name = 'Icon'
-		image.Position = UDim2.fromScale(0.5, 0.5)
-		image.Size = UDim2.fromOffset(22, 22)
-		image.Parent = button
-		self:Clean(button)
-
-		button.MouseButton1Click:Connect(function()
-			self.GUIBind.Triggered:Fire(true)
-		end)
-
-		task.spawn(function()
-			if self.ThreadFix then
-				setthreadidentity(8)
-			end
-
-			local topbargui = cloneref(game:GetService('Players')).LocalPlayer.PlayerGui:WaitForChild('TopBarAppGui', 15)
-			local topbar = topbargui and topbargui:WaitForChild('TopBarApp', 5)
-			if not topbar or not button.Parent then return end
-
-			local layout = topbar:FindFirstChildWhichIsA('UIListLayout')
-
-			local function follow()
-				local inset = guiService:GetGuiInset()
-				local left = layout and topbar.AbsolutePosition.X + topbar.AbsoluteSize.X - layout.AbsoluteContentSize.X or topbar.AbsolutePosition.X
-				button.Position = UDim2.fromOffset(left + inset.X - 40, topbar.AbsolutePosition.Y + inset.Y)
-			end
-
-			self:Clean(topbar:GetPropertyChangedSignal('AbsolutePosition'):Connect(follow))
-			self:Clean(topbar:GetPropertyChangedSignal('AbsoluteSize'):Connect(follow))
-
-			if layout then
-				self:Clean(layout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(follow))
-			end
-			follow()
-		end)
-	end
-
-	return toggleData
+    for _, Module: any in vape.Legit.Modules do
+        if not Skip or not Skip[Module] then
+            Module:Save(MainData.Legit)
+        end
+    end
 end
 
-local function deferLoad(callback)
-	deferredloads += 1
+local function SaveDefaults(Main: boolean?, Skip)
+    if not DefaultGUI then
+        DefaultGUI = {Categories = {}}
+        CollectConfig(DefaultGUI)
+    end
 
-	task.spawn(function()
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+    if not Main then return end
 
-		local existing = {}
-		for _, container in {vape.Modules, vape.Legit.Modules, vape.Categories} do
-			for _, component in container do
-				existing[component] = true
-			end
-		end
-
-		local failures = loadfailures
-		local success, err = pcall(callback)
-		if not success then
-			warn('[KingVape] failed to run deferred load: '..tostring(err))
-		end
-
-		success, err = pcall(function()
-			for _, container in {vape.Modules, vape.Legit.Modules} do
-				for _, module in container do
-					if not existing[module] then
-						vape:AddOptionBinds(module)
-					end
-				end
-			end
-
-			local mainData = vape.Loaded ~= nil and readProfile(vape.Profile)
-			if type(mainData) == 'table' then
-				loadNew(vape.Modules, mainData.Modules, existing)
-				loadNew(vape.Legit.Modules, mainData.Legit, existing)
-				loadNew(vape.Categories, mainData.Categories, existing)
-				vape:UpdateTextGUI(true)
-			end
-		end)
-
-		if not success then
-			warn('[KingVape] failed to load deferred settings: '..tostring(err))
-		end
-
-		if loadfailures > failures then
-			vape:CreateNotification('Vape', (loadfailures - failures)..' settings failed to load, check the developer console (F9) for the errors', 15, 'alert')
-		end
-
-		deferredloads -= 1
-		finishLoad()
-	end)
+    if not DefaultMain then
+        DefaultMain = {Modules = {}, Categories = {}, Legit = {}}
+        CollectConfig(nil, DefaultMain)
+    elseif Skip then
+        CollectConfig(nil, DefaultMain, Skip)
+    end
 end
 
-function vape:LoadOptions(obj, data)
-	for i, v in data or {} do
-		local component = obj.Options[i]
+function vape:Load(SkipGui: boolean?, Profile: string?)
+    if self.ThreadFix then
+        setthreadidentity(8)
+    end
 
-		if component then
-			if self.ThreadFix then
-				setthreadidentity(8)
-			end
+    self.Loaded = false
+    SaveDefaults()
+    LoadFailures = 0
+    LoadGeneration += 1
+    CanSave = true
+    NeedsSave = false
 
-			attemptLoad(component, v, i)
-		end
-	end
+    local Generation: number = LoadGeneration
+    local LoadBudget: number? = SkipGui and 0.0015 or nil
+    local GuiData = {Categories = {}}
+    local OldProfile: string = self.Profile
+    local ToggleCount: number = 0
+    local ResolvedCount, MissingCount = 0, 0
+
+    if isfile(`kingvape/profiles/{game.GameId}.gui.txt`) then
+        GuiData = LoadJSON(`kingvape/profiles/{game.GameId}.gui.txt`)
+        if not GuiData then
+            local Profiles = {}
+            for _, v: string in listfiles("kingvape/profiles") do
+                local Name: string? = v:match(`([^/\\]+){vape.Place}%.txt$`)
+                if Name then
+                    table.insert(Profiles, {Name = Name, Bind = {Keys = {}}})
+                end
+            end
+
+            local Success, Raw = pcall(readfile, `kingvape/profiles/{game.GameId}.gui.txt`)
+            if Success then
+                writefile(`kingvape/profiles/{game.GameId}.gui.corrupt.txt`, Raw)
+            end
+            GuiData = {Categories = {Profiles = {List = Profiles}}, v = 1}
+            self:CreateNotification("Vape", `Your GUI settings were corrupted and got reset, the old file was saved as {game.GameId}.gui.corrupt.txt`, 15, "alert")
+        end
+
+        GuiData.Categories = GuiData.Categories or {}
+
+        if GuiData.v ~= 1 then
+            GuiData.Categories.Main = nil
+
+            if GuiData.Profiles then
+                local Profiles = {}
+
+                for _, v: any in GuiData.Profiles do
+                    table.insert(Profiles, {
+                        Name = v.Name,
+                        Bind = ConvertBind(v.Bind)
+                    })
+                end
+
+                GuiData.Categories.Profiles = GuiData.Categories.Profiles or {}
+                GuiData.Categories.Profiles.List = Profiles
+            end
+
+            if GuiData.Keybind and self.GUIBind then
+                self.GUIBind:SetBind(GuiData.Keybind)
+            end
+
+            StripLegacyMax(GuiData.Categories)
+        end
+
+        self.Profile = Profile or GuiData.Profile or "default"
+        if self.ProfileLabel then
+            self.ProfileLabel.Text = #self.Profile > 10 and `{self.Profile:sub(1, 10)}...` or self.Profile
+            self.ProfileLabel.Size = UDim2.fromOffset(GetFontBounds(self.ProfileLabel.Text, self.ProfileLabel.TextSize, self.ProfileLabel.FontFace).X + 16, 24)
+        end
+
+        if not SkipGui then
+            for Name: string, Data: any in GuiData.Categories do
+                local Category = self.Categories[Name]
+                if Category then
+                    if self.ThreadFix then
+                        setthreadidentity(8)
+                    end
+
+                    AttemptLoad(Category, Data, Name)
+                end
+            end
+        end
+    end
+
+    if not self.Categories.Profiles:GetValue("default") then
+        self.Categories.Profiles:ChangeValue("default", true)
+    end
+
+    SaveDefaults(true)
+    local MainData = ReadProfile(self.Profile)
+    if MainData == false then
+        MainData = {Categories = {}, Modules = {}, Legit = {}}
+        self:CreateNotification("Vape", `Failed to load {self.Profile} profile, saving is off until you fix or delete it`, 15, "alert")
+        CanSave = false
+    end
+
+    if MainData then
+        for Name: string, Data: any in MainData.Categories do
+            local Category = self.Categories[Name]
+            if Category then
+                if self.ThreadFix then
+                    setthreadidentity(8)
+                end
+
+                AttemptLoad(Category, Data, Name)
+                YieldBuild(LoadBudget)
+
+                if LoadGeneration ~= Generation then return end
+            end
+        end
+
+        for Name: string, Data: any in MainData.Modules do
+            local Module = self.Modules[Name] or FindLegacy(self.Modules, Name)
+            if Module then
+                if self.ThreadFix then
+                    setthreadidentity(8)
+                end
+
+                AttemptLoad(Module, Data, Name)
+                ToggleCount += Module.Enabled and 1 or 0
+                ResolvedCount += 1
+                YieldBuild(LoadBudget)
+
+                if LoadGeneration ~= Generation then return end
+            else
+                MissingCount += 1
+            end
+        end
+
+        if MissingCount > ResolvedCount then
+            CanSave = false
+            self:CreateNotification("Vape", `{MissingCount} of your saved modules are missing, the script did not fully load. Saving is off so your config is not overwritten, rejoin to fix it`, 20, "alert")
+        end
+
+        for Name: string, Data: any in MainData.Legit do
+            local Module = self.Legit.Modules[Name] or FindLegacy(self.Legit.Modules, Name)
+            if Module then
+                if self.ThreadFix then
+                    setthreadidentity(8)
+                end
+
+                AttemptLoad(Module, Data, Name)
+                YieldBuild(LoadBudget)
+
+                if LoadGeneration ~= Generation then return end
+            end
+        end
+
+        self:UpdateTextGUI(true)
+    else
+        NeedsSave = true
+    end
+
+    if self.Profile ~= OldProfile and SkipGui then
+        self:CreateNotification(`Profile swap to <font color="#FFAA00">{self.Profile}</font>`, `{ToggleCount} modules enabled`, 3)
+    end
+
+    if LoadFailures > 0 then
+        self:CreateNotification("Vape", `{LoadFailures} settings failed to load, check the developer console (F9) for the errors`, 15, "alert")
+    end
+
+    self:SortCategories(true)
+    LoadCalled = true
+    FinishLoad()
+    GUI.Enabled = true
+
+    if (not UserInputService.KeyboardEnabled or UserInputService.TouchEnabled or shared.VapeDeveloper) and not SkipGui and not self.VapeButton then
+        local Hide: boolean = not shared.VapeDeveloper and isfile("kingvape/profiles/hidebutton.txt") and readfile("kingvape/profiles/hidebutton.txt") == "true"
+        local Inset = GuiService:GetGuiInset()
+        local Button: TextButton = Instance.new("TextButton")
+        Button.BackgroundColor3 = Color3.new()
+        Button.BackgroundTransparency = Hide and 1 or 0.35
+        Button.Name = "VapeButton"
+        Button.Position = UDim2.new(1, -90, 0, 4)
+        Button.Size = UDim2.fromOffset(32, 32)
+        Button.Text = ""
+        Button.Parent = GUI
+        self.VapeButton = Button
+        AddCorner(Button, UDim.new(0, 8))
+        
+        local Image: ImageLabel = Instance.new("ImageLabel")
+        Image.AnchorPoint = Vector2.new(0.5, 0.5)
+        Image.BackgroundTransparency = 1
+        Image.Image = GetVapeAsset("kingvape/assets/new/vape.png")
+        Image.ImageTransparency = Hide and 1 or 0
+        Image.Name = "Icon"
+        Image.Position = UDim2.fromScale(0.5, 0.5)
+        Image.Size = UDim2.fromOffset(22, 22)
+        Image.Parent = Button
+        self:Clean(Button)
+
+        Button.MouseButton1Click:Connect(function()
+            self.GUIBind.Triggered:Fire(true)
+        end)
+
+        task.spawn(function()
+            if self.ThreadFix then
+                setthreadidentity(8)
+            end
+
+            local PlayerGui: PlayerGui = cloneref(game:GetService("Players")).LocalPlayer.PlayerGui
+            local ActiveFollow: (() -> ())?
+
+            local function BindTopBar(TopBarGui: Instance)
+                local TopBar = TopBarGui:WaitForChild("TopBarApp", 15)
+                if not TopBar or not Button.Parent then return end
+
+                local Layout = TopBar:FindFirstChildWhichIsA("UIListLayout")
+
+                local function Follow()
+                    local Origin: Vector2 = GUI.AbsolutePosition
+                    local Bounds: Vector2 = GUI.AbsoluteSize
+                    local Left: number = Layout and TopBar.AbsolutePosition.X + TopBar.AbsoluteSize.X - Layout.AbsoluteContentSize.X or TopBar.AbsolutePosition.X
+                    local Top: number = TopBar.AbsolutePosition.Y
+                    if self.SearchBar.Object.Visible and Left - 40 < self.SearchBar.Object.AbsolutePosition.X + self.SearchBar.Object.AbsoluteSize.X and Left - 8 > self.SearchBar.Object.AbsolutePosition.X then
+                        Left = self.SearchBar.Object.AbsolutePosition.X
+                    end
+
+                    local X: number = Left - 40
+                    local FreeLeft: number = GuiService.TopbarInset.Min.X - GuiService:GetGuiInset().X
+                    if X < FreeLeft then
+                        X, Top = math.max(Left, FreeLeft), Top + (Layout and Layout.AbsoluteContentSize.Y or TopBar.AbsoluteSize.Y) + 8
+                    end
+
+                    Button.Position = UDim2.fromOffset(math.clamp(X - Origin.X, 0, math.max(Bounds.X - 32, 0)), math.clamp(Top - Origin.Y, 0, math.max(Bounds.Y - 32, 0)))
+                end
+
+                ActiveFollow = Follow
+                self:Clean(TopBar:GetPropertyChangedSignal("AbsolutePosition"):Connect(Follow))
+                self:Clean(TopBar:GetPropertyChangedSignal("AbsoluteSize"):Connect(Follow))
+
+                if Layout then
+                    self:Clean(Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(Follow))
+                end
+                Follow()
+            end
+
+            self:Clean(GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(function()
+                if ActiveFollow then
+                    ActiveFollow()
+                end
+            end))
+
+            self:Clean(PlayerGui.ChildAdded:Connect(function(Child: Instance)
+                if Child.Name == "TopBarAppGui" then
+                    BindTopBar(Child)
+                end
+            end))
+
+            local TopBarGui: Instance? = PlayerGui:WaitForChild("TopBarAppGui", 15)
+            if TopBarGui then
+                BindTopBar(TopBarGui)
+            end
+        end)
+    end
+end
+
+local function DeferLoad(Callback: () -> ())
+    DeferredLoads += 1
+
+    task.spawn(function()
+        if vape.ThreadFix then
+            setthreadidentity(8)
+        end
+
+        local Existing: {[any]: boolean} = {}
+        for _, Container: any in {vape.Modules, vape.Legit.Modules, vape.Categories} do
+            for _, Component: any in Container do
+                Existing[Component] = true
+            end
+        end
+
+        local Failures: number = LoadFailures
+        local Success, Error = pcall(Callback)
+        if not Success then
+            warn(`[catvape] failed to run deferred load: {Error}`)
+        end
+
+        SaveDefaults(true, Existing)
+
+        Success, Error = pcall(function()
+            for _, Container: any in {vape.Modules, vape.Legit.Modules} do
+                for _, Module: any in Container do
+                    if not Existing[Module] then
+                        vape:AddOptionBinds(Module)
+                    end
+                end
+            end
+
+            local MainData = vape.Loaded ~= nil and ReadProfile(vape.Profile)
+            if type(MainData) == "table" then
+                LoadNew(vape.Modules, MainData.Modules, Existing)
+                LoadNew(vape.Legit.Modules, MainData.Legit, Existing)
+                LoadNew(vape.Categories, MainData.Categories, Existing)
+                vape:UpdateTextGUI(true)
+            end
+        end)
+
+        if not Success then
+            warn(`[catvape] failed to load deferred settings: {Error}`)
+        end
+
+        if LoadFailures > Failures then
+            vape:CreateNotification("Vape", `{LoadFailures - Failures} settings failed to load, check the developer console (F9) for the errors`, 15, "alert")
+        end
+
+        DeferredLoads -= 1
+        FinishLoad()
+    end)
+end
+
+function vape:LoadOptions(Object, Data)
+    for Name: string, v: any in Data or {} do
+        local Component = Object.Options[Name]
+
+        if Component then
+            if self.ThreadFix then
+                setthreadidentity(8)
+            end
+
+            AttemptLoad(Component, v, Name)
+        end
+    end
 end
 
 function vape:LoadGUI()
-	addMaid(vape)
-	gui = Instance.new('ScreenGui')
-	gui.Enabled = false
-	gui.Name = randomString()
-	gui.DisplayOrder = 9999999
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-	gui.IgnoreGuiInset = true
+	AddMaid(vape)
+	GUI = Instance.new("ScreenGui")
+	GUI.Enabled = false
+	GUI.Name = RandomString()
+	GUI.DisplayOrder = 9999999
+	GUI.ZIndexBehavior = Enum.ZIndexBehavior.Global
+	GUI.IgnoreGuiInset = true
 	
-	if vape.ThreadFix and game.GameId ~= 2619619496 then
-		local holder = Instance.new('Folder')
-		holder.Parent = cloneref(game:GetService('CoreGui'))
-		gui.OnTopOfCoreBlur = true
-		gui.Parent = (gethui and gethui()) or cloneref(game:GetService('CoreGui'))
-		vape.holder = holder
+	if false then
+	    local Holder: Folder = Instance.new("Folder")
+	    Holder.Parent = cloneref(game:GetService("CoreGui"))
+	    GUI.OnTopOfCoreBlur = true
+	    GUI.Parent = (gethui and gethui()) or cloneref(game:GetService("CoreGui"))
+	    vape.holder = Holder
 	else
-		pcall(function() gui.OnTopOfCoreBlur = true; end)
-		gui.Parent = cloneref(game:GetService('Players')).LocalPlayer.PlayerGui
-		gui.ResetOnSpawn = false
-		vape.holder = gui
+	    pcall(function() GUI.OnTopOfCoreBlur = true; end)
+	    GUI.Parent = cloneref(game:GetService("Players")).LocalPlayer.PlayerGui
+	    GUI.ResetOnSpawn = false
+	    vape.holder = GUI
 	end
-	vape.gui = gui
+	vape.gui = GUI
 	
-	scaledgui = Instance.new('Frame')
-	scaledgui.BackgroundTransparency = 1
-	scaledgui.Name = 'ScaledGui'
-	scaledgui.Size = UDim2.fromScale(1, 1)
-	scaledgui.Parent = gui
-	clickgui = Instance.new('Frame')
-	clickgui.BackgroundTransparency = 1
-	clickgui.Name = 'ClickGui'
-	clickgui.Size = UDim2.fromScale(1, 1)
-	clickgui.Visible = false
-	clickgui.Parent = scaledgui
-	local scarcitybanner = Instance.new('TextLabel')
-	scarcitybanner.Visible = false
-	local modal = Instance.new('TextButton')
-	modal.BackgroundTransparency = 1
-	modal.Modal = true
-	modal.Text = ''
-	modal.Parent = clickgui
-	local cursor = Instance.new('ImageLabel')
-	cursor.BackgroundTransparency = 1
-	cursor.Image = 'rbxasset://textures/Cursors/KeyboardMouse/ArrowFarCursor.png'
-	cursor.Size = UDim2.fromOffset(64, 64)
-	cursor.Visible = false
-	cursor.Parent = gui
-	notifications = Instance.new('Folder')
-	notifications.Name = 'Notifications'
-	notifications.Parent = scaledgui
-	tooltip = Instance.new('TextLabel')
-	tooltip.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-	tooltip.FontFace = uipallet.Font
-	tooltip.Position = UDim2.fromScale(-1, -1)
-	tooltip.RichText = true
-	tooltip.Text = ''
-	tooltip.TextColor3 = color.Dark(uipallet.Text, 0.16)
-	tooltip.TextSize = 12
-	tooltip.Visible = false
-	tooltip.ZIndex = 5
-	tooltip.Parent = scaledgui
-	toolblur = addBlur(tooltip)
-	addCorner(tooltip)
-	scale = Instance.new('UIScale')
-	scale.Scale = math.max(gui.AbsoluteSize.X / 1920, inputService:GetPlatform() == Enum.Platform.OSX and 1 or 0.4)
-	scale.Parent = scaledgui
-	vape.guiscale = scale
-	scaledgui.Size = UDim2.fromScale(1 / scale.Scale, 1 / scale.Scale)
-	components.GUI({})
+	ScaledGUI = Instance.new("Frame")
+	ScaledGUI.BackgroundTransparency = 1
+	ScaledGUI.Name = "ScaledGui"
+	ScaledGUI.Size = UDim2.fromScale(1, 1)
+	ScaledGUI.Parent = GUI
+	ClickGUI = Instance.new("Frame")
+	ClickGUI.BackgroundTransparency = 1
+	ClickGUI.Name = "ClickGui"
+	ClickGUI.Size = UDim2.fromScale(1, 1)
+	ClickGUI.Visible = false
+	ClickGUI.Parent = ScaledGUI
+	local ScarcityBanner: TextLabel = Instance.new("TextLabel")
+	ScarcityBanner.BackgroundTransparency = 1
+	ScarcityBanner.FontFace = UIPallet.Font
+	ScarcityBanner.Position = UDim2.fromScale(0, 0.8)
+	ScarcityBanner.Size = UDim2.fromScale(1, 0.022)
+	ScarcityBanner.Text = "Thank you for choosing catvape - catvape.dev"
+	ScarcityBanner.TextColor3 = Color3.new(1, 1, 1)
+	ScarcityBanner.TextScaled = true
+	ScarcityBanner.TextStrokeTransparency = 0.5
+	ScarcityBanner.Parent = ClickGUI
+	local Modal: TextButton = Instance.new("TextButton")
+	Modal.BackgroundTransparency = 1
+	Modal.Modal = true
+	Modal.Text = ""
+	Modal.Parent = ClickGUI
+	local Cursor: ImageLabel = Instance.new("ImageLabel")
+	Cursor.BackgroundTransparency = 1
+	Cursor.Image = "rbxasset://textures/Cursors/KeyboardMouse/ArrowFarCursor.png"
+	Cursor.Size = UDim2.fromOffset(64, 64)
+	Cursor.Visible = false
+	Cursor.Parent = GUI
+	Notifications = Instance.new("Folder")
+	Notifications.Name = "Notifications"
+	Notifications.Parent = ScaledGUI
+	Tooltip = Instance.new("TextLabel")
+	Tooltip.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+	Tooltip.FontFace = UIPallet.Font
+	Tooltip.Position = UDim2.fromScale(-1, -1)
+	Tooltip.RichText = true
+	Tooltip.Text = ""
+	Tooltip.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+	Tooltip.TextSize = 12
+	Tooltip.Visible = false
+	Tooltip.ZIndex = 5
+	Tooltip.Parent = ScaledGUI
+	ToolBlur = AddBlur(Tooltip)
+	AddCorner(Tooltip)
+	Scale = Instance.new("UIScale")
+	Scale.Scale = math.max(GUI.AbsoluteSize.X / 1920, UserInputService:GetPlatform() == Enum.Platform.OSX and 1 or 0.4)
+	Scale.Parent = ScaledGUI
+	vape.guiscale = Scale
+	ScaledGUI.Size = UDim2.fromScale(1 / Scale.Scale, 1 / Scale.Scale)
+	Components.GUI({})
 	
 	vape:CreateCategory({
-		Name = 'Combat',
-		Icon = getvapeasset('kingvape/assets/new/combat.png'),
-		Size = UDim2.fromOffset(13, 14)
+	    Name = "Combat",
+	    Icon = GetVapeAsset("kingvape/assets/new/combat.png"),
+	    Size = UDim2.fromOffset(13, 14)
 	})
 	vape:CreateCategory({
-		Name = 'Blatant',
-		Icon = getvapeasset('kingvape/assets/new/blatant.png'),
-		Size = UDim2.fromOffset(14, 14)
+	    Name = "Blatant",
+	    Icon = GetVapeAsset("kingvape/assets/new/blatant.png"),
+	    Size = UDim2.fromOffset(14, 14)
 	})
 	vape:CreateCategory({
-		Name = 'Render',
-		Icon = getvapeasset('kingvape/assets/new/render.png'),
-		Size = UDim2.fromOffset(15, 14)
+	    Name = "Render",
+	    Icon = GetVapeAsset("kingvape/assets/new/render.png"),
+	    Size = UDim2.fromOffset(15, 14)
 	})
 	vape:CreateCategory({
-		Name = 'Utility',
-		Icon = getvapeasset('kingvape/assets/new/utility.png'),
-		Size = UDim2.fromOffset(15, 14)
+	    Name = "Utility",
+	    Icon = GetVapeAsset("kingvape/assets/new/utility.png"),
+	    Size = UDim2.fromOffset(15, 14)
 	})
 	vape:CreateCategory({
-		Name = 'World',
-		Icon = getvapeasset('kingvape/assets/new/world.png'),
-		Size = UDim2.fromOffset(14, 14)
+	    Name = "World",
+	    Icon = GetVapeAsset("kingvape/assets/new/world.png"),
+	    Size = UDim2.fromOffset(14, 14)
 	})
 	vape:CreateCategory({
-		Name = 'Inventory',
-		Icon = getvapeasset('kingvape/assets/new/inventory.png'),
-		Size = UDim2.fromOffset(15, 14)
+	    Name = "Inventory",
+	    Icon = GetVapeAsset("kingvape/assets/new/inventory.png"),
+	    Size = UDim2.fromOffset(15, 14)
 	})
 	vape:CreateCategory({
-		Name = 'Kits',
-		Icon = getvapeasset('kingvape/assets/new/friends.png'),
-		Size = UDim2.fromOffset(17, 16)
+	    Name = "Kits",
+	    Icon = GetVapeAsset("kingvape/assets/new/friends.png"),
+	    Size = UDim2.fromOffset(17, 16)
 	})
 	vape.Categories.Main:CreateDivider({
-		Text = 'misc'
+	    Text = "misc"
 	})
 	
-	--[[
-		Friends
-	]]
 	do
-		local friends
-		local friendscolor = {
-			Hue = 1,
-			Sat = 1,
-			Value = 1
-		}
+	    local Friends
+	    local FriendsColor = {
+	        Hue = 1,
+	        Sat = 1,
+	        Value = 1
+	    }
 	
-		friends = vape:CreateCategoryList({
-			Name = 'Friends',
-			Icon = getvapeasset('kingvape/assets/new/friends.png'),
-			Size = UDim2.fromOffset(17, 16),
-			Placeholder = 'Roblox username',
-			Color = Color3.fromRGB(5, 134, 105),
-			Function = function()
-				friends.Update:Fire()
-				friends.ColorUpdate:Fire(friendscolor.Hue, friendscolor.Sat, friendscolor.Value)
-			end
-		})
-		friends.Update = Instance.new('BindableEvent')
-		friends.ColorUpdate = Instance.new('BindableEvent')
-		friends:CreateToggle({
-			Name = 'Recolor visuals',
-			Darker = true,
-			Default = true,
-			Function = function()
-				friends.Update:Fire()
-				friends.ColorUpdate:Fire(friendscolor.Hue, friendscolor.Sat, friendscolor.Value)
-			end
-		})
-		friendscolor = friends:CreateColorSlider({
-			Name = 'Friends color',
-			Darker = true,
-			Function = function(hue, sat, val)
-				for _, v in friends.Object.Children:GetChildren() do
-					local dot = v:FindFirstChild('Dot')
-					if dot and dot.BackgroundColor3 ~= color.Light(uipallet.Main, 0.37) then
-						dot.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-						dot.Dot.BackgroundColor3 = dot.BackgroundColor3
-					end
-				end
+	    Friends = vape:CreateCategoryList({
+	        Name = "Friends",
+	        Icon = GetVapeAsset("kingvape/assets/new/friends.png"),
+	        Size = UDim2.fromOffset(17, 16),
+	        Placeholder = "Roblox username",
+	        Color = Color3.fromRGB(5, 134, 105),
+	        Function = function()
+	            Friends.Update:Fire()
+	            Friends.ColorUpdate:Fire(FriendsColor.Hue, FriendsColor.Sat, FriendsColor.Value)
+	        end
+	    })
+	    Friends.Update = Instance.new("BindableEvent")
+	    Friends.ColorUpdate = Instance.new("BindableEvent")
+	    Friends:CreateToggle({
+	        Name = "Recolor visuals",
+	        Darker = true,
+	        Default = true,
+	        Function = function()
+	            Friends.Update:Fire()
+	            Friends.ColorUpdate:Fire(FriendsColor.Hue, FriendsColor.Sat, FriendsColor.Value)
+	        end
+	    })
+	    FriendsColor = Friends:CreateColorSlider({
+	        Name = "Friends color",
+	        Darker = true,
+	        Function = function(Hue: number, Sat: number, Val: number)
+	            for _, v: Instance in Friends.Object.Children:GetChildren() do
+	                local Dot = v:FindFirstChild("Dot")
+	                if Dot and Dot.BackgroundColor3 ~= Color.Light(UIPallet.Main, 0.37) then
+	                    Dot.BackgroundColor3 = Color3.fromHSV(Hue, Sat, Val)
+	                    Dot.Dot.BackgroundColor3 = Dot.BackgroundColor3
+	                end
+	            end
 	
-				friends.ColorUpdate:Fire(hue, sat, val)
-			end
-		})
-		friends:CreateToggle({
-			Name = 'Use friends',
-			Darker = true,
-			Default = true,
-			Function = function()
-				friends.Update:Fire()
-				friends.ColorUpdate:Fire(friendscolor.Hue, friendscolor.Sat, friendscolor.Value)
-			end
-		})
-		vape:Clean(friends.Update)
-		vape:Clean(friends.ColorUpdate)
+	            Friends.ColorUpdate:Fire(Hue, Sat, Val)
+	        end
+	    })
+	    Friends:CreateToggle({
+	        Name = "Use friends",
+	        Darker = true,
+	        Default = true,
+	        Function = function()
+	            Friends.Update:Fire()
+	            Friends.ColorUpdate:Fire(FriendsColor.Hue, FriendsColor.Sat, FriendsColor.Value)
+	        end
+	    })
+	    vape:Clean(Friends.Update)
+	    vape:Clean(Friends.ColorUpdate)
 	end
 	
-	--[[
-		Profiles
-	]]
-	local profiles = vape:CreateCategoryList({
-		Name = 'Profiles',
-		Icon = getvapeasset('kingvape/assets/new/profiles.png'),
-		Size = UDim2.fromOffset(17, 10),
-		Position = UDim2.fromOffset(12, 16),
-		Placeholder = 'Type name',
-		Profiles = true
+	local ImportConfig
+	local Profiles = vape:CreateCategoryList({
+	    Name = "Profiles",
+	    Icon = GetVapeAsset("kingvape/assets/new/profiles.png"),
+	    Size = UDim2.fromOffset(17, 10),
+	    Position = UDim2.fromOffset(12, 16),
+	    Placeholder = "Type name",
+	    Profiles = true
 	})
-	profiles:CreateButton({
-		Name = 'Sync to current profile',
-		Function = function()
-			vape:Save()
-			vape:CreateNotification('Synced to <font color="#FFAA00">'..vape.Profile..'</font>', 'Every module and option was written to the profile', 3)
-		end,
-		Tooltip = 'Writes every module and option you currently have set into the profile you are on'
+	Profiles:CreateButton({
+	    Name = "Sync to current profile",
+	    Function = function()
+	        vape:Save()
+	        vape:CreateNotification(`Synced to <font color="#FFAA00">{vape.Profile}</font>`, "Every module and option was written to the profile", 3)
+	    end,
+	    Tooltip = "Writes every module and option you currently have set into the profile you are on"
 	})
-	profiles:CreateButton({
-		Name = 'Reset current profile',
-		Function = function()
-			vape.Save = function() end
-			if isfile('kingvape/profiles/'..vape.Profile..vape.Place..'.txt') and delfile then
-				delfile('kingvape/profiles/'..vape.Profile..vape.Place..'.txt')
-			end
+	Profiles:CreateButton({
+	    Name = "Reset current profile",
+	    Function = function()
+	        vape.Save = function() end
+	        if isfile(`kingvape/profiles/{vape.Profile}{vape.Place}.txt`) and delfile then
+	            delfile(`kingvape/profiles/{vape.Profile}{vape.Place}.txt`)
+	        end
 	
-			shared.vapereload = true
-			if shared.VapeDeveloper then
-				loadstring(readfile('kingvape/init.lua'), 'init')(license)
-			else
-				local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
-				if not commit or commit == '' then commit = 'main' end
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/init.lua', true), 'init')(license)
-			end
-		end,
-		Tooltip = 'This will set your profile to the default settings of Vape'
+	        shared.vapereload = true
+	        if shared.VapeDeveloper then
+	            loadstring(readfile("kingvape/init.lua"), "init")(License)
+	        else
+	            loadstring(game:HttpGet("https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/init.lua", true), "init")(License)
+	        end
+	    end,
+	    Tooltip = "This will set your profile to the default settings of Vape"
+	})
+	Profiles:CreateButton({
+	    Name = "Export config",
+	    Function = function()
+	        local Text, Error = vape:ExportConfig()
+	
+	        if not Text then
+	            vape:CreateNotification("Vape", `Could not export your config, {Error}`, 10, "alert")
+	            return
+	        end
+	
+	        writefile("kingvape/profiles/export.txt", Text)
+	
+	        if setclipboard then
+	            setclipboard(Text)
+	        end
+	
+	        vape:CreateNotification("Config exported", `{#Text} characters copied to your clipboard and saved to kingvape/profiles/export.txt`, 6)
+	    end,
+	    Tooltip = "Packs every module, option and gui setting for this game into one line of text and copies it to your clipboard"
+	})
+	ImportConfig = Profiles:CreateTextBox({
+	    Name = "Import config",
+	    Function = function(Enter: boolean)
+	        if not Enter or ImportConfig.Value == "" then return end
+	
+	        local Text: string = ImportConfig.Value
+	        ImportConfig:SetValue("")
+	
+	        local Success, Result = vape:ImportConfig(Text)
+	
+	        if Success then
+	            vape:CreateNotification("Config imported", `Loaded {Result and Result ~= "" and `<font color="#FFAA00">{Result}</font>` or "the config"} into <font color="#FFAA00">{vape.Profile}</font>`, 5)
+	        else
+	            vape:CreateNotification("Vape", `Could not import that config, {Result}`, 10, "alert")
+	        end
+	    end,
+	    Placeholder = "Paste config here",
+	    Tooltip = "Paste an exported config and press enter, it overwrites the profile you are on"
 	})
 	
-	--[[
-		Targets
-	]]
-	local targets
-	targets = vape:CreateCategoryList({
-		Name = 'Targets',
-		Icon = getvapeasset('kingvape/assets/new/friends.png'),
-		Size = UDim2.fromOffset(17, 16),
-		Placeholder = 'Roblox username',
-		Function = function()
-			targets.Update:Fire()
-		end
+	local Targets
+	Targets = vape:CreateCategoryList({
+	    Name = "Targets",
+	    Icon = GetVapeAsset("kingvape/assets/new/friends.png"),
+	    Size = UDim2.fromOffset(17, 16),
+	    Placeholder = "Roblox username",
+	    Function = function()
+	        Targets.Update:Fire()
+	    end
 	})
-	targets.Update = Instance.new('BindableEvent')
-	vape:Clean(targets.Update)
+	Targets.Update = Instance.new("BindableEvent")
+	vape:Clean(Targets.Update)
 	
-	components.LegitWindow()
-	vape.SearchBar = components.SearchBar()
+	Components.LegitWindow()
+	vape.SearchBar = Components.SearchBar()
 	vape.Categories.Main:CreateOverlayBar()
 	
-	--[[
-		Favorites
-	]]
 	vape:CreateCategory({
-		Name = 'Favorites',
-		Icon = getvapeasset('kingvape/assets/new/favoritesicon.png'),
-		Size = UDim2.fromOffset(14, 14),
-		Position = UDim2.fromOffset(850, 465),
-		NoButton = true
+	    Name = "Favorites",
+	    Icon = GetVapeAsset("kingvape/assets/new/favoritesicon.png"),
+	    Size = UDim2.fromOffset(14, 14),
+	    Position = UDim2.fromOffset(850, 465),
+	    NoButton = true
 	})
-	if vape.Categories.Favorites and vape.Categories.Favorites.Object then
-		vape.Categories.Favorites.Object.Visible = false
-	end
 	vape.Categories.Favorites.Paint = vape.PaintFavorites
 	
-	--[[
-		Public Profiles
-	]]
-	components.PublicProfiles()
+	Components.PublicProfiles()
 	
-	--[[
-		General Settings
-	]]
-	
-	local general = vape.Categories.Main.Settings:CreateSettingsPane({Name = 'General'})
-	local settingConnections = {}
-	vape.MultiKeybind = general:CreateToggle({
-		Name = 'Enable Multi-Keybinding',
-		Tooltip = 'Allows multiple keys to be bound to a module (eg. G + H)'
+	local General = vape.Categories.Main.Settings:CreateSettingsPane({Name = "General"})
+	local SettingConnections = {}
+	vape.MultiKeybind = General:CreateToggle({
+	    Name = "Enable Multi-Keybinding",
+	    Tooltip = "Allows multiple keys to be bound to a module (eg. G + H)"
 	})
-	local optionKeybinds
-	local function addOptionBinds(module)
-		for _, component in module.Options do
-			if component.Type == 'Toggle' then
-				local bind = components.Bind({
-					Module = true
-				}, nil, component)
-				bind.Object.Position = UDim2.new(1, -40, 0, 5)
+	local OptionKeybinds
+	local function AddOptionBinds(Module)
+	    for _, Component: any in Module.Options do
+	        if Component.Type == "Toggle" then
+	            local Bind = Components.Bind({
+	                Module = true
+	            }, nil, Component)
+	            Bind.Object.Position = UDim2.new(1, -40, 0, 5)
 	
-				table.insert(settingConnections, bind.Triggered:Connect(function(isDown)
-					if bind.Hold then
-						if component.Enabled ~= isDown then
-							if vape.SettingToggleNotifications.Enabled then
-								vape:CreateNotification(module.Name, component.Name..' '..(not component.Enabled and "<font color='#00AA00'>ON</font>" or "<font color='#FF5A5A'>OFF</font>"), 1.5)
-							end
+	            table.insert(SettingConnections, Bind.Triggered:Connect(function(IsDown: boolean)
+	                if Bind.Hold then
+	                    if Component.Enabled ~= IsDown then
+	                        if vape.SettingToggleNotifications.Enabled then
+	                            vape:CreateNotification(Module.Name, `{Component.Name} {not Component.Enabled and "<font color='#00AA00'>ON</font>" or "<font color='#FF5A5A'>OFF</font>"}`, 1.5)
+	                        end
 	
-							component:Toggle()
-						end
-					else
-						if vape.SettingToggleNotifications.Enabled then
-							vape:CreateNotification(module.Name, component.Name..' '..(not component.Enabled and "<font color='#00AA00'>ON</font>" or "<font color='#FF5A5A'>OFF</font>"), 1.5)
-						end
+	                        Component:Toggle()
+	                    end
+	                else
+	                    if vape.SettingToggleNotifications.Enabled then
+	                        vape:CreateNotification(Module.Name, `{Component.Name} {not Component.Enabled and "<font color='#00AA00'>ON</font>" or "<font color='#FF5A5A'>OFF</font>"}`, 1.5)
+	                    end
 	
-						component:Toggle()
-					end
-				end))
+	                    Component:Toggle()
+	                end
+	            end))
 	
-				table.insert(settingConnections, component.Object.MouseEnter:Connect(function()
-					bind:SetVisible(true)
-				end))
+	            table.insert(SettingConnections, Component.Object.MouseEnter:Connect(function()
+	                Bind:SetVisible(true)
+	            end))
 	
-				table.insert(settingConnections, component.Object.MouseLeave:Connect(function()
-					bind:SetVisible(false)
-				end))
-			end
-		end
+	            table.insert(SettingConnections, Component.Object.MouseLeave:Connect(function()
+	                Bind:SetVisible(false)
+	            end))
+	        end
+	    end
 	end
 	
-	function vape:AddOptionBinds(module)
-		if not optionKeybinds or not optionKeybinds.Enabled then
-			return
-		end
+	function vape:AddOptionBinds(Module)
+	    if not OptionKeybinds or not OptionKeybinds.Enabled then
+	        return
+	    end
 	
-		addOptionBinds(module)
+	    AddOptionBinds(Module)
 	end
 	
-	optionKeybinds = general:CreateToggle({
-		Name = 'Allow setting keybinds',
-		Function = function(callback)
-			if callback then
-				for _, container in {vape.Modules, vape.Legit.Modules} do
-					for _, module in container do
-						addOptionBinds(module)
-					end
-				end
-			else
-				for _, container in {vape.Modules, vape.Legit.Modules} do
-					for _, module in container do
-						for _, component in module.Options do
-							if component.Bind then
-								component.Bind:Destroy()
-							end
-						end
-					end
-				end
+	OptionKeybinds = General:CreateToggle({
+	    Name = "Allow setting keybinds",
+	    Function = function(Callback: boolean)
+	        if Callback then
+	            for _, Container: any in {vape.Modules, vape.Legit.Modules} do
+	                for _, Module: any in Container do
+	                    AddOptionBinds(Module)
+	                end
+	            end
+	        else
+	            for _, Container: any in {vape.Modules, vape.Legit.Modules} do
+	                for _, Module: any in Container do
+	                    for _, Component: any in Module.Options do
+	                        if Component.Bind then
+	                            Component.Bind:Destroy()
+	                        end
+	                    end
+	                end
+	            end
 	
-				for _, connection in settingConnections do
-					connection:Disconnect()
-				end
-				table.clear(settingConnections)
-			end
-		end,
-		Tooltip = 'Hover a toggle setting to bind it to a key'
+	            for _, Connection: RBXScriptConnection in SettingConnections do
+	                Connection:Disconnect()
+	            end
+	            table.clear(SettingConnections)
+	        end
+	    end,
+	    Tooltip = "Hover a toggle setting to bind it to a key"
 	})
 	
-	general:CreateButton({
-		Name = 'Self destruct',
-		Function = function()
-			vape:Uninject()
-		end,
-		Tooltip = 'Removes vape from the current game'
+	General:CreateButton({
+	    Name = "Self destruct",
+	    Function = function()
+	        vape:Uninject()
+	    end,
+	    Tooltip = "Removes vape from the current game"
 	})
 	
-	general:CreateButton({
-		Name = 'Reinject',
-		Function = function()
-			shared.vapereload = true
-			if shared.VapeDeveloper then
-				loadstring(readfile('kingvape/init.lua'), 'init')(license)
-			else
-				local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
-				if not commit or commit == '' then commit = 'main' end
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/init.lua', true), 'init')(license)
-			end
-		end,
-		Tooltip = 'Reloads vape for debugging purposes'
+	General:CreateButton({
+	    Name = "Reinject",
+	    Function = function()
+	        shared.vapereload = true
+	        if shared.VapeDeveloper then
+	            loadstring(readfile("kingvape/init.lua"), "init")(License)
+	        else
+	            loadstring(game:HttpGet("https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/init.lua", true), "init")(License)
+	        end
+	    end,
+	    Tooltip = "Reloads vape for debugging purposes"
 	})
 	
-	--[[
-		Module Settings
-	]]
-	
-	local modules = vape.Categories.Main.Settings:CreateSettingsPane({Name = 'Modules'})
-	modules:CreateToggle({
-		Name = 'Teams by server',
-		Tooltip = 'Ignore players on your team designated by the server',
-		Default = true,
-		Function = function()
-			if vape.Libraries.entity and vape.Libraries.entity.Running then
-				vape.Libraries.entity.refresh()
-			end
-		end
+	local Modules = vape.Categories.Main.Settings:CreateSettingsPane({Name = "Modules"})
+	Modules:CreateToggle({
+	    Name = "Teams by server",
+	    Tooltip = "Ignore players on your team designated by the server",
+	    Default = true,
+	    Function = function()
+	        if vape.Libraries.entity and vape.Libraries.entity.Running then
+	            vape.Libraries.entity.refresh()
+	        end
+	    end
 	})
 	
-	modules:CreateToggle({
-		Name = 'Use team color',
-		Tooltip = 'Uses the TeamColor property on players for render modules',
-		Default = true,
-		Function = function()
-			if vape.Libraries.entity and vape.Libraries.entity.Running then
-				vape.Libraries.entity.refresh()
-			end
-		end
+	Modules:CreateToggle({
+	    Name = "Use team color",
+	    Tooltip = "Uses the TeamColor property on players for render modules",
+	    Default = true,
+	    Function = function()
+	        if vape.Libraries.entity and vape.Libraries.entity.Running then
+	            vape.Libraries.entity.refresh()
+	        end
+	    end
 	})
 	
-	--[[
-		GUI Settings
-	]]
+	local GUIPane = vape.Categories.Main.Settings:CreateSettingsPane({Name = "GUI"})
+	vape.Blur = GUIPane:CreateToggle({
+	    Name = "Blur background",
+	    Function = function(Callback: boolean)
+	        if vape.BlurIntensity then
+	            vape.BlurIntensity.Object.Visible = Callback
+	        end
 	
-	local guipane = vape.Categories.Main.Settings:CreateSettingsPane({Name = 'GUI'})
-	vape.Blur = guipane:CreateToggle({
-		Name = 'Blur background',
-		Function = function(callback)
-			if vape.BlurIntensity then
-				vape.BlurIntensity.Object.Visible = callback
-			end
-	
-			vape:BlurCheck()
-		end,
-		Default = true,
-		Tooltip = 'Blur the background of the GUI'
+	        vape:BlurCheck()
+	    end,
+	    Default = true,
+	    Tooltip = "Blur the background of the GUI"
 	})
 	
-	vape.BlurIntensity = guipane:CreateSlider({
-		Name = 'Blur intensity',
-		Min = 1,
-		Max = 56,
-		Default = 24,
-		Function = function()
-			vape:BlurCheck()
-		end,
-		Darker = true,
-		Tooltip = 'How strongly the world behind the GUI is blurred'
+	vape.BlurIntensity = GUIPane:CreateSlider({
+	    Name = "Blur intensity",
+	    Min = 1,
+	    Max = 56,
+	    Default = 24,
+	    Function = function()
+	        vape:BlurCheck()
+	    end,
+	    Darker = true,
+	    Tooltip = "How strongly the world behind the GUI is blurred"
 	})
 	
-	vape.HUDBlur = guipane:CreateToggle({
-		Name = 'HUD blur',
-		Default = true,
-		Tooltip = 'Frosted backdrop behind HUD panels, turn it off for more fps'
+	vape.HUDBlur = GUIPane:CreateToggle({
+	    Name = "HUD blur",
+	    Default = true,
+	    Tooltip = "Frosted backdrop behind HUD panels, turn it off for more fps"
 	})
 	
-	guipane:CreateToggle({
-		Name = 'GUI bind indicator',
-		Default = true,
-		Tooltip = "Displays a message indicating your GUI upon injecting.\nI.E. 'Press RSHIFT to open GUI'"
+	GUIPane:CreateToggle({
+	    Name = "GUI bind indicator",
+	    Default = true,
+	    Tooltip = "Displays a message indicating your GUI upon injecting.\nI.E. 'Press RSHIFT to open GUI'"
 	})
 	
-	guipane:CreateToggle({
-		Name = 'Show tooltips',
-		Function = function(enabled)
-			tooltip.Visible = false
-			toolblur.Enabled = enabled
-		end,
-		Default = true,
-		Tooltip = 'Toggles visibility of these'
+	GUIPane:CreateToggle({
+	    Name = "Show tooltips",
+	    Function = function(Enabled: boolean)
+	        Tooltip.Visible = false
+	        ToolBlur.Enabled = Enabled
+	    end,
+	    Default = true,
+	    Tooltip = "Toggles visibility of these"
 	})
 	
-	guipane:CreateToggle({
-		Name = 'Show legit mode',
-		Function = function(enabled)
-			clickgui.Search.Legit.Visible = enabled
-			clickgui.Search.LegitDivider.Visible = enabled
-			clickgui.Search.TextBox.Size = UDim2.new(1, enabled and -50 or -10, 0, 37)
-			clickgui.Search.TextBox.Position = UDim2.fromOffset(enabled and 50 or 10, 0)
-		end,
-		Default = true,
-		Tooltip = 'Shows the button to switch to the legit mod menu'
+	GUIPane:CreateToggle({
+	    Name = "Show legit mode",
+	    Function = function(Enabled: boolean)
+	        ClickGUI.Search.Legit.Visible = Enabled
+	        ClickGUI.Search.LegitDivider.Visible = Enabled
+	        ClickGUI.Search.TextBox.Size = UDim2.new(1, Enabled and -50 or -10, 0, 37)
+	        ClickGUI.Search.TextBox.Position = UDim2.fromOffset(Enabled and 50 or 10, 0)
+	    end,
+	    Default = true,
+	    Tooltip = "Shows the button to switch to the legit mod menu"
 	})
 	
 	local ScaleSlider = {Object = {}, Value = 1}
-	vape.Scale = guipane:CreateToggle({
-		Name = 'Auto rescale',
-		Default = true,
-		Function = function(callback)
-			ScaleSlider.Object.Visible = not callback
-			if callback then
-				scale.Scale = math.max(gui.AbsoluteSize.X / 1920, inputService:GetPlatform() == Enum.Platform.OSX and 1 or 0.4)
-			else
-				scale.Scale = ScaleSlider.Value
-			end
-		end,
-		Tooltip = 'Automatically rescales the gui using the screens resolution'
+	vape.Scale = GUIPane:CreateToggle({
+	    Name = "Auto rescale",
+	    Default = true,
+	    Function = function(Callback: boolean)
+	        ScaleSlider.Object.Visible = not Callback
+	        if Callback then
+	            Scale.Scale = math.max(GUI.AbsoluteSize.X / 1920, UserInputService:GetPlatform() == Enum.Platform.OSX and 1 or 0.4)
+	        else
+	            Scale.Scale = ScaleSlider.Value
+	        end
+	    end,
+	    Tooltip = "Automatically rescales the gui using the screens resolution"
 	})
 	
-	ScaleSlider = guipane:CreateSlider({
-		Name = 'Scale',
-		Min = 0.1,
-		Max = 2,
-		Decimal = 10,
-		Function = function(val, final)
-			if final and not vape.Scale.Enabled then
-				scale.Scale = val
-			end
-		end,
-		Default = 1,
-		Darker = true,
-		Visible = false
+	ScaleSlider = GUIPane:CreateSlider({
+	    Name = "Scale",
+	    Min = 0.1,
+	    Max = 2,
+	    Decimal = 10,
+	    Function = function(Val: number, Final: boolean?)
+	        if Final and not vape.Scale.Enabled then
+	            Scale.Scale = Val
+	        end
+	    end,
+	    Default = 1,
+	    Darker = true,
+	    Visible = false
 	})
 	
-	vape.RainbowSpeed = guipane:CreateSlider({
-		Name = 'Rainbow speed',
-		Min = 0.1,
-		Max = 10,
-		Decimal = 10,
-		Default = 1,
-		Tooltip = 'Adjusts the speed of rainbow values'
+	vape.RainbowSpeed = GUIPane:CreateSlider({
+	    Name = "Rainbow speed",
+	    Min = 0.1,
+	    Max = 10,
+	    Decimal = 10,
+	    Default = 1,
+	    Tooltip = "Adjusts the speed of rainbow values"
 	})
 	
-	vape.RainbowUpdateSpeed = guipane:CreateSlider({
-		Name = 'Rainbow update rate',
-		Min = 1,
-		Max = 144,
-		Default = 60,
-		Tooltip = 'Adjusts the update rate of rainbow values',
-		Suffix = 'hz'
+	vape.RainbowUpdateSpeed = GUIPane:CreateSlider({
+	    Name = "Rainbow update rate",
+	    Min = 1,
+	    Max = 144,
+	    Default = 60,
+	    Tooltip = "Adjusts the update rate of rainbow values",
+	    Suffix = "hz"
 	})
 	
-	--[[guipane:CreateDropdown({
-		Name = 'GUI Theme',
-		List = inputService.TouchEnabled and {'new', 'old'} or {'new', 'old', 'rise'},
-		Function = function(val, mouse)
-			if mouse then
-				writefile('kingvape/profiles/gui.txt', val)
-				shared.vapereload = true
-				if shared.VapeDeveloper then
-					loadstring(readfile('kingvape/init.lua'), 'init')(license)
-				else
-					local commit = (isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt')) or 'main'
-				if not commit or commit == '' then commit = 'main' end
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/'..commit..'/init.lua', true), 'init')(license)
-				end
-			end
-		end,
-		Tooltip = 'new - The newest vape theme to since v4.05\nold - The vape theme pre v4.05\nrise - Rise 6.0'
-	})]]
+	if not UserInputService.KeyboardEnabled or UserInputService.TouchEnabled or shared.VapeDeveloper then
+	    GUIPane:CreateToggle({
+	        Name = "Hide Vape Button",
+	        Default = isfile("kingvape/profiles/hidebutton.txt") and readfile("kingvape/profiles/hidebutton.txt") == "true",
+	        Function = function(Enabled: boolean)
+	            if vape.VapeButton then
+	                vape.VapeButton.BackgroundTransparency = Enabled and 1 or 0.35
+	                vape.VapeButton.Icon.ImageTransparency = Enabled and 1 or 0
+	            end
 	
-	if not inputService.KeyboardEnabled or inputService.TouchEnabled or shared.VapeDeveloper then
-		guipane:CreateToggle({
-			Name = 'Hide Vape Button',
-			Default = isfile('kingvape/profiles/hide.txt') and readfile('kingvape/profiles/hide.txt') == 'true',
-			Function = function(enabled)
-				if vape.VapeButton then
-					vape.VapeButton.BackgroundTransparency = enabled and 1 or 0.35
-					vape.VapeButton.Icon.ImageTransparency = enabled and 1 or 0
-				end
-	
-				writefile('kingvape/profiles/hide.txt', tostring(enabled))
-			end,
-			Tooltip = 'Hides the button that opens the GUI'
-		})
+	            writefile("kingvape/profiles/hidebutton.txt", tostring(Enabled))
+	        end,
+	        Tooltip = "Hides the button that opens the GUI"
+	    })
 	end
-	guipane:CreateDropdown({
-		Name = 'Search bar style',
-		List = {'Floating', 'None'},
-		Default = 'Floating',
-		Function = function(value)
-			vape.SearchBar.Object.Visible = value == 'Floating'
-		end,
-		Tooltip = 'Switch between search bar styles'
+	GUIPane:CreateDropdown({
+	    Name = "Search bar style",
+	    List = {"Floating", "None"},
+	    Default = "Floating",
+	    Function = function(Value: string)
+	        vape.SearchBar.Object.Visible = Value == "Floating"
+	    end,
+	    Tooltip = "Switch between search bar styles"
 	})
 	
-	vape.RainbowMode = guipane:CreateDropdown({
-		Name = 'Rainbow Mode',
-		List = {'Normal', 'Gradient', 'Retro'},
-		Tooltip = 'Normal - Smooth color fade\nGradient - Gradient color fade\nRetro - Static color'
+	vape.RainbowMode = GUIPane:CreateDropdown({
+	    Name = "Rainbow Mode",
+	    List = {"Normal", "Gradient", "Retro"},
+	    Tooltip = "Normal - Smooth color fade\nGradient - Gradient color fade\nRetro - Static color"
 	})
 	
-	guipane:CreateButton({
-		Name = 'Reset GUI positions',
-		Function = function()
-			for _, category in vape.Categories do
-				category.Object.Position = UDim2.fromOffset(6, 42)
-			end
-		end,
-		Tooltip = 'This will reset your GUI back to the default'
+	GUIPane:CreateButton({
+	    Name = "Reset GUI positions",
+	    Function = function()
+	        for _, Category: any in vape.Categories do
+	            Category.Object.Position = UDim2.fromOffset(6, 42)
+	        end
+	    end,
+	    Tooltip = "This will reset your GUI back to the default"
 	})
 	
-	guipane:CreateButton({
-		Name = 'Sort GUI',
-		Function = function()
-			local priority = {
-				GUICategory = 1,
-				CombatCategory = 2,
-				BlatantCategory = 3,
-				RenderCategory = 4,
-				UtilityCategory = 5,
-				WorldCategory = 6,
-				InventoryCategory = 7,
-				FriendsCategory = 8,
-				ProfilesCategory = 9
-			}
+	GUIPane:CreateButton({
+	    Name = "Sort GUI",
+	    Function = function()
+	        local Priority: {[string]: number} = {
+	            GUICategory = 1,
+	            CombatCategory = 2,
+	            BlatantCategory = 3,
+	            RenderCategory = 4,
+	            UtilityCategory = 5,
+	            WorldCategory = 6,
+	            InventoryCategory = 7,
+	            FriendsCategory = 8,
+	            ProfilesCategory = 9
+	        }
 	
-			local categories = {}
-			for _, category in vape.Categories do
-				if category.Type ~= 'Overlay' then
-					table.insert(categories, category)
-				end
-			end
+	        local Categories = {}
+	        for _, Category: any in vape.Categories do
+	            if Category.Type ~= "Overlay" then
+	                table.insert(Categories, Category)
+	            end
+	        end
 	
-			table.sort(categories, function(a, b)
-				return (priority[a.Object.Name] or 99) < (priority[b.Object.Name] or 99)
-			end)
+	        table.sort(Categories, function(A, B)
+	            return (Priority[A.Object.Name] or 99) < (Priority[B.Object.Name] or 99)
+	        end)
 	
-			local index = 0
-			for _, category in categories do
-				if category.Object.Visible then
-					category.Object.Position = UDim2.fromOffset(6 + (index % 8 * 230), 60 + (index > 7 and 360 or 0))
-					index += 1
-				end
-			end
-		end,
-		Tooltip = 'Sorts GUI by category order'
+	        local Index: number = 0
+	        for _, Category: any in Categories do
+	            if Category.Object.Visible then
+	                Category.Object.Position = UDim2.fromOffset(6 + (Index % 8 * 230), 60 + (Index > 7 and 360 or 0))
+	                Index += 1
+	            end
+	        end
+	    end,
+	    Tooltip = "Sorts GUI by category order"
 	})
 	
-	--[[
-		Notification Settings
-	]]
+	local NotificationPane = vape.Categories.Main.Settings:CreateSettingsPane({Name = "Notifications"})
+	vape.Notifications = NotificationPane:CreateToggle({
+	    Name = "Notifications",
+	    Function = function(Enabled: boolean)
+	        pcall(writefile, "kingvape/profiles/notifications.txt", tostring(Enabled))
 	
-	local notifpane = vape.Categories.Main.Settings:CreateSettingsPane({Name = 'Notifications'})
-	vape.Notifications = notifpane:CreateToggle({
-		Name = 'Notifications',
-		Function = function(enabled)
-			if vape.ToggleNotifications.Object then
-				vape.ToggleNotifications.Object.Visible = enabled
-			end
+	        if vape.ToggleNotifications.Object then
+	            vape.ToggleNotifications.Object.Visible = Enabled
+	        end
 	
-			if vape.SettingToggleNotifications.Object then
-				vape.SettingToggleNotifications.Object.Visible = enabled
-			end
-		end,
-		Tooltip = 'Shows notifications',
-		Default = true
+	        if vape.SettingToggleNotifications.Object then
+	            vape.SettingToggleNotifications.Object.Visible = Enabled
+	        end
+	    end,
+	    Tooltip = "Shows notifications",
+	    Default = true
 	})
 	
-	vape.ToggleNotifications = notifpane:CreateToggle({
-		Name = 'Toggle alert',
-		Tooltip = 'Notifies you if a module is enabled/disabled.',
-		Default = true,
-		Darker = true
+	vape.ToggleNotifications = NotificationPane:CreateToggle({
+	    Name = "Toggle alert",
+	    Tooltip = "Notifies you if a module is enabled/disabled.",
+	    Default = true,
+	    Darker = true
 	})
-	vape.SettingToggleNotifications = notifpane:CreateToggle({
-		Name = 'Setting toggle alert',
-		Tooltip = 'Notifies you when a bound setting is toggled.',
-		Default = true,
-		Darker = true
+	vape.SettingToggleNotifications = NotificationPane:CreateToggle({
+	    Name = "Setting toggle alert",
+	    Tooltip = "Notifies you when a bound setting is toggled.",
+	    Default = true,
+	    Darker = true
 	})
 	
 	vape.GUIColor = vape.Categories.Main.Settings:CreateGUISlider({
-		Name = 'GUI Theme',
-		Function = function(h, s, v)
-			vape:UpdateGUI(h, s, v, true)
-		end
+	    Name = "GUI Theme",
+	    Function = function(Hue: number, Sat: number, Val: number)
+	        vape:UpdateGUI(Hue, Sat, Val, true)
+	    end
 	})
 	
 	vape.GUIBind = vape.Categories.Main.Settings:CreateBind({
-		Name = 'Rebind GUI',
-		Default = {'RightShift'},
-		NoRemove = true,
-		Tooltip = 'Change the bind of the GUI'
+	    Name = "Rebind GUI",
+	    Default = {"RightShift"},
+	    NoRemove = true,
+	    Tooltip = "Change the bind of the GUI"
 	})
 	
-	run(function()
+	Run(function()
 		local Sort
 		local FontOption
 		local ColorSlider
@@ -2290,219 +2415,215 @@ function vape:LoadGUI()
 		local CustomTextColor
 		local CustomTextColorSlider
 		local Labels = {}
-		local info = TweenInfo.new(0.3, Enum.EasingStyle.Exponential)
+		local Rows, RowStyle = {}, nil
+		local Info: TweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Exponential)
 		
 		TextGUI = vape:CreateOverlay({
-			Name = 'Text GUI',
-			Icon = getvapeasset('kingvape/assets/new/textgui.png'),
-			Size = UDim2.fromOffset(16, 12),
-			Position = UDim2.fromOffset(12, 14),
-			Function = function()
-				vape:UpdateTextGUI()
-			end
+		    Name = "Text GUI",
+		    Icon = GetVapeAsset("kingvape/assets/new/textgui.png"),
+		    Size = UDim2.fromOffset(16, 12),
+		    Position = UDim2.fromOffset(12, 14),
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end
 		})
 		Sort = TextGUI:CreateDropdown({
-			Name = 'Sort',
-			List = {'Alphabetical', 'Length'},
-			Function = function()
-				vape:UpdateTextGUI()
-			end
+		    Name = "Sort",
+		    List = {"Alphabetical", "Length"},
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end
 		})
 		FontOption = TextGUI:CreateFont({
-			Name = 'Font',
-			Default = 'Vape',
-			Function = function()
-				vape:UpdateTextGUI()
-			end
+		    Name = "Font",
+		    Default = "Vape",
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end
 		})
 		ColorMode = TextGUI:CreateDropdown({
-			Name = 'Color Mode',
-			List = {'Match GUI color', 'Custom color'},
-			Function = function(value)
-				ColorSlider.Object.Visible = value == 'Custom color'
-				vape:UpdateTextGUI()
-			end
+		    Name = "Color Mode",
+		    List = {"Match GUI color", "Custom color"},
+		    Function = function(Value: string)
+		        ColorSlider.Object.Visible = Value == "Custom color"
+		        vape:UpdateTextGUI()
+		    end
 		})
 		ColorSlider = TextGUI:CreateColorSlider({
-			Name = 'Text GUI color',
-			Function = function()
-				vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "Text GUI color",
+		    Function = function()
+		        vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		TextGUI:CreateSlider({
-			Name = 'Scale',
-			Min = 0,
-			Max = 2,
-			Decimal = 10,
-			Default = 1,
-			Function = function(val)
-				Scale.Scale = val
-				vape:UpdateTextGUI()
-			end
+		    Name = "Scale",
+		    Min = 0,
+		    Max = 2,
+		    Decimal = 10,
+		    Default = 1,
+		    Function = function(Val: number)
+		        Scale.Scale = Val
+		        vape:UpdateTextGUI()
+		    end
 		})
 		Shadow = TextGUI:CreateToggle({
-			Name = 'Shadow',
-			Tooltip = 'Renders shadowed text.',
-			Function = function()
-				vape:UpdateTextGUI()
-			end
+		    Name = "Shadow",
+		    Tooltip = "Renders shadowed text.",
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end
 		})
 		Gradient = TextGUI:CreateToggle({
-			Name = 'Gradient',
-			Tooltip = 'Renders a gradient',
-			Function = function(callback)
-				GradientV4.Object.Visible = callback
-				vape:UpdateTextGUI()
-			end
+		    Name = "Gradient",
+		    Tooltip = "Renders a gradient",
+		    Function = function(Callback: boolean)
+		        GradientV4.Object.Visible = Callback
+		        vape:UpdateTextGUI()
+		    end
 		})
 		GradientV4 = TextGUI:CreateToggle({
-			Name = 'V4 Gradient',
-			Function = function()
-				vape:UpdateTextGUI()
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "V4 Gradient",
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		Animations = TextGUI:CreateToggle({
-			Name = 'Animations',
-			Tooltip = 'Use animations on text gui',
-			Function = function()
-				vape:UpdateTextGUI()
-			end
+		    Name = "Animations",
+		    Tooltip = "Use animations on text gui",
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end
 		})
 		Watermark = TextGUI:CreateToggle({
-			Name = 'Watermark',
-			Tooltip = 'Renders a vape watermark',
-			Function = function()
-				vape:UpdateTextGUI()
-			end
+		    Name = "Watermark",
+		    Tooltip = "Renders a vape watermark",
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end
 		})
 		Background = TextGUI:CreateToggle({
-			Name = 'Render background',
-			Function = function(callback)
-				BackgroundTransparency.Object.Visible = callback
-				BackgroundTint.Object.Visible = callback
-				vape:UpdateTextGUI()
-			end
+		    Name = "Render background",
+		    Function = function(Callback: boolean)
+		        BackgroundTransparency.Object.Visible = Callback
+		        BackgroundTint.Object.Visible = Callback
+		        vape:UpdateTextGUI()
+		    end
 		})
 		BackgroundTransparency = TextGUI:CreateSlider({
-			Name = 'Transparency',
-			Min = 0,
-			Max = 1,
-			Default = 0.5,
-			Decimal = 10,
-			Function = function()
-				vape:UpdateTextGUI()
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "Transparency",
+		    Min = 0,
+		    Max = 1,
+		    Default = 0.5,
+		    Decimal = 10,
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		BackgroundTint = TextGUI:CreateToggle({
-			Name = 'Tint',
-			Function = function()
-				vape:UpdateTextGUI()
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "Tint",
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		HideModules = TextGUI:CreateToggle({
-			Name = 'Hide modules',
-			Tooltip = 'Allows you to blacklist certain modules from being shown.',
-			Function = function(enabled)
-				HideModulesList.Object.Visible = enabled
-				vape:UpdateTextGUI()
-			end
+		    Name = "Hide modules",
+		    Tooltip = "Allows you to blacklist certain modules from being shown.",
+		    Function = function(Enabled: boolean)
+		        HideModulesList.Object.Visible = Enabled
+		        vape:UpdateTextGUI()
+		    end
 		})
 		HideModulesList = TextGUI:CreateTextList({
-			Name = 'Blacklist',
-			Tooltip = 'Name of module to hide.',
-			Color = Color3.fromRGB(250, 50, 56),
-			Function = function()
-				vape:UpdateTextGUI()
-			end,
-			Visible = false,
-			Darker = true
+		    Name = "Blacklist",
+		    Tooltip = "Name of module to hide.",
+		    Color = Color3.fromRGB(250, 50, 56),
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end,
+		    Visible = false,
+		    Darker = true
 		})
 		HideRender = TextGUI:CreateToggle({
-			Name = 'Hide render',
-			Function = function()
-				vape:UpdateTextGUI()
-			end
+		    Name = "Hide render",
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end
 		})
 		CustomText = TextGUI:CreateToggle({
-			Name = 'Add custom text',
-			Function = function(enabled)
-				CustomTextBox.Object.Visible = enabled
-				CustomTextFont.Object.Visible = enabled
-				CustomTextColor.Object.Visible = enabled
-				CustomTextColorSlider.Object.Visible = CustomTextColor.Enabled and enabled
-				vape:UpdateTextGUI()
-			end
+		    Name = "Add custom text",
+		    Function = function(Enabled: boolean)
+		        CustomTextBox.Object.Visible = Enabled
+		        CustomTextFont.Object.Visible = Enabled
+		        CustomTextColor.Object.Visible = Enabled
+		        CustomTextColorSlider.Object.Visible = CustomTextColor.Enabled and Enabled
+		        vape:UpdateTextGUI()
+		    end
 		})
 		CustomTextBox = TextGUI:CreateTextBox({
-			Name = 'Custom text',
-			Function = function()
-				vape:UpdateTextGUI()
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "Custom text",
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		CustomTextFont = TextGUI:CreateFont({
-			Name = 'Custom Font',
-			Default = 'Vape',
-			Function = function()
-				vape:UpdateTextGUI()
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "Custom Font",
+		    Default = "Vape",
+		    Function = function()
+		        vape:UpdateTextGUI()
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		CustomTextColor = TextGUI:CreateToggle({
-			Name = 'Set custom text color',
-			Function = function(enabled)
-				CustomTextColorSlider.Object.Visible = enabled
-				vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "Set custom text color",
+		    Function = function(Enabled: boolean)
+		        CustomTextColorSlider.Object.Visible = Enabled
+		        vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		CustomTextColorSlider = TextGUI:CreateColorSlider({
-			Name = 'Color of custom text',
-			Function = function(afterload)
-				vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "Color of custom text",
+		    Function = function(AfterLoad)
+		        vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		
-		
-		--[[
-			Text GUI Objects
-		]]
-		
-		Scale = Instance.new('UIScale')
+		Scale = Instance.new("UIScale")
 		Scale.Parent = TextGUI.Children
-		local Logo = Instance.new('ImageLabel')
+		local Logo: ImageLabel = Instance.new("ImageLabel")
 		Logo.BackgroundColor3 = Color3.new()
 		Logo.BackgroundTransparency = 1
 		Logo.BorderSizePixel = 0
-		Logo.Image = getvapeasset('kingvape/assets/new/vapelogo.png')
-		Logo.Name = 'Logo'
+		Logo.Image = GetVapeAsset("kingvape/assets/new/vapelogo.png")
+		Logo.Name = "Logo"
 		Logo.Position = UDim2.new(1, -142, 0, 3)
 		Logo.Size = UDim2.fromOffset(81, 24)
 		Logo.Visible = false
 		Logo.Parent = TextGUI.Children
-		local LogoV4 = Instance.new('ImageLabel')
+		local LogoV4: ImageLabel = Instance.new("ImageLabel")
 		LogoV4.BackgroundColor3 = Color3.new()
 		LogoV4.BackgroundTransparency = 1
 		LogoV4.BorderSizePixel = 0
-		LogoV4.Image = getvapeasset('kingvape/assets/new/v4.png')
-		LogoV4.Name = 'Logo2'
+		LogoV4.Image = GetVapeAsset("kingvape/assets/new/v4.png")
+		LogoV4.Name = "Logo2"
 		LogoV4.Position = UDim2.new(1, -1, 0, 0)
 		LogoV4.Size = UDim2.fromOffset(35, 24)
 		LogoV4.Parent = Logo
-		local LogoShadow = Logo:Clone()
+		local LogoShadow: ImageLabel = Logo:Clone()
 		LogoShadow.ImageColor3 = Color3.new()
 		LogoShadow.ImageTransparency = 0.333
 		LogoShadow.Position = UDim2.fromOffset(1, 1)
@@ -2512,297 +2633,327 @@ function vape:LoadGUI()
 		LogoShadow.Logo2.ImageColor3 = Color3.new()
 		LogoShadow.Logo2.ImageTransparency = 0.333
 		LogoShadow.Logo2.ZIndex = 0
-		local LogoGradient = Instance.new('UIGradient')
+		local LogoGradient: UIGradient = Instance.new("UIGradient")
 		LogoGradient.Rotation = 90
 		LogoGradient.Parent = Logo
-		local LogoGradient2 = Instance.new('UIGradient')
+		local LogoGradient2: UIGradient = Instance.new("UIGradient")
 		LogoGradient2.Rotation = 90
 		LogoGradient2.Parent = LogoV4
-		local LabelCustom = Instance.new('TextLabel')
+		local LabelCustom: TextLabel = Instance.new("TextLabel")
 		LabelCustom.BackgroundTransparency = 1
 		LabelCustom.BorderSizePixel = 0
 		LabelCustom.FontFace = Font.new(CustomTextFont.Value.Family, Enum.FontWeight.Bold)
 		LabelCustom.Position = UDim2.fromOffset(5, 2)
-		LabelCustom.Text = ''
+		LabelCustom.Text = ""
 		LabelCustom.TextSize = 22
 		LabelCustom.Visible = false
 		LabelCustom.RichText = true
-		local LabelCustomShadow = LabelCustom:Clone()
+		local LabelCustomShadow: TextLabel = LabelCustom:Clone()
 		LabelCustomShadow.TextColor3 = Color3.new()
 		LabelCustomShadow.TextTransparency = 0.333
 		LabelCustomShadow.Parent = TextGUI.Children
 		LabelCustom.Parent = TextGUI.Children
-		local LabelHolder = Instance.new('Frame')
-		LabelHolder.Name = 'Holder'
+		local LabelHolder: Frame = Instance.new("Frame")
+		LabelHolder.Name = "Holder"
 		LabelHolder.Size = UDim2.fromScale(1, 1)
 		LabelHolder.Position = UDim2.fromOffset(5, 37)
 		LabelHolder.BackgroundTransparency = 1
 		LabelHolder.Parent = TextGUI.Children
-		local ListLayout = Instance.new('UIListLayout')
+		local ListLayout: UIListLayout = Instance.new("UIListLayout")
 		ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 		ListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 		ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 		ListLayout.Parent = LabelHolder
 		
-		LabelCustom:GetPropertyChangedSignal('Position'):Connect(function()
-			LabelCustomShadow.Position = UDim2.new(
-				LabelCustom.Position.X.Scale,
-				LabelCustom.Position.X.Offset + 1,
-				0,
-				LabelCustom.Position.Y.Offset + 1
-			)
+		LabelCustom:GetPropertyChangedSignal("Position"):Connect(function()
+		    LabelCustomShadow.Position = UDim2.new(
+		        LabelCustom.Position.X.Scale,
+		        LabelCustom.Position.X.Offset + 1,
+		        0,
+		        LabelCustom.Position.Y.Offset + 1
+		    )
 		end)
 		
-		LabelCustom:GetPropertyChangedSignal('FontFace'):Connect(function()
-			LabelCustomShadow.FontFace = LabelCustom.FontFace
+		LabelCustom:GetPropertyChangedSignal("FontFace"):Connect(function()
+		    LabelCustomShadow.FontFace = LabelCustom.FontFace
 		end)
 		
-		LabelCustom:GetPropertyChangedSignal('Text'):Connect(function()
-			LabelCustomShadow.Text = LabelCustom.ContentText
+		LabelCustom:GetPropertyChangedSignal("Text"):Connect(function()
+		    LabelCustomShadow.Text = LabelCustom.ContentText
 		end)
 		
-		LabelCustom:GetPropertyChangedSignal('Size'):Connect(function()
-			LabelCustomShadow.Size = LabelCustom.Size
+		LabelCustom:GetPropertyChangedSignal("Size"):Connect(function()
+		    LabelCustomShadow.Size = LabelCustom.Size
 		end)
 		
-		local oldRight = TextGUI.Children.AbsolutePosition.X > (gui.AbsoluteSize.X / 2)
-		vape:Clean(TextGUI.Children:GetPropertyChangedSignal('AbsolutePosition'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		local OldRight: boolean = TextGUI.Children.AbsolutePosition.X > (GUI.AbsoluteSize.X / 2)
+		vape:Clean(TextGUI.Children:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			local isRight = TextGUI.Children.AbsolutePosition.X > (gui.AbsoluteSize.X / 2)
-			if oldRight ~= isRight then
-				vape:UpdateTextGUI()
-				oldRight = isRight
-			end
+		    local IsRight: boolean = TextGUI.Children.AbsolutePosition.X > (GUI.AbsoluteSize.X / 2)
+		    if OldRight ~= IsRight then
+		        vape:UpdateTextGUI()
+		        OldRight = IsRight
+		    end
 		end))
 		
-		function vape:UpdateTextGUI(afterload)
-			if not afterload and not vape.Loaded then return end
-			if TextGUI.Button.Enabled then
-				local isRight = TextGUI.Children.AbsolutePosition.X > (gui.AbsoluteSize.X / 2)
+		local function CreateRow(Name: string, IsRight: boolean)
+		    local BackgroundFrame, ColorLine
+		    local Holder: Frame = Instance.new("Frame")
+		    Holder.BackgroundTransparency = 1
+		    Holder.ClipsDescendants = true
+		    Holder.Name = Name
+		    Holder.Size = UDim2.fromOffset()
+		    Holder.Parent = LabelHolder
 		
-				Logo.Visible = Watermark.Enabled
-				Logo.Position = isRight and UDim2.new(1 / Scale.Scale, -113, 0, 6) or UDim2.fromOffset(0, 6)
-				LogoShadow.Visible = Shadow.Enabled
-				LabelCustom.Text = CustomTextBox.Value
-				LabelCustom.FontFace = Font.new(CustomTextFont.Value.Family, Enum.FontWeight.Bold)
-				LabelCustom.Visible = LabelCustom.Text ~= '' and CustomText.Enabled
-				LabelCustomShadow.Visible = LabelCustom.Visible and Shadow.Enabled
-				ListLayout.HorizontalAlignment = isRight and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Left
-				if LabelCustom.Visible then
-					local size = getfontbounds(LabelCustom.ContentText, LabelCustom.TextSize, LabelCustom.FontFace)
-					LabelCustom.Size = UDim2.fromOffset(size.X, size.Y)
-					LabelCustom.Position = UDim2.new(isRight and 1 / Scale.Scale or 0, isRight and -size.X or 0, 0, (Logo.Visible and 36 or 8))
-				end
+		    if Background.Enabled then
+		        BackgroundFrame = Instance.new("Frame")
+		        BackgroundFrame.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.15)
+		        BackgroundFrame.BackgroundTransparency = BackgroundTransparency.Value
+		        BackgroundFrame.BorderSizePixel = 0
+		        BackgroundFrame.Size = UDim2.new(1, 0, 1, 0)
+		        BackgroundFrame.Parent = Holder
+		        local Corner: UICorner = Instance.new("UICorner")
+		        Corner.Parent = BackgroundFrame
+		        local BottomLine: Frame = Instance.new("Frame")
+		        BottomLine.BackgroundColor3 = Color3.new()
+		        BottomLine.BackgroundTransparency = 0.928 + (0.072 * math.clamp((BackgroundTransparency.Value - 0.5) / 0.5, 0, 1))
+		        BottomLine.BorderSizePixel = 0
+		        BottomLine.Position = UDim2.new(0, 0, 1, -1)
+		        BottomLine.Size = UDim2.new(1, 0, 0, 1)
+		        BottomLine.Parent = BackgroundFrame
+		        local TopLine: Frame = BottomLine:Clone()
+		        TopLine.Position = UDim2.new()
+		        TopLine.Name = "Line"
+		        TopLine.Parent = BackgroundFrame
+		        local ColorHolder: Frame = Instance.new("Frame")
+		        ColorHolder.BackgroundTransparency = 1
+		        ColorHolder.BorderSizePixel = 0
+		        ColorHolder.ClipsDescendants = true
+		        ColorHolder.Name = "Color"
+		        ColorHolder.Position = IsRight and UDim2.new(1, -4, 0, 0) or UDim2.new()
+		        ColorHolder.Size = UDim2.new(0, 4, 1, 0)
+		        ColorHolder.Parent = BackgroundFrame
+		        ColorLine = Instance.new("ImageLabel")
+		        ColorLine.BackgroundTransparency = 1
+		        ColorLine.BorderSizePixel = 0
+		        ColorLine.Image = GetVapeAsset("kingvape/assets/new/textguiline.png")
+		        ColorLine.Position = UDim2.fromOffset(IsRight and -4 or 0, 0)
+		        ColorLine.ScaleType = Enum.ScaleType.Slice
+		        ColorLine.SliceCenter = Rect.new(0, 4, 8, 5)
+		        ColorLine.Size = UDim2.new(0, 8, 1, 0)
+		        ColorLine.Parent = ColorHolder
 		
-				LabelHolder.Size = UDim2.fromScale(1 / Scale.Scale, 1)
-				LabelHolder.Position = UDim2.fromOffset(isRight and 3 or 0, 11 + (Logo.Visible and Logo.Size.Y.Offset or 0) + (LabelCustom.Visible and LabelCustom.Size.Y.Offset + 8 or 0) + (Background.Enabled and 3 or 0))
+		        if ColorLine.Image == "" then
+		            ColorHolder.BackgroundTransparency = 0
+		            local ColorCorner: UICorner = Instance.new("UICorner")
+		            ColorCorner.CornerRadius = UDim.new(0, 2)
+		            ColorCorner.Parent = ColorHolder
+		        end
+		    end
 		
-				local Previous = {}
-				for _, label in Labels do
-					if label.Enabled then
-						table.insert(Previous, label.Object.Name)
-					end
+		    local Label: TextLabel = Instance.new("TextLabel")
+		    Label.BackgroundTransparency = 1
+		    Label.BorderSizePixel = 0
+		    Label.FontFace = FontOption.Value
+		    Label.Position = UDim2.fromOffset(IsRight and 5 or 9, 2)
+		    Label.TextSize = 18
+		    Label.RichText = true
 		
-					label.Object:Destroy()
-				end
-				table.clear(Labels)
+		    local ShadowLabel: TextLabel?
+		    if Shadow.Enabled then
+		        ShadowLabel = Label:Clone()
+		        ShadowLabel.Position = UDim2.fromOffset(Label.Position.X.Offset + 1, Label.Position.Y.Offset + 1)
+		        ShadowLabel.TextColor3 = Color3.new()
+		        ShadowLabel.Parent = Holder
+		    end
 		
-				for name, module in vape.Modules do
-					if HideModules.Enabled and table.find(HideModulesList.ListEnabled, name) then
-						continue
-					end
+		    Label.Parent = Holder
 		
-					if HideRender.Enabled and module.Category == 'Render' then
-						continue
-					end
-		
-					if module.Enabled or table.find(Previous, name) then
-						local bkg, colorline
-						local holder = Instance.new('Frame')
-						holder.BackgroundTransparency = 1
-						holder.ClipsDescendants = true
-						holder.Name = name
-						holder.Size = UDim2.fromOffset()
-						holder.Parent = LabelHolder
-		
-						if Background.Enabled then
-							bkg = Instance.new('Frame')
-							bkg.BackgroundColor3 = color.Dark(uipallet.Main, 0.15)
-							bkg.BackgroundTransparency = BackgroundTransparency.Value
-							bkg.BorderSizePixel = 0
-							bkg.Size = UDim2.new(1, 0, 1, 0)
-							bkg.Parent = holder
-							local corner = Instance.new('UICorner')
-							corner.Parent = bkg
-							local line = Instance.new('Frame')
-							line.BackgroundColor3 = Color3.new()
-							line.BackgroundTransparency = 0.928 + (0.072 * math.clamp((BackgroundTransparency.Value - 0.5) / 0.5, 0, 1))
-							line.BorderSizePixel = 0
-							line.Position = UDim2.new(0, 0, 1, -1)
-							line.Size = UDim2.new(1, 0, 0, 1)
-							line.Parent = bkg
-							local line2 = line:Clone()
-							line2.Position = UDim2.new()
-							line2.Name = 'Line'
-							line2.Parent = bkg
-							local colorholder = Instance.new('Frame')
-							colorholder.BackgroundTransparency = 1
-							colorholder.BorderSizePixel = 0
-							colorholder.ClipsDescendants = true
-							colorholder.Name = 'Color'
-							colorholder.Position = isRight and UDim2.new(1, -4, 0, 0) or UDim2.new()
-							colorholder.Size = UDim2.new(0, 4, 1, 0)
-							colorholder.Parent = bkg
-							colorline = Instance.new('ImageLabel')
-							colorline.BackgroundTransparency = 1
-							colorline.BorderSizePixel = 0
-							colorline.Image = getvapeasset('kingvape/assets/new/textguiline.png')
-							colorline.Position = UDim2.fromOffset(isRight and -4 or 0, 0)
-							colorline.ScaleType = Enum.ScaleType.Slice
-							colorline.SliceCenter = Rect.new(0, 4, 8, 5)
-							colorline.Size = UDim2.new(0, 8, 1, 0)
-							colorline.Parent = colorholder
-		
-							if colorline.Image == '' then
-								colorholder.BackgroundTransparency = 0
-								local colorcorner = Instance.new('UICorner')
-								colorcorner.CornerRadius = UDim.new(0, 2)
-								colorcorner.Parent = colorholder
-							end
-						end
-		
-						local label = Instance.new('TextLabel')
-						label.BackgroundTransparency = 1
-						label.BorderSizePixel = 0
-						label.FontFace = FontOption.Value
-						label.Position = UDim2.fromOffset(isRight and 5 or 9, 2)
-						label.Text = name..(module.ExtraText and " <font color='#A8A8A8'>"..module.ExtraText()..'</font>' or '')
-						label.TextSize = 18
-						label.RichText = true
-		
-						local size = getfontbounds(label.ContentText, label.TextSize, label.FontFace)
-						label.Size = UDim2.fromOffset(size.X, size.Y)
-		
-						if Shadow.Enabled then
-							local shadowlabel = label:Clone()
-							shadowlabel.Position = UDim2.fromOffset(label.Position.X.Offset + 1, label.Position.Y.Offset + 1)
-							shadowlabel.Text = label.ContentText
-							shadowlabel.TextColor3 = Color3.new()
-							shadowlabel.Parent = holder
-						end
-		
-						label.Parent = holder
-		
-						local tweenSize = UDim2.fromOffset(size.X + 16, size.Y + 6)
-						if Animations.Enabled then
-							if not table.find(Previous, name) then
-								tween:Tween(holder, info, {
-									Size = tweenSize
-								})
-							else
-								holder.Size = tweenSize
-								if not module.Enabled then
-									tween:Tween(holder, info, {
-										Size = UDim2.fromOffset()
-									})
-								end
-							end
-						else
-							holder.Size = module.Enabled and tweenSize or UDim2.fromOffset()
-						end
-		
-						table.insert(Labels, {
-							Background = bkg,
-							Color = colorline,
-							Enabled = module.Enabled,
-							Object = holder,
-							Text = label,
-							Size = module.Enabled and tweenSize or UDim2.fromOffset()
-						})
-					end
-				end
-		
-				if Sort.Value == 'Alphabetical' then
-					table.sort(Labels, function(a, b)
-						return a.Text.Text < b.Text.Text
-					end)
-				else
-					table.sort(Labels, function(a, b)
-						return a.Text.Size.X.Offset > b.Text.Size.X.Offset
-					end)
-				end
-		
-				for index, label in Labels do
-					if label.Color then
-						local top = (not Labels[index - 1] or (Labels[index - 1].Size.X.Offset < label.Size.X.Offset)) and 4 or 0
-						local bottom = (not Labels[index + 1] or (Labels[index + 1].Size.X.Offset < label.Size.X.Offset)) and 4 or 0
-						local captop = index == 1 and 0 or 4
-						local capbottom = index == #Labels and 0 or 4
-		
-						label.Background.Line.Visible = index ~= 1
-						label.Color.Position = UDim2.fromOffset(isRight and -4 or 0, -captop)
-						label.Color.Size = UDim2.new(0, 8, 1, captop + capbottom)
-		
-						label.Background.UICorner.TopLeftRadius = UDim.new(0, top)
-						label.Background.UICorner.TopRightRadius = UDim.new(0, top)
-						label.Background.UICorner.BottomLeftRadius = UDim.new(0, bottom)
-						label.Background.UICorner.BottomRightRadius = UDim.new(0, bottom)
-					end
-		
-					label.Object.LayoutOrder = index
-				end
-			end
-		
-			self:UpdateGUI(self.GUIColor.Hue, self.GUIColor.Sat, self.GUIColor.Value, true)
+		    return {Object = Holder, Background = BackgroundFrame, Color = ColorLine, Text = Label, Shadow = ShadowLabel}
 		end
 		
-		function TextGUI:UpdateColor(hue, sat, val, default)
-			LogoGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromHSV(hue, sat, val)),
-				ColorSequenceKeypoint.new(1, Gradient.Enabled and Color3.fromHSV(vape:Color((hue - 0.075) % 1)) or Color3.fromHSV(hue, sat, val))
-			})
-			LogoGradient2.Color = Gradient.Enabled and GradientV4.Enabled and LogoGradient.Color or ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
-				ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))
-			})
-			LabelCustom.TextColor3 = CustomTextColor.Enabled and Color3.fromHSV(CustomTextColorSlider.Hue, CustomTextColorSlider.Sat, CustomTextColorSlider.Value) or LogoGradient.Color.Keypoints[2].Value
+		function vape:UpdateTextGUI(AfterLoad: boolean?)
+		    if not AfterLoad and not vape.Loaded then return end
+		    if TextGUI.Button.Enabled then
+		        local IsRight: boolean = TextGUI.Children.AbsolutePosition.X > (GUI.AbsoluteSize.X / 2)
 		
-			local isCustom = ColorMode.Value == 'Custom color' and Color3.fromHSV(ColorSlider.Hue, ColorSlider.Sat, ColorSlider.Value) or nil
-			for index, label in Labels do
-				label.Text.TextColor3 = isCustom or (vape.GUIColor.Rainbow and Color3.fromHSV(vape:Color((hue - ((Gradient.Enabled and index + 2 or index) * 0.025)) % 1)) or LogoGradient.Color.Keypoints[2].Value)
+		        Logo.Visible = Watermark.Enabled
+		        Logo.Position = IsRight and UDim2.new(1 / Scale.Scale, -113, 0, 6) or UDim2.fromOffset(0, 6)
+		        LogoShadow.Visible = Shadow.Enabled
+		        LabelCustom.Text = CustomTextBox.Value
+		        LabelCustom.FontFace = Font.new(CustomTextFont.Value.Family, Enum.FontWeight.Bold)
+		        LabelCustom.Visible = LabelCustom.Text ~= "" and CustomText.Enabled
+		        LabelCustomShadow.Visible = LabelCustom.Visible and Shadow.Enabled
+		        ListLayout.HorizontalAlignment = IsRight and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Left
+		        if LabelCustom.Visible then
+		            local Size: Vector2 = GetFontBounds(LabelCustom.ContentText, LabelCustom.TextSize, LabelCustom.FontFace)
+		            LabelCustom.Size = UDim2.fromOffset(Size.X, Size.Y)
+		            LabelCustom.Position = UDim2.new(IsRight and 1 / Scale.Scale or 0, IsRight and -Size.X or 0, 0, (Logo.Visible and 36 or 8))
+		        end
 		
-				if label.Color then
-					label.Color.ImageColor3 = label.Text.TextColor3
-					label.Color.Parent.BackgroundColor3 = label.Text.TextColor3
-				end
+		        LabelHolder.Size = UDim2.fromScale(1 / Scale.Scale, 1)
+		        LabelHolder.Position = UDim2.fromOffset(IsRight and 3 or 0, 11 + (Logo.Visible and Logo.Size.Y.Offset or 0) + (LabelCustom.Visible and LabelCustom.Size.Y.Offset + 8 or 0) + (Background.Enabled and 3 or 0))
 		
-				if BackgroundTint.Enabled and label.Background then
-					label.Background.BackgroundColor3 = color.Dark(label.Text.TextColor3, 0.75)
-				end
-			end
+		        local Style: string = `{Background.Enabled}|{BackgroundTransparency.Value}|{Shadow.Enabled}|{IsRight}|{FontOption.Value.Family}|{FontOption.Value.Weight.Name}|{FontOption.Value.Style.Name}`
+		        if Style ~= RowStyle then
+		            for _, Row: any in Rows do
+		                Row.Object:Destroy()
+		            end
+		            table.clear(Rows)
+		            RowStyle = Style
+		        end
+		
+		        local Previous = {}
+		        for _, Label: any in Labels do
+		            if Label.Enabled then
+		                table.insert(Previous, Label.Object.Name)
+		            end
+		        end
+		        table.clear(Labels)
+		
+		        local Shown: {[string]: boolean} = {}
+		        for Name: string, Module: any in vape.Modules do
+		            if HideModules.Enabled and table.find(HideModulesList.ListEnabled, Name) then
+		                continue
+		            end
+		
+		            if HideRender.Enabled and Module.Category == "Render" then
+		                continue
+		            end
+		
+		            if Module.Enabled or table.find(Previous, Name) then
+		                Shown[Name] = true
+		                local Row = Rows[Name]
+		                if not Row then
+		                    Row = CreateRow(Name, IsRight)
+		                    Rows[Name] = Row
+		                end
+		
+		                local Label: TextLabel = Row.Text
+		                local Text: string = `{Name}{Module.ExtraText and ` <font color='#A8A8A8'>{Module.ExtraText()}</font>` or ""}`
+		                if Label.Text ~= Text then
+		                    Label.Text = Text
+		                    local Size: Vector2 = GetFontBounds(Label.ContentText, Label.TextSize, Label.FontFace)
+		                    Label.Size = UDim2.fromOffset(Size.X, Size.Y)
+		                    if Row.Shadow then
+		                        Row.Shadow.Text = Label.ContentText
+		                        Row.Shadow.Size = Label.Size
+		                    end
+		                end
+		
+		                local Holder: Frame = Row.Object
+		                local TweenSize: UDim2 = UDim2.fromOffset(Label.Size.X.Offset + 16, Label.Size.Y.Offset + 6)
+		                if Animations.Enabled then
+		                    if not table.find(Previous, Name) then
+		                        Tween:Tween(Holder, Info, {
+		                            Size = TweenSize
+		                        })
+		                    else
+		                        Holder.Size = TweenSize
+		                        if not Module.Enabled then
+		                            Tween:Tween(Holder, Info, {
+		                                Size = UDim2.fromOffset()
+		                            })
+		                        end
+		                    end
+		                else
+		                    Holder.Size = Module.Enabled and TweenSize or UDim2.fromOffset()
+		                end
+		
+		                table.insert(Labels, {
+		                    Background = Row.Background,
+		                    Color = Row.Color,
+		                    Enabled = Module.Enabled,
+		                    Object = Holder,
+		                    Text = Label,
+		                    Size = Module.Enabled and TweenSize or UDim2.fromOffset()
+		                })
+		            end
+		        end
+		
+		        for Name: string, Row: any in Rows do
+		            if not Shown[Name] then
+		                Row.Object:Destroy()
+		                Rows[Name] = nil
+		            end
+		        end
+		
+		        if Sort.Value == "Alphabetical" then
+		            table.sort(Labels, function(A, B)
+		                return A.Text.Text < B.Text.Text
+		            end)
+		        else
+		            table.sort(Labels, function(A, B)
+		                return A.Text.Size.X.Offset > B.Text.Size.X.Offset
+		            end)
+		        end
+		
+		        for i: number, Label: any in Labels do
+		            if Label.Color then
+		                local Top: number = (not Labels[i - 1] or (Labels[i - 1].Size.X.Offset < Label.Size.X.Offset)) and 4 or 0
+		                local Bottom: number = (not Labels[i + 1] or (Labels[i + 1].Size.X.Offset < Label.Size.X.Offset)) and 4 or 0
+		                local CapTop: number = i == 1 and 0 or 4
+		                local CapBottom: number = i == #Labels and 0 or 4
+		
+		                Label.Background.Line.Visible = i ~= 1
+		                Label.Color.Position = UDim2.fromOffset(IsRight and -4 or 0, -CapTop)
+		                Label.Color.Size = UDim2.new(0, 8, 1, CapTop + CapBottom)
+		
+		                Label.Background.UICorner.TopLeftRadius = UDim.new(0, Top)
+		                Label.Background.UICorner.TopRightRadius = UDim.new(0, Top)
+		                Label.Background.UICorner.BottomLeftRadius = UDim.new(0, Bottom)
+		                Label.Background.UICorner.BottomRightRadius = UDim.new(0, Bottom)
+		            end
+		
+		            Label.Object.LayoutOrder = i
+		        end
+		    end
+		
+		    self:UpdateGUI(self.GUIColor.Hue, self.GUIColor.Sat, self.GUIColor.Value, true)
+		end
+		
+		function TextGUI:UpdateColor(Hue: number, Sat: number, Val: number, Default: boolean?)
+		    LogoGradient.Color = ColorSequence.new({
+		        ColorSequenceKeypoint.new(0, Color3.fromHSV(Hue, Sat, Val)),
+		        ColorSequenceKeypoint.new(1, Gradient.Enabled and Color3.fromHSV(vape:Color((Hue - 0.075) % 1)) or Color3.fromHSV(Hue, Sat, Val))
+		    })
+		    LogoGradient2.Color = Gradient.Enabled and GradientV4.Enabled and LogoGradient.Color or ColorSequence.new({
+		        ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		        ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))
+		    })
+		    LabelCustom.TextColor3 = CustomTextColor.Enabled and Color3.fromHSV(CustomTextColorSlider.Hue, CustomTextColorSlider.Sat, CustomTextColorSlider.Value) or LogoGradient.Color.Keypoints[2].Value
+		
+		    local CustomColor: Color3? = ColorMode.Value == "Custom color" and Color3.fromHSV(ColorSlider.Hue, ColorSlider.Sat, ColorSlider.Value) or nil
+		    for i: number, Label: any in Labels do
+		        Label.Text.TextColor3 = CustomColor or (vape.GUIColor.Rainbow and Color3.fromHSV(vape:Color((Hue - ((Gradient.Enabled and i + 2 or i) * 0.025)) % 1)) or LogoGradient.Color.Keypoints[2].Value)
+		
+		        if Label.Color then
+		            Label.Color.ImageColor3 = Label.Text.TextColor3
+		            Label.Color.Parent.BackgroundColor3 = Label.Text.TextColor3
+		        end
+		
+		        if BackgroundTint.Enabled and Label.Background then
+		            Label.Background.BackgroundColor3 = Color.Dark(Label.Text.TextColor3, 0.75)
+		        end
+		    end
 		end
 	end)
 	
-	run(function()
-		--[[
-			Target Info
-		]]
-		
-		local targetinfo = {
-			Targets = {},
-			Object = Holder,
-			Health = 0,
-			MaxHealth = 0,
-			Stats = {},
-			TargetChanged = createSignal()
+	Run(function()
+		local TargetInfo = {
+		    Targets = setmetatable({}, {__mode = "k"}),
+		    Health = 0,
+		    MaxHealth = 0,
+		    Stats = {},
+		    TargetChanged = CreateSignal()
 		}
 		local TargetInfoOverlay
 		local BackgroundTransparency = {
-			Value = 0.5,
-			Object = {Visible = {}}
+		    Value = 0.5,
+		    Object = {Visible = {}}
 		}
 		local BorderColor
 		local BKGColor
@@ -2810,11204 +2961,11326 @@ function vape:LoadGUI()
 		local DisplayName
 		
 		TargetInfoOverlay = vape:CreateOverlay({
-			Name = 'Target Info',
-			Icon = getvapeasset('kingvape/assets/new/targetinfo.png'),
-			Size = UDim2.fromOffset(14, 14),
-			Position = UDim2.fromOffset(12, 14),
-			CategorySize = 240,
-			Function = function(callback)
-				if callback then
-					TargetInfoOverlay:Clean(runService.RenderStepped:Connect(function()
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
+		    Name = "Target Info",
+		    Icon = GetVapeAsset("kingvape/assets/new/targetinfo.png"),
+		    Size = UDim2.fromOffset(14, 14),
+		    Position = UDim2.fromOffset(12, 14),
+		    CategorySize = 240,
+		    Function = function(Callback: boolean)
+		        if Callback then
+		            TargetInfoOverlay:Clean(RunService.RenderStepped:Connect(function()
+		                if vape.ThreadFix then
+		                    setthreadidentity(8)
+		                end
 		
-						targetinfo:Update()
-					end))
-				end
-			end
+		                TargetInfo:Update()
+		            end))
+		        end
+		    end
 		})
 		
-		local Holder = Instance.new('Frame')
+		local Holder: Frame = Instance.new("Frame")
 		Holder.Size = UDim2.fromOffset(240, 89)
-		Holder.BackgroundColor3 = color.Dark(uipallet.Main, 0.1)
+		Holder.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.1)
 		Holder.BackgroundTransparency = 0.5
 		Holder.Parent = TargetInfoOverlay.Children
-		addGlass(Holder)
-		addCorner(Holder)
-		local Headshot = Instance.new('ImageLabel')
+		TargetInfo.Object = Holder
+		AddGlass(Holder)
+		AddCorner(Holder)
+		local Headshot: ImageLabel = Instance.new("ImageLabel")
 		Headshot.Size = UDim2.fromOffset(26, 27)
 		Headshot.Position = UDim2.fromOffset(19, 17)
-		Headshot.BackgroundColor3 = uipallet.Main
-		Headshot.Image = 'rbxthumb://type=AvatarHeadShot&id=1&w=420&h=420'
+		Headshot.BackgroundColor3 = UIPallet.Main
+		Headshot.Image = "rbxthumb://type=AvatarHeadShot&id=1&w=420&h=420"
 		Headshot.Parent = Holder
-		addCorner(Headshot)
-		local HurtFlash = Instance.new('Frame')
+		AddCorner(Headshot)
+		local HurtFlash: Frame = Instance.new("Frame")
 		HurtFlash.Size = UDim2.fromScale(1, 1)
 		HurtFlash.BackgroundTransparency = 1
 		HurtFlash.BackgroundColor3 = Color3.new(1, 0, 0)
 		HurtFlash.Parent = Headshot
-		addCorner(HurtFlash)
-		local HeadshotBlur = addBlur(Headshot)
+		AddCorner(HurtFlash)
+		local HeadshotBlur = AddBlur(Headshot)
 		HeadshotBlur.Enabled = false
-		local Name = Instance.new('TextLabel')
+		local Name: TextLabel = Instance.new("TextLabel")
 		Name.Size = UDim2.fromOffset(145, 20)
 		Name.Position = UDim2.fromOffset(54, 20)
 		Name.BackgroundTransparency = 1
-		Name.Text = 'Target name'
+		Name.Text = "Target name"
 		Name.TextXAlignment = Enum.TextXAlignment.Left
 		Name.TextYAlignment = Enum.TextYAlignment.Top
 		Name.TextScaled = true
-		Name.TextColor3 = color.Light(uipallet.Text, 0.4)
+		Name.TextColor3 = Color.Light(UIPallet.Text, 0.4)
 		Name.TextStrokeTransparency = 1
-		Name.FontFace = uipallet.Font
-		local NameShadow = Name:Clone()
+		Name.FontFace = UIPallet.Font
+		local NameShadow: TextLabel = Name:Clone()
 		NameShadow.Position = UDim2.fromOffset(55, 21)
 		NameShadow.TextColor3 = Color3.new()
 		NameShadow.TextTransparency = 0.65
 		NameShadow.Visible = false
 		NameShadow.Parent = Holder
-		for _, prop in {'Size', 'Text', 'FontFace'} do
-			Name:GetPropertyChangedSignal(prop):Connect(function()
-				NameShadow[prop] = Name[prop]
-			end)
+		for _, Property: string in {"Size", "Text", "FontFace"} do
+		    Name:GetPropertyChangedSignal(Property):Connect(function()
+		        NameShadow[Property] = Name[Property]
+		    end)
 		end
 		Name.Parent = Holder
-		local HealthBKG = Instance.new('Frame')
-		HealthBKG.Name = 'HealthBKG'
+		local HealthBKG: Frame = Instance.new("Frame")
+		HealthBKG.Name = "HealthBKG"
 		HealthBKG.Size = UDim2.fromOffset(200, 9)
 		HealthBKG.Position = UDim2.fromOffset(20, 56)
-		HealthBKG.BackgroundColor3 = uipallet.Main
+		HealthBKG.BackgroundColor3 = UIPallet.Main
 		HealthBKG.BorderSizePixel = 0
 		HealthBKG.Parent = Holder
-		addCorner(HealthBKG, UDim.new(1, 0))
-		local Health = HealthBKG:Clone()
+		AddCorner(HealthBKG, UDim.new(1, 0))
+		local Health: Frame = HealthBKG:Clone()
 		Health.Size = UDim2.fromScale(0.8, 1)
 		Health.Position = UDim2.new()
 		Health.BackgroundColor3 = Color3.fromHSV(1 / 2.5, 0.89, 0.75)
 		Health.Parent = HealthBKG
-		Health:GetPropertyChangedSignal('Size'):Connect(function()
-			Health.Visible = Health.Size.X.Scale > 0.01
+		Health:GetPropertyChangedSignal("Size"):Connect(function()
+		    Health.Visible = Health.Size.X.Scale > 0.01
 		end)
-		local Armor = Health:Clone()
+		local Armor: Frame = Health:Clone()
 		Armor.Size = UDim2.new()
 		Armor.Position = UDim2.fromScale(1, 0)
 		Armor.AnchorPoint = Vector2.new(1, 0)
 		Armor.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
 		Armor.Visible = false
 		Armor.Parent = HealthBKG
-		Armor:GetPropertyChangedSignal('Size'):Connect(function()
-			Armor.Visible = Armor.Size.X.Scale > 0.01
+		Armor:GetPropertyChangedSignal("Size"):Connect(function()
+		    Armor.Visible = Armor.Size.X.Scale > 0.01
 		end)
-		local HealthBlur = addBlur(HealthBKG)
+		local HealthBlur = AddBlur(HealthBKG)
 		HealthBlur.Enabled = false
-		local Stroke = Instance.new('UIStroke')
+		local Stroke: UIStroke = Instance.new("UIStroke")
 		Stroke.Enabled = false
 		Stroke.Color = Color3.fromHSV(0.44, 1, 1)
 		Stroke.Parent = Holder
 		
 		TargetInfoOverlay:CreateFont({
-			Name = 'Font',
-			Default = 'Arial',
-			Function = function(val)
-				Name.FontFace = val
-			end
+		    Name = "Font",
+		    Default = "Arial",
+		    Function = function(FontFace: Font)
+		        Name.FontFace = FontFace
+		    end
 		})
 		DisplayName = TargetInfoOverlay:CreateToggle({
-			Name = 'Use Displayname',
-			Default = true
+		    Name = "Use Displayname",
+		    Default = true
 		})
 		TargetInfoOverlay:CreateToggle({
-			Name = 'Render Background',
-			Function = function(callback)
-				Holder.BackgroundTransparency = callback and BackgroundTransparency.Value or 1
-				NameShadow.Visible = not callback
-				HealthBlur.Enabled = not callback
-				HeadshotBlur.Enabled = not callback
-				BackgroundTransparency.Object.Visible = callback
-			end,
-			Default = true
+		    Name = "Render Background",
+		    Function = function(Callback: boolean)
+		        Holder.BackgroundTransparency = Callback and BackgroundTransparency.Value or 1
+		        NameShadow.Visible = not Callback
+		        HealthBlur.Enabled = not Callback
+		        HeadshotBlur.Enabled = not Callback
+		        BackgroundTransparency.Object.Visible = Callback
+		    end,
+		    Default = true
 		})
 		BackgroundTransparency = TargetInfoOverlay:CreateSlider({
-			Name = 'Transparency',
-			Min = 0,
-			Max = 1,
-			Default = 0.5,
-			Decimal = 10,
-			Function = function(val)
-				Holder.BackgroundTransparency = val
-			end,
-			Darker = true
+		    Name = "Transparency",
+		    Min = 0,
+		    Max = 1,
+		    Default = 0.5,
+		    Decimal = 10,
+		    Function = function(Val: number)
+		        Holder.BackgroundTransparency = Val
+		    end,
+		    Darker = true
 		})
 		CustomColor = TargetInfoOverlay:CreateToggle({
-			Name = 'Custom Color',
-			Function = function(callback)
-				BKGColor.Object.Visible = callback
-				if callback then
-					Holder.BackgroundColor3 = Color3.fromHSV(BKGColor.Hue, BKGColor.Sat, BKGColor.Value)
-					Headshot.BackgroundColor3 = Color3.fromHSV(BKGColor.Hue, BKGColor.Sat, math.max(BKGColor.Value - 0.1, 0.075))
-					HealthBKG.BackgroundColor3 = Headshot.BackgroundColor3
-				else
-					Holder.BackgroundColor3 = color.Dark(uipallet.Main, 0.1)
-					Headshot.BackgroundColor3 = uipallet.Main
-					HealthBKG.BackgroundColor3 = uipallet.Main
-				end
-			end
+		    Name = "Custom Color",
+		    Function = function(Callback: boolean)
+		        BKGColor.Object.Visible = Callback
+		        if Callback then
+		            Holder.BackgroundColor3 = Color3.fromHSV(BKGColor.Hue, BKGColor.Sat, BKGColor.Value)
+		            Headshot.BackgroundColor3 = Color3.fromHSV(BKGColor.Hue, BKGColor.Sat, math.max(BKGColor.Value - 0.1, 0.075))
+		            HealthBKG.BackgroundColor3 = Headshot.BackgroundColor3
+		        else
+		            Holder.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.1)
+		            Headshot.BackgroundColor3 = UIPallet.Main
+		            HealthBKG.BackgroundColor3 = UIPallet.Main
+		        end
+		    end
 		})
 		BKGColor = TargetInfoOverlay:CreateColorSlider({
-			Name = 'Color',
-			Function = function(hue, sat, val)
-				if CustomColor.Enabled then
-					Holder.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-					Headshot.BackgroundColor3 = Color3.fromHSV(hue, sat, math.max(val - 0.1, 0))
-					HealthBKG.BackgroundColor3 = Headshot.BackgroundColor3
-				end
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "Color",
+		    Function = function(Hue: number, Sat: number, Val: number)
+		        if CustomColor.Enabled then
+		            Holder.BackgroundColor3 = Color3.fromHSV(Hue, Sat, Val)
+		            Headshot.BackgroundColor3 = Color3.fromHSV(Hue, Sat, math.max(Val - 0.1, 0))
+		            HealthBKG.BackgroundColor3 = Headshot.BackgroundColor3
+		        end
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		TargetInfoOverlay:CreateToggle({
-			Name = 'Border',
-			Function = function(callback)
-				Stroke.Enabled = callback
-				BorderColor.Object.Visible = callback
-			end
+		    Name = "Border",
+		    Function = function(Callback: boolean)
+		        Stroke.Enabled = Callback
+		        BorderColor.Object.Visible = Callback
+		    end
 		})
 		BorderColor = TargetInfoOverlay:CreateColorSlider({
-			Name = 'Border Color',
-			Function = function(hue, sat, val, opacity)
-				Stroke.Color = Color3.fromHSV(hue, sat, val)
-				Stroke.Transparency = 1 - opacity
-			end,
-			Darker = true,
-			Visible = false
+		    Name = "Border Color",
+		    Function = function(Hue: number, Sat: number, Val: number, Opacity: number)
+		        Stroke.Color = Color3.fromHSV(Hue, Sat, Val)
+		        Stroke.Transparency = 1 - Opacity
+		    end,
+		    Darker = true,
+		    Visible = false
 		})
 		
-		function targetinfo:CreateStat(props)
-			local pill = Instance.new('Frame')
-			pill.BackgroundColor3 = vapecolors.Input
-			pill.Name = props.Name
-			pill.Position = UDim2.fromOffset(176, 8)
-			pill.Size = UDim2.fromOffset(props.Icon and 44 or 28, 20)
-			pill.Visible = false
-			pill.Parent = Holder
-			addCorner(pill, UDim.new(0, 4))
-			local label = Instance.new('TextLabel')
-			label.BackgroundTransparency = 1
-			label.FontFace = uipallet.Font
-			label.Name = 'Value'
-			label.Position = UDim2.fromOffset(props.Icon and 20 or 2, 0)
-			label.Size = UDim2.fromOffset(props.Icon and 16 or 18, 20)
-			label.Text = props.Signed and '+0' or '0'
-			label.TextColor3 = props.Tint and Color3.new(1, 1, 1) or vapecolors.Primary
-			label.TextSize = 14
-			label.TextTransparency = props.Tint and 0.294 or 0
-			label.TextXAlignment = Enum.TextXAlignment.Right
-			label.Parent = pill
+		function TargetInfo:CreateStat(Properties)
+		    local Pill: Frame = Instance.new("Frame")
+		    Pill.BackgroundColor3 = VapeColors.Input
+		    Pill.Name = Properties.Name
+		    Pill.Position = UDim2.fromOffset(176, 8)
+		    Pill.Size = UDim2.fromOffset(Properties.Icon and 44 or 28, 20)
+		    Pill.Visible = false
+		    Pill.Parent = Holder
+		    AddCorner(Pill, UDim.new(0, 4))
+		    local Label: TextLabel = Instance.new("TextLabel")
+		    Label.BackgroundTransparency = 1
+		    Label.FontFace = UIPallet.Font
+		    Label.Name = "Value"
+		    Label.Position = UDim2.fromOffset(Properties.Icon and 20 or 2, 0)
+		    Label.Size = UDim2.fromOffset(Properties.Icon and 16 or 18, 20)
+		    Label.Text = Properties.Signed and "+0" or "0"
+		    Label.TextColor3 = Properties.Tint and Color3.new(1, 1, 1) or VapeColors.Primary
+		    Label.TextSize = 14
+		    Label.TextTransparency = Properties.Tint and 0.294 or 0
+		    Label.TextXAlignment = Enum.TextXAlignment.Right
+		    Label.Parent = Pill
 		
-			local stat = {
-				Label = label,
-				Object = pill,
-				Signed = props.Signed,
-				Tint = props.Tint,
-				Value = 0
-			}
+		    local Stat = {
+		        Label = Label,
+		        Object = Pill,
+		        Signed = Properties.Signed,
+		        Tint = Properties.Tint,
+		        Value = 0
+		    }
 		
-			if props.Icon then
-				local icon = Instance.new('ImageLabel')
-				icon.AnchorPoint = Vector2.new(0, 0.5)
-				icon.BackgroundTransparency = 1
-				icon.Image = props.Icon
-				icon.ImageColor3 = vapecolors.Primary
-				icon.Name = 'Icon'
-				icon.Position = UDim2.new(0, 6, 0.5, 0)
-				icon.Size = props.IconSize
-				icon.Parent = pill
-				stat.Icon = icon
-			end
+		    if Properties.Icon then
+		        local Icon: ImageLabel = Instance.new("ImageLabel")
+		        Icon.AnchorPoint = Vector2.new(0, 0.5)
+		        Icon.BackgroundTransparency = 1
+		        Icon.Image = Properties.Icon
+		        Icon.ImageColor3 = VapeColors.Primary
+		        Icon.Name = "Icon"
+		        Icon.Position = UDim2.new(0, 6, 0.5, 0)
+		        Icon.Size = Properties.IconSize
+		        Icon.Parent = Pill
+		        Stat.Icon = Icon
+		    end
 		
-			stat.Toggle = TargetInfoOverlay:CreateToggle({
-				Name = props.Name,
-				Default = props.Default,
-				Tooltip = props.Tooltip,
-				Function = function()
-					targetinfo:Layout()
-				end
-			})
-			table.insert(self.Stats, stat)
-			self:Layout()
+		    Stat.Toggle = TargetInfoOverlay:CreateToggle({
+		        Name = Properties.Name,
+		        Default = Properties.Default,
+		        Tooltip = Properties.Tooltip,
+		        Function = function()
+		            TargetInfo:Layout()
+		        end
+		    })
+		    table.insert(self.Stats, Stat)
+		    self:Layout()
 		
-			return stat
+		    return Stat
 		end
 		
-		function targetinfo:Layout()
-			local total = 0
+		function TargetInfo:Layout()
+		    local Total: number = 0
 		
-			for _, v in self.Stats do
-				v.Object.Visible = v.Toggle.Enabled
-				total += v.Toggle.Enabled and v.Object.Size.X.Offset + 4 or 0
-			end
+		    for _, v: any in self.Stats do
+		        v.Object.Visible = v.Toggle.Enabled
+		        Total += v.Toggle.Enabled and v.Object.Size.X.Offset + 4 or 0
+		    end
 		
-			local offset = 224 - total
-			local shift = total > 0 and 28 or 0
+		    local Offset: number = 224 - Total
+		    local Shift: number = Total > 0 and 28 or 0
 		
-			for _, v in self.Stats do
-				if v.Object.Visible then
-					v.Object.Position = UDim2.fromOffset(offset, 8)
-					offset += v.Object.Size.X.Offset + 4
-				end
-			end
+		    for _, v: any in self.Stats do
+		        if v.Object.Visible then
+		            v.Object.Position = UDim2.fromOffset(Offset, 8)
+		            Offset += v.Object.Size.X.Offset + 4
+		        end
+		    end
 		
-			Holder.Size = UDim2.fromOffset(240, 89 + shift)
-			Headshot.Position = UDim2.fromOffset(19, 17 + shift)
-			Name.Position = UDim2.fromOffset(54, 20 + shift)
-			NameShadow.Position = UDim2.fromOffset(55, 21 + shift)
-			HealthBKG.Position = UDim2.fromOffset(20, 56 + shift)
+		    Holder.Size = UDim2.fromOffset(240, 89 + Shift)
+		    Headshot.Position = UDim2.fromOffset(19, 17 + Shift)
+		    Name.Position = UDim2.fromOffset(54, 20 + Shift)
+		    NameShadow.Position = UDim2.fromOffset(55, 21 + Shift)
+		    HealthBKG.Position = UDim2.fromOffset(20, 56 + Shift)
 		end
 		
-		function targetinfo:SetStat(stat, value)
-			local shade = value > 0 and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or (value < 0 and vapecolors.Danger or vapecolors.Primary)
-			stat.Value = value
-			stat.Label.Text = stat.Signed and string.format('%+d', math.clamp(value, -9, 9)) or tostring(math.abs(value))
+		function TargetInfo:SetStat(Stat, Value: number)
+		    local Shade: Color3 = Value > 0 and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or (Value < 0 and VapeColors.Danger or VapeColors.Primary)
+		    Stat.Value = Value
+		    Stat.Label.Text = Stat.Signed and string.format("%+d", math.clamp(Value, -9, 9)) or tostring(math.abs(Value))
 		
-			if stat.Tint then
-				stat.Object.BackgroundColor3 = value ~= 0 and shade or vapecolors.Input
-				return
-			end
+		    if Stat.Tint then
+		        Stat.Object.BackgroundColor3 = Value ~= 0 and Shade or VapeColors.Input
+		        return
+		    end
 		
-			stat.Label.TextColor3 = shade
-			stat.Icon.ImageColor3 = shade
+		    Stat.Label.TextColor3 = Shade
+		    Stat.Icon.ImageColor3 = Shade
 		end
 		
-		function targetinfo:Update()
-			local entitylib = vape.Libraries
-			if not entitylib then return end
+		function TargetInfo:Update()
+		    local Libraries = vape.Libraries
+		    if not Libraries then return end
 		
-			local accent = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		    local Accent: Color3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
 		
-			if self.StatColor ~= accent then
-				self.StatColor = accent
+		    if self.StatColor ~= Accent then
+		        self.StatColor = Accent
 		
-				for _, v in self.Stats do
-					self:SetStat(v, v.Value)
-				end
-			end
+		        for _, v: any in self.Stats do
+		            self:SetStat(v, v.Value)
+		        end
+		    end
 		
-			local cloned = table.clone(self.Targets)
-			for index, expire in cloned do
-				if expire < tick() then
-					self.Targets[index] = nil
-				end
-			end
-			table.clear(cloned)
+		    local Cloned = table.clone(self.Targets)
+		    for Target: any, Expire: number in Cloned do
+		        if Expire < tick() then
+		            self.Targets[Target] = nil
+		        end
+		    end
+		    table.clear(Cloned)
 		
-			local entity, highest = nil, tick()
-			for index, level in self.Targets do
-				if level > highest then
-					entity = index
-					highest = level
-				end
-			end
+		    local Entity, Highest = nil, tick()
+		    for Target: any, Level: number in self.Targets do
+		        if Level > Highest then
+		            Entity = Target
+		            Highest = Level
+		        end
+		    end
 		
-			Holder.Visible = entity ~= nil or clickgui.Visible
-			if entity then
-				Name.Text = entity.Player and (DisplayName.Enabled and entity.Player.DisplayName or entity.Player.Name) or entity.Character and entity.Character.Name or Name.Text
-				Headshot.Image = 'rbxthumb://type=AvatarHeadShot&id='..(entity.Player and entity.Player.UserId or 1)..'&w=420&h=420'
+		    Holder.Visible = Entity ~= nil or ClickGUI.Visible
+		    if Entity then
+		        Name.Text = Entity.Player and (DisplayName.Enabled and Entity.Player.DisplayName or Entity.Player.Name) or Entity.Character and Entity.Character.Name or Name.Text
+		        Headshot.Image = `rbxthumb://type=AvatarHeadShot&id={Entity.Player and Entity.Player.UserId or 1}&w=420&h=420`
 		
-				if not entity.Character then
-					entity.Health = entity.Health or 0
-					entity.MaxHealth = entity.MaxHealth or 100
-				end
+		        if not Entity.Character then
+		            Entity.Health = Entity.Health or 0
+		            Entity.MaxHealth = Entity.MaxHealth or 100
+		        end
 		
-				if entity.Health ~= self.Health or entity.MaxHealth ~= self.MaxHealth then
-					local percent = math.max(entity.Health / entity.MaxHealth, 0)
+		        if Entity.Health ~= self.Health or Entity.MaxHealth ~= self.MaxHealth then
+		            local Percent: number = math.max(Entity.Health / Entity.MaxHealth, 0)
 		
-					tween:Tween(Health, TweenInfo.new(0.3), {
-						Size = UDim2.fromScale(math.min(percent, 1), 1), BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
-					})
+		            Tween:Tween(Health, TweenInfo.new(0.3), {
+		                Size = UDim2.fromScale(math.min(Percent, 1), 1), BackgroundColor3 = Color3.fromHSV(math.clamp(Percent / 2.5, 0, 1), 0.89, 0.75)
+		            })
 		
-					tween:Tween(Armor, TweenInfo.new(0.3), {
-						Size = UDim2.fromScale(math.clamp(percent - 1, 0, 0.8), 1)
-					})
+		            Tween:Tween(Armor, TweenInfo.new(0.3), {
+		                Size = UDim2.fromScale(math.clamp(Percent - 1, 0, 0.8), 1)
+		            })
 		
-					if self.Health > entity.Health and self.LastTarget == entity then
-						tween:Cancel(HurtFlash)
-						HurtFlash.BackgroundTransparency = 0.3
-						tween:Tween(HurtFlash, TweenInfo.new(0.5), {
-							BackgroundTransparency = 1
-						})
-					end
+		            if self.Health > Entity.Health and self.LastTarget == Entity then
+		                Tween:Cancel(HurtFlash)
+		                HurtFlash.BackgroundTransparency = 0.3
+		                Tween:Tween(HurtFlash, TweenInfo.new(0.5), {
+		                    BackgroundTransparency = 1
+		                })
+		            end
 		
-					self.Health = entity.Health
-					self.MaxHealth = entity.MaxHealth
-				end
+		            self.Health = Entity.Health
+		            self.MaxHealth = Entity.MaxHealth
+		        end
 		
-				if not entity.Character then
-					table.clear(entity)
-				end
+		        if not Entity.Character then
+		            table.clear(Entity)
+		        end
 		
-				if self.LastTarget ~= entity then
-					for _, v in self.Stats do
-						self:SetStat(v, 0)
-					end
+		        if self.LastTarget ~= Entity then
+		            for _, v: any in self.Stats do
+		                self:SetStat(v, 0)
+		            end
 		
-					self.TargetChanged:Fire(entity)
-				end
+		            self.TargetChanged:Fire(Entity)
+		        end
 		
-				self.LastTarget = entity
-			end
+		        self.LastTarget = Entity
+		    end
 		end
 		
-		vape.Libraries.targetinfo = targetinfo
+		vape.Libraries.targetinfo = TargetInfo
 	end)
 	
 	vape:Clean(task.spawn(function()
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+	    if vape.ThreadFix then
+	        setthreadidentity(8)
+	    end
 	
-		local hue = 0
-		repeat
-			for _, component in vape.RainbowSliders do
-				if component.Type == 'GUISlider' then
-					pcall(component.SetValue, component, vape:Color(hue))
-				else
-					pcall(component.SetValue, component, hue)
-				end
-			end
+	    local Hue: number = 0
+	    repeat
+	        for _, Component: any in vape.RainbowSliders do
+	            if Component.Type == "GUISlider" then
+	                pcall(Component.SetValue, Component, vape:Color(Hue))
+	            else
+	                pcall(Component.SetValue, Component, Hue)
+	            end
+	        end
 	
-			local delta = task.wait(1 / vape.RainbowUpdateSpeed.Value)
-			hue = (hue + (delta * (0.2 * vape.RainbowSpeed.Value))) % 1
-		until false
+	        local Delta: number = task.wait(1 / vape.RainbowUpdateSpeed.Value)
+	        Hue = (Hue + (Delta * (0.2 * vape.RainbowSpeed.Value))) % 1
+	    until false
 	end))
 	
-	local cursorConnection
-	vape:Clean(clickgui:GetPropertyChangedSignal('Visible'):Connect(function()
-		vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value, true)
+	local CursorConnection
+	vape:Clean(ClickGUI:GetPropertyChangedSignal("Visible"):Connect(function()
+	    vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value, true)
 	
-		if clickgui.Visible and inputService.MouseEnabled then
-			if cursorConnection then
-				cursorConnection:Disconnect()
-			end
+	    if ClickGUI.Visible and UserInputService.MouseEnabled then
+	        if CursorConnection then
+	            CursorConnection:Disconnect()
+	        end
 	
-			cursorConnection = runService.RenderStepped:Connect(function()
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+	        CursorConnection = RunService.RenderStepped:Connect(function()
+	            if vape.ThreadFix then
+	                setthreadidentity(8)
+	            end
 	
-				local isVisible = clickgui.Visible
-				for _, window in vape.Windows do
-					isVisible = isVisible or window.Visible
-				end
+	            local IsVisible: boolean = ClickGUI.Visible
+	            for _, Window: Frame in vape.Windows do
+	                IsVisible = IsVisible or Window.Visible
+	            end
 	
-				if not isVisible then
-					cursor.Visible = false
-					cursorConnection:Disconnect()
-					cursorConnection = nil
-					return
-				end
+	            if not IsVisible then
+	                Cursor.Visible = false
+	                CursorConnection:Disconnect()
+	                CursorConnection = nil
+	                return
+	            end
 	
-				cursor.Visible = not inputService.MouseIconEnabled
-				if cursor.Visible then
-					local mouseLocation = inputService:GetMouseLocation()
-					cursor.Position = UDim2.fromOffset(mouseLocation.X - 31, mouseLocation.Y - 32)
-				end
-			end)
-		end
+	            Cursor.Visible = not UserInputService.MouseIconEnabled
+	            if Cursor.Visible then
+	                local MouseLocation: Vector2 = UserInputService:GetMouseLocation()
+	                Cursor.Position = UDim2.fromOffset(MouseLocation.X - 31, MouseLocation.Y - 32)
+	            end
+	        end)
+	    end
 	end))
 	
 	vape:Clean(function()
-		if cursorConnection then
-			cursorConnection:Disconnect()
-		end
+	    if CursorConnection then
+	        CursorConnection:Disconnect()
+	    end
 	end)
 	
-	vape:Clean(gui:GetPropertyChangedSignal('AbsoluteSize'):Connect(function()
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+	vape:Clean(GUI:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+	    if vape.ThreadFix then
+	        setthreadidentity(8)
+	    end
 	
-		if vape.Scale.Enabled then
-			scale.Scale = math.max(gui.AbsoluteSize.X / 1920, inputService:GetPlatform() == Enum.Platform.OSX and 1 or 0.4)
-		end
+	    if vape.Scale.Enabled then
+	        Scale.Scale = math.max(GUI.AbsoluteSize.X / 1920, UserInputService:GetPlatform() == Enum.Platform.OSX and 1 or 0.4)
+	    end
 	end))
 	
-	vape:Clean(notifications.ChildRemoved:Connect(function()
-		for index, notif in notifications:GetChildren() do
-			if tween.Tween then
-				tween:Tween(notif, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {
-					Position = UDim2.new(1, 0, 1, -(29 + (78 * index)))
-				})
-			end
-		end
-	end))
+	vape:Clean(Scale:GetPropertyChangedSignal("Scale"):Connect(function()
+	    ScaledGUI.Size = UDim2.fromScale(1 / Scale.Scale, 1 / Scale.Scale)
 	
-	vape:Clean(scale:GetPropertyChangedSignal('Scale'):Connect(function()
-		scaledgui.Size = UDim2.fromScale(1 / scale.Scale, 1 / scale.Scale)
-	
-		for _, obj in scaledgui:QueryDescendants('GuiObject >> [Visible = true]') do
-			obj.Visible = false
-			obj.Visible = true
-		end
+	    for _, v: GuiObject in ScaledGUI:QueryDescendants("GuiObject >> [Visible = true]") do
+	        v.Visible = false
+	        v.Visible = true
+	    end
 	end))
 	
 	vape:Clean(vape.GUIBind.Triggered:Connect(function()
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+	    if vape.ThreadFix then
+	        setthreadidentity(8)
+	    end
 	
-		for _, window in self.Windows do
-			window.Visible = false
-		end
+	    for _, Window: Frame in self.Windows do
+	        Window.Visible = false
+	    end
 	
-		for _, module in self.Modules do
-			if module.Bind.Mobile then
-				module.Bind.Mobile.Visible = clickgui.Visible
-			end
-		end
+	    for _, Module: any in self.Modules do
+	        if Module.Bind.Mobile then
+	            Module.Bind.Mobile.Visible = ClickGUI.Visible
+	        end
+	    end
 	
-		clickgui.Visible = not clickgui.Visible
-		vape:BlurCheck()
+	    ClickGUI.Visible = not ClickGUI.Visible
+	    vape:BlurCheck()
 	end))
 	
-	vape:Clean(inputService.InputBegan:Connect(function(input)
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+	vape:Clean(UserInputService.InputBegan:Connect(function(Input: InputObject)
+	    if vape.ThreadFix then
+	        setthreadidentity(8)
+	    end
 	
-		if vape.CurrentTooltip and input.KeyCode == Enum.KeyCode.LeftShift then
-			vape.CurrentTooltip()
-		end
+	    if vape.CurrentTooltip and Input.KeyCode == Enum.KeyCode.LeftShift then
+	        vape.CurrentTooltip()
+	    end
 	
-		if not inputService:GetFocusedTextBox() and input.KeyCode ~= Enum.KeyCode.Unknown then
-			table.insert(vape.HeldKeybinds, input.KeyCode.Name)
-			if vape.Binding then return end
+	    if not UserInputService:GetFocusedTextBox() and Input.KeyCode ~= Enum.KeyCode.Unknown then
+	        table.insert(vape.HeldKeybinds, Input.KeyCode.Name)
+	        if vape.Binding then return end
 	
-			for _, bind in vape.ActiveBinds do
-				if checkKeybinds(vape.HeldKeybinds, bind.Keys, input.KeyCode.Name) then
-					bind.Triggered:Fire(true)
-				end
-			end
-		end
+	        for _, Bind: any in vape.ActiveBinds do
+	            if CheckKeybinds(vape.HeldKeybinds, Bind.Keys, Input.KeyCode.Name) then
+	                Bind.Triggered:Fire(true)
+	            end
+	        end
+	    end
 	end))
 	
-	vape:Clean(inputService.InputEnded:Connect(function(input)
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+	vape:Clean(UserInputService.InputEnded:Connect(function(Input: InputObject)
+	    if vape.ThreadFix then
+	        setthreadidentity(8)
+	    end
 	
-		if vape.CurrentTooltip and input.KeyCode == Enum.KeyCode.LeftShift then
-			vape.CurrentTooltip()
-		end
+	    if vape.CurrentTooltip and Input.KeyCode == Enum.KeyCode.LeftShift then
+	        vape.CurrentTooltip()
+	    end
 	
-		if not inputService:GetFocusedTextBox() and input.KeyCode ~= Enum.KeyCode.Unknown then
-			if vape.Binding then
-				if input.KeyCode.Name ~= 'LeftShift' then
-					if not vape.MultiKeybind.Enabled then
-						vape.HeldKeybinds = {input.KeyCode.Name}
-					end
-
-					local targetKeys = vape.Binding.Keys or vape.Binding.Bind
-					local unbind = input.KeyCode == Enum.KeyCode.Backspace
-						or input.KeyCode == Enum.KeyCode.Delete
-						or input.KeyCode == Enum.KeyCode.Escape
-						or (targetKeys and checkKeybinds(vape.HeldKeybinds, targetKeys, input.KeyCode.Name))
-
-					vape.Binding:SetBind(unbind and {} or vape.HeldKeybinds, true)
-					vape.Binding = nil
-				end
-			end
-		end
+	    if not UserInputService:GetFocusedTextBox() and Input.KeyCode ~= Enum.KeyCode.Unknown then
+	        if vape.Binding then
+	            if not vape.MultiKeybind.Enabled then
+	                vape.HeldKeybinds = {Input.KeyCode.Name}
+	            end
 	
-		local index = table.find(vape.HeldKeybinds, input.KeyCode.Name)
-		if index then
-			table.remove(vape.HeldKeybinds, index)
-		end
+	            vape.Binding:SetBind(vape.HeldKeybinds, true)
+	            vape.Binding = nil
+	        else
+	            for _, Bind: any in vape.ActiveBinds do
+	                if Bind.Hold and CheckKeybinds(vape.HeldKeybinds, Bind.Keys, Input.KeyCode.Name) then
+	                    Bind.Triggered:Fire(false)
+	                end
+	            end
+	        end
+	    end
+	
+	    local Index: number? = table.find(vape.HeldKeybinds, Input.KeyCode.Name)
+	    if Index then
+	        table.remove(vape.HeldKeybinds, Index)
+	    end
 	end))
 end
 
-function vape:Remove(obj)
-	local container = (self.Modules[obj] and self.Modules or self.Legit.Modules[obj] and self.Legit.Modules or self.Categories)
-	if container and container[obj] then
-		local component = container[obj]
-		local isModule = component.Type == 'Module'
-		if self.ThreadFix then
-			setthreadidentity(8)
-		end
+function vape:Remove(Name: string)
+    local Container = (self.Modules[Name] and self.Modules or self.Legit.Modules[Name] and self.Legit.Modules or self.Categories)
+    if Container and Container[Name] then
+        local Component = Container[Name]
+        local IsModule: boolean = Component.Type == "Module"
+        if self.ThreadFix then
+            setthreadidentity(8)
+        end
 
-		if component.Destroy then
-			component:Destroy()
-		end
+        if Component.Destroy then
+            Component:Destroy()
+        end
 
-		for _, child in {'Object', 'Children', 'Toggle', 'Button'} do
-			child = typeof(component[child]) == 'table' and component[child].Object or component[child]
+        for _, Child: string in {"Object", "Children", "Toggle", "Button"} do
+            Child = typeof(Component[Child]) == "table" and Component[Child].Object or Component[Child]
 
-			if typeof(child) == 'Instance' then
-				child:Destroy()
-				child:ClearAllChildren()
-			end
-		end
+            if typeof(Child) == "Instance" then
+                Child:ClearAllChildren()
+                Child:Destroy()
+            end
+        end
 
-		loopClean(component)
-		container[obj] = nil
+        LoopClean(Component)
+        Container[Name] = nil
 
-		if isModule then
-			self:SortCategories()
-		end
-	end
+        if IsModule then
+            self:SortCategories()
+        end
+    end
 end
 
-function vape:Save(newProfile)
-	if not self.Loaded then
-		return
-	end
+function vape:Save(NewProfile: string?)
+    if not self.Loaded then
+        return
+    end
 
-	if self.ThreadFix then
-		setthreadidentity(8)
-	end
+    if self.ThreadFix then
+        setthreadidentity(8)
+    end
 
-	local guiData = {
-		Categories = {},
-		Profile = newProfile or self.Profile,
-		v = 1
-	}
+    local GuiData = {
+        Categories = {},
+        Profile = NewProfile or self.Profile,
+        v = 1
+    }
 
-	local mainData = {
-		Modules = {},
-		Categories = {},
-		Legit = {},
-		v = 1
-	}
+    local MainData = {
+        Modules = {},
+        Categories = {},
+        Legit = {},
+        v = 1
+    }
 
-	local success, err = pcall(function()
-		for _, category in self.Categories do
-			category:Save((category.Type == 'Overlay' and mainData or guiData).Categories)
-		end
+    local Success, Error = pcall(CollectConfig, GuiData, MainData)
 
-		for _, module in self.Modules do
-			module:Save(mainData.Modules)
-		end
+    if not Success then
+        if not self.SaveFailed then
+            self.SaveFailed = true
+            self:CreateNotification("Vape", `Failed to save your config, {Error}`, 10, "alert")
+        end
 
-		for _, module in self.Legit.Modules do
-			module:Save(mainData.Legit)
-		end
-	end)
+        return
+    end
 
-	if not success then
-		if not self.SaveFailed then
-			self.SaveFailed = true
-			self:CreateNotification('Vape', 'Failed to save your config, '..tostring(err), 10, 'alert')
-		end
+    local GuiSuccess, GuiError = WriteJSON(`kingvape/profiles/{game.GameId}.gui.txt`, GuiData)
+    local MainSuccess, MainError = WriteJSON(`kingvape/profiles/{self.Profile}{self.Place}.txt`, MainData)
 
-		return
-	end
+    if GuiSuccess and MainSuccess then
+        self.SaveFailed = nil
+    elseif not self.SaveFailed then
+        self.SaveFailed = true
+        self:CreateNotification("Vape", `Failed to save your config, {GuiError or MainError}`, 10, "alert")
+    end
+end
 
-	local guiSuccess, guiError = writeJson('kingvape/profiles/'..game.GameId..'.gui.txt', guiData)
-	local mainSuccess, mainError = writeJson('kingvape/profiles/'..self.Profile..self.Place..'.txt', mainData)
+local function DiffConfig(Current, Defaults)
+    local Reference = typeof(Defaults) == "table" and Defaults or nil
+    local Out
 
-	if guiSuccess and mainSuccess then
-		self.SaveFailed = nil
-	elseif not self.SaveFailed then
-		self.SaveFailed = true
-		self:CreateNotification('Vape', 'Failed to save your config, '..tostring(guiError or mainError), 10, 'alert')
-	end
+    for Key: any, v: any in Current do
+        local Other = Reference and Reference[Key]
+
+        if typeof(v) == "table" and typeof(Other) == "table" and #v == 0 and #Other == 0 then
+            local Inner = DiffConfig(v, Other)
+
+            if Inner then
+                Out = Out or {}
+                Out[Key] = Inner
+            end
+        elseif typeof(v) == "table" then
+            local Encoded: string = pcall(HttpService.JSONEncode, HttpService, v) and HttpService:JSONEncode(v) or ""
+
+            if Encoded ~= (typeof(Other) == "table" and HttpService:JSONEncode(Other) or "") then
+                Out = Out or {}
+                Out[Key] = v
+            end
+        elseif v ~= Other then
+            Out = Out or {}
+            Out[Key] = v
+        end
+    end
+
+    return Out
+end
+
+local function MergeConfig(Defaults, Patch)
+    local Out = {}
+
+    for Key: any, v: any in Defaults do
+        Out[Key] = typeof(v) == "table" and MergeConfig(v, nil) or v
+    end
+
+    for Key: any, v: any in Patch or {} do
+        if typeof(v) == "table" and typeof(Out[Key]) == "table" and #v == 0 and #Out[Key] == 0 then
+            Out[Key] = MergeConfig(Out[Key], v)
+        else
+            Out[Key] = v
+        end
+    end
+
+    return Out
+end
+
+function vape:ExportConfig()
+    if not DefaultMain then
+        return nil, "your config has not finished loading yet"
+    end
+
+    local GuiData = {Categories = {}}
+    local MainData = {Modules = {}, Categories = {}, Legit = {}}
+    local Success, Error = pcall(CollectConfig, GuiData, MainData)
+
+    if not Success then
+        return nil, tostring(Error)
+    end
+
+    GuiData.Categories.Profiles = nil
+
+    local Blob = {
+        v = 1,
+        Place = self.Place,
+        Profile = self.Profile,
+        Main = DiffConfig(MainData, DefaultMain),
+        GUI = GuiData
+    }
+
+    local Text
+    Success, Text = pcall(HttpService.JSONEncode, HttpService, Blob)
+
+    if not Success then
+        return nil, tostring(Text)
+    end
+
+    local Packed: string = `CVCF1:{#Text}:{base64encode(lz4compress(Text))}`
+    local Verified, RoundTrip = pcall(function()
+        return lz4decompress(base64decode(Packed:match("^CVCF1:%d+:(.+)$")), #Text)
+    end)
+
+    return (Verified and RoundTrip == Text) and Packed or Text
+end
+
+function vape:ImportConfig(Text: string)
+    if not DefaultMain then
+        return false, "your config has not finished loading yet"
+    end
+
+    Text = tostring(Text):gsub("^%s+", ""):gsub("%s+$", "")
+    local Size, Body = Text:match("^CVCF1:(%d+):(.+)$")
+
+    if Size then
+        local Success, Unpacked = pcall(function()
+            return lz4decompress(base64decode(Body), tonumber(Size))
+        end)
+
+        if not Success or not Unpacked then
+            return false, "that text is not a catvape config"
+        end
+
+        Text = Unpacked
+    end
+
+    local Success, Blob = pcall(HttpService.JSONDecode, HttpService, Text)
+    if not Success or typeof(Blob) ~= "table" or typeof(Blob.Main) ~= "table" then
+        return false, "that text is not a catvape config"
+    end
+
+    if Blob.Place and Blob.Place ~= self.Place then
+        return false, "that config is for a different game"
+    end
+
+    local MainData = MergeConfig(DefaultMain, Blob.Main)
+    local GuiData = MergeConfig(DefaultGUI, Blob.GUI)
+    MainData.v = 1
+    GuiData.v = 1
+    GuiData.Profile = self.Profile
+    GuiData.Categories.Profiles = nil
+
+    local GuiExisting = LoadJSON(`kingvape/profiles/{game.GameId}.gui.txt`)
+    if GuiExisting and GuiExisting.Categories then
+        GuiData.Categories.Profiles = GuiExisting.Categories.Profiles
+    end
+
+    self.Loaded = false
+    local MainSuccess: boolean = WriteJSON(`kingvape/profiles/{self.Profile}{self.Place}.txt`, MainData)
+    local GuiSuccess: boolean = WriteJSON(`kingvape/profiles/{game.GameId}.gui.txt`, GuiData)
+
+    if not MainSuccess or not GuiSuccess then
+        self.Loaded = CanSave
+        return false, "your executor could not write the config files"
+    end
+
+    self:Load()
+
+    return true, Blob.Profile
 end
 
 function vape:QueueSave()
-	if not self.Loaded then
-		if loadcalled and deferredloads > 0 then
-			needssave = true
-		end
+    if not self.Loaded then
+        if LoadCalled and DeferredLoads > 0 then
+            NeedsSave = true
+        end
 
-		return
-	end
+        return
+    end
 
-	self.SaveTime = os.clock() + 2
+    self.SaveTime = os.clock() + 2
 
-	if self.SaveQueued then
-		return
-	end
+    if self.SaveQueued then
+        return
+    end
 
-	self.SaveQueued = true
+    self.SaveQueued = true
 
-	local function flush()
-		if vape.ThreadFix then
-			setthreadidentity(8)
-		end
+    local function Flush()
+        if vape.ThreadFix then
+            setthreadidentity(8)
+        end
 
-		local remaining = self.SaveTime - os.clock()
-		if remaining > 0 then
-			task.delay(remaining, flush)
+        local Remaining: number = self.SaveTime - os.clock()
+        if Remaining > 0 then
+            task.delay(Remaining, Flush)
 
-			return
-		end
+            return
+        end
 
-		self.SaveQueued = nil
+        self.SaveQueued = nil
 
-		if self.Loaded then
-			self:Save()
-		end
-	end
+        if self.Loaded then
+            self:Save()
+        end
+    end
 
-	task.delay(2, flush)
+    task.delay(2, Flush)
 end
 
-function vape:SaveOptions(obj)
-	local data = {}
-	for _, component in obj.Options do
-		if not component.Save then
-			continue
-		end
+function vape:SaveOptions(Object)
+    local Data = {}
+    for _, Component: any in Object.Options do
+        if not Component.Save then
+            continue
+        end
 
-		component:Save(data)
-	end
+        Component:Save(Data)
+    end
 
-	return data
+    return Data
 end
 
-function vape:SortCategories()
-	local sorting = {}
-	for _, module in self.Modules do
-		sorting[module.Category] = sorting[module.Category] or {}
-		table.insert(sorting[module.Category], module.Name)
-	end
+function vape:SortCategories(Immediate: boolean?)
+    if not Immediate and not self.Loaded then
+        SortQueued = true
+        return
+    end
 
-	for _, sort in sorting do
-		table.sort(sort)
-		for index, name in sort do
-			self.Modules[name].Index = index
-			self.Modules[name].Object.LayoutOrder = index
-			self.Modules[name].Children.LayoutOrder = index
-		end
-	end
+    SortQueued = false
+    local Sorting = {}
+    for _, Module: any in self.Modules do
+        Sorting[Module.Category] = Sorting[Module.Category] or {}
+        table.insert(Sorting[Module.Category], Module.Name)
+    end
+
+    for _, Sort: {string} in Sorting do
+        table.sort(Sort, function(A: string, B: string)
+            if self.Modules[A].Top ~= self.Modules[B].Top then
+                return self.Modules[A].Top
+            end
+            if self.Modules[A].Paid ~= self.Modules[B].Paid then
+                return self.Modules[A].Paid
+            end
+            return A < B
+        end)
+        for i: number, Name: string in Sort do
+            local Module = self.Modules[Name]
+            Module.Index = i
+
+            if Module.Object.LayoutOrder ~= i then
+                Module.Object.LayoutOrder = i
+                Module.Children.LayoutOrder = i
+            end
+        end
+    end
 end
 
 function vape:Uninject()
-	self:Save()
-	self.Loaded = nil
+    self:Save()
+    self.Loaded = nil
 
-	for _, module in self.Modules do
-		if module.Enabled then
-			module:Toggle()
-		end
-	end
+    for _, Module: any in self.Modules do
+        if Module.Enabled then
+            Module:Toggle()
+        end
+    end
 
-	for _, module in self.Legit.Modules do
-		if module.Enabled then
-			module:Toggle()
-		end
-	end
+    for _, Module: any in self.Legit.Modules do
+        if Module.Enabled then
+            Module:Toggle()
+        end
+    end
 
-	for _, category in self.Categories do
-		if category.Type == 'Overlay' and category.Button.Enabled then
-			category.Button:Toggle()
-		end
-	end
+    for _, Category: any in self.Categories do
+        if Category.Type == "Overlay" and Category.Button.Enabled then
+            Category.Button:Toggle()
+        end
+    end
 
-	for _, connection in self.Connections do
-		pcall(function()
-			connection:Disconnect()
-		end)
-	end
+    for _, Connection: RBXScriptConnection in self.Connections do
+        pcall(function()
+            Connection:Disconnect()
+        end)
+    end
 
-	if self.ThreadFix then
-		setthreadidentity(8)
-		clickgui.Visible = false
-		self:BlurCheck()
-	end
+    if self.ThreadFix then
+        setthreadidentity(8)
+        ClickGUI.Visible = false
+        self:BlurCheck()
+    end
 
-	if blureffect then
-		blureffect:Destroy()
-		blurfocus:Destroy()
-		blureffect = nil
-	end
+    if BlurEffect then
+        BlurEffect:Destroy()
+        BlurFocus:Destroy()
+        BlurEffect = nil
+    end
 
-	if glassconnection then
-		glassconnection:Disconnect()
-		glassconnection = nil
-	end
+    if GlassConnection then
+        GlassConnection:Disconnect()
+        GlassConnection = nil
+    end
 
-	for _, v in glassparts do
-		v.Part:Destroy()
-	end
-	table.clear(glassparts)
+    for _, v: {Frame: GuiObject, Mesh: SpecialMesh, Part: Part} in GlassParts do
+        v.Part:Destroy()
+    end
+    table.clear(GlassParts)
 
-	gui:ClearAllChildren()
-	gui:Destroy()
-	table.clear(self.Connections)
-	table.clear(self.Libraries)
-	loopClean(self)
+    GUI:ClearAllChildren()
+    GUI:Destroy()
+    table.clear(self.Connections)
+    table.clear(self.Libraries)
+    LoopClean(self)
 
-	shared.vape = nil
-	shared.vapereload = nil
-	shared.VapeIndependent = nil
+    shared.vape = nil
+    shared.vapereload = nil
+    shared.VapeIndependent = nil
 end
 
-function vape:UpdateGUI(hue, sat, val, default)
-	if vape.Loaded == nil then return end
-	if not default and vape.GUIColor.Rainbow then return end
+function vape:UpdateGUI(Hue: number, Sat: number, Val: number, Default: boolean?)
+    if vape.Loaded == nil then return end
+    if not Default and vape.GUIColor.Rainbow then return end
 
-	if TextGUI.Button.Enabled then
-		TextGUI:UpdateColor(hue, sat, val, default)
-	end
+    if TextGUI.Button.Enabled then
+        TextGUI:UpdateColor(Hue, Sat, Val, Default)
+    end
 
-	if self.PublicProfiles then
-		for _, v in self.PublicProfiles.Accents do
-			if v:GetAttribute('Accent') ~= false then
-				v.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
+    if self.PublicProfiles then
+        for _, v: GuiObject in self.PublicProfiles.Accents do
+            if v:GetAttribute("Accent") ~= false then
+                v.BackgroundColor3 = Color3.fromHSV(Hue, Sat, Val)
 
-				if v:IsA('TextButton') and v.BackgroundTransparency == 0 then
-					v.TextColor3 = self:TextColor(hue, sat, val)
-				end
-			end
-		end
-	end
+                if v:IsA("TextButton") and v.BackgroundTransparency == 0 then
+                    v.TextColor3 = self:TextColor(Hue, Sat, Val)
+                end
+            end
+        end
+    end
 
-	if not clickgui.Visible and not vape.Legit.Window.Visible and not (self.PublicProfiles and self.PublicProfiles.Window.Visible) then return end
-	local isRainbow = vape.GUIColor.Rainbow and vape.RainbowMode.Value ~= 'Retro'
+    if not ClickGUI.Visible and not vape.Legit.Window.Visible and not (self.PublicProfiles and self.PublicProfiles.Window.Visible) then return end
+    local IsRainbow: boolean? = vape.GUIColor.Rainbow and vape.RainbowMode.Value ~= "Retro"
 
-	for name, component in vape.Categories do
-		component:Color(hue, sat, val, isRainbow)
-	end
+    for _, Component: any in vape.Categories do
+        Component:Color(Hue, Sat, Val, IsRainbow)
+    end
 
-	for _, component in vape.Modules do
-		component:Color(hue, sat, val, isRainbow)
-	end
+    for _, Component: any in vape.Modules do
+        Component:Color(Hue, Sat, Val, IsRainbow)
+    end
 
-	for _, component in vape.Overlays.Options do
-		if component.Color then
-			component:Color(hue, sat, val, isRainbow)
-		end
-	end
+    for _, Component: any in vape.Overlays.Options do
+        if Component.Color then
+            Component:Color(Hue, Sat, Val, IsRainbow)
+        end
+    end
 
-	for _, pane in vape.Settings do
-		for _, component in pane.Options do
-			if component.Color then
-				component:Color(hue, sat, val, isRainbow)
-			end
-		end
-	end
+    for _, Pane: any in vape.Settings do
+        for _, Component: any in Pane.Options do
+            if Component.Color then
+                Component:Color(Hue, Sat, Val, IsRainbow)
+            end
+        end
+    end
 
-	if vape.Legit.Window.Visible then
-		for _, component in vape.Legit.Modules do
-			component:Color(hue, sat, val, isRainbow)
-		end
-	end
+    if vape.Legit.Window.Visible then
+        for _, Component: any in vape.Legit.Modules do
+            Component:Color(Hue, Sat, Val, IsRainbow)
+        end
+    end
 end
 
-components = {
-	Bind = function(props, children, api)
-		local component = {
-			Hold = false,
-			Keys = {},
-			Triggered = createSignal(),
-			Type = 'Bind'
+Components = {
+	Bind = function(Props, Children, API)
+		local Component = {
+		    Hold = Props.Hold or false,
+		    Keys = {},
+		    Triggered = CreateSignal(),
+		    Type = "Bind"
 		}
 		
-		local bind = Instance.new('TextButton')
-		bind.AnchorPoint = Vector2.new(1, 0)
-		bind.AutoButtonColor = false
-		bind.BackgroundColor3 = Color3.new(1, 1, 1)
-		bind.BackgroundTransparency = 0.92
-		bind.BorderSizePixel = 0
-		bind.Name = 'Bind'
-		bind.Size = UDim2.fromOffset(20, 20)
-		bind.Visible = false
-		bind.Text = ''
-		addCorner(bind, UDim.new(0, 4))
-		addTooltip(bind, 'Click to bind\nPress the same key, Backspace or Escape to unbind')
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('kingvape/assets/new/bind.png')
-		icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
-		icon.Name = 'Icon'
-		icon.Position = UDim2.new(0.5, -5, 0, 5)
-		icon.Size = UDim2.fromOffset(10, 10)
-		icon.Parent = bind
-		local label = Instance.new('TextLabel')
-		label.BackgroundTransparency = 1
-		label.FontFace = uipallet.Font
-		label.Position = UDim2.fromOffset(-1, 0)
-		label.Size = UDim2.fromScale(1, 1)
-		label.Text = ''
-		label.TextColor3 = color.Dark(uipallet.Text, 0.43)
-		label.TextSize = 12
-		label.Visible = false
-		label.Parent = bind
-		local cover
-		local coverlabel
+		local Bind: TextButton = Instance.new("TextButton")
+		Bind.AnchorPoint = Vector2.new(1, 0)
+		Bind.AutoButtonColor = false
+		Bind.BackgroundColor3 = Color3.new(1, 1, 1)
+		Bind.BackgroundTransparency = 0.92
+		Bind.BorderSizePixel = 0
+		Bind.Name = "Bind"
+		Bind.Size = UDim2.fromOffset(20, 20)
+		Bind.Visible = false
+		Bind.Text = ""
+		AddCorner(Bind, UDim.new(0, 4))
+		AddTooltip(Bind, "", function()
+		    local HoldText: string = `Bind functionality = {Component.Hold and "Enable while held" or "Toggle"}`
+		    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+		        HoldText = `<font color='#FF5A5A'>{HoldText}</font>`
+		    end
 		
-		if props.Module then
-			if props.Cover then
-				cover = Instance.new('ImageLabel')
-				cover.BackgroundTransparency = 1
-				cover.Image = getvapeasset('kingvape/assets/new/bindbkg.png')
-				cover.Name = 'Cover'
-				cover.ScaleType = Enum.ScaleType.Slice
-				cover.SliceCenter = Rect.new(0, 0, 141, 40)
-				cover.Size = UDim2.fromOffset(154, 40)
-				cover.Visible = false
-				cover.Parent = api.Object
-				coverlabel = Instance.new('TextLabel')
-				coverlabel.BackgroundTransparency = 1
-				coverlabel.FontFace = uipallet.Font
-				coverlabel.Name = 'Text'
-				coverlabel.Size = UDim2.new(1, -10, 1, -3)
-				coverlabel.Text = 'PRESS A KEY TO BIND'
-				coverlabel.TextColor3 = uipallet.Text
-				coverlabel.TextSize = 11
-				coverlabel.Parent = cover
-			end
+		    return `Click to bind\nShift click to modify bind functionality\n{HoldText}`
+		end)
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = GetVapeAsset("kingvape/assets/new/bind.png")
+		Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.43)
+		Icon.Name = "Icon"
+		Icon.Position = UDim2.new(0.5, -5, 0, 5)
+		Icon.Size = UDim2.fromOffset(10, 10)
+		Icon.Parent = Bind
+		local Label: TextLabel = Instance.new("TextLabel")
+		Label.BackgroundTransparency = 1
+		Label.FontFace = UIPallet.Font
+		Label.Position = UDim2.fromOffset(-1, 0)
+		Label.Size = UDim2.fromScale(1, 1)
+		Label.Text = ""
+		Label.TextColor3 = Color.Dark(UIPallet.Text, 0.43)
+		Label.TextSize = 12
+		Label.Visible = false
+		Label.Parent = Bind
+		local Cover: ImageLabel?
+		local CoverLabel: TextLabel?
 		
-			bind.Position = UDim2.new(1, -36, 0, 10)
-			bind.Parent = api.Object
-			component.Object = bind
+		if Props.Module then
+		    if Props.Cover then
+		        Cover = Instance.new("ImageLabel")
+		        Cover.BackgroundTransparency = 1
+		        Cover.Image = GetVapeAsset("kingvape/assets/new/bindbkg.png")
+		        Cover.Name = "Cover"
+		        Cover.ScaleType = Enum.ScaleType.Slice
+		        Cover.SliceCenter = Rect.new(0, 0, 141, 40)
+		        Cover.Size = UDim2.fromOffset(154, 40)
+		        Cover.Visible = false
+		        Cover.Parent = API.Object
+		        CoverLabel = Instance.new("TextLabel")
+		        CoverLabel.BackgroundTransparency = 1
+		        CoverLabel.FontFace = UIPallet.Font
+		        CoverLabel.Name = "Text"
+		        CoverLabel.Size = UDim2.new(1, -10, 1, -3)
+		        CoverLabel.Text = "PRESS A KEY TO BIND"
+		        CoverLabel.TextColor3 = UIPallet.Text
+		        CoverLabel.TextSize = 11
+		        CoverLabel.Parent = Cover
+		    end
+		
+		    Bind.Position = UDim2.new(1, -36, 0, 10)
+		    Bind.Parent = API.Object
+		    Component.Object = Bind
 		else
-			local holder = Instance.new('TextButton')
-			holder.AutoButtonColor = false
-			holder.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-			holder.BorderSizePixel = 0
-			holder.FontFace = uipallet.Font
-			holder.Size = UDim2.new(1, 0, 0, 40)
-			holder.Text = '          '..props.Name
-			holder.TextColor3 = color.Dark(uipallet.Text, 0.16)
-			holder.TextSize = 14
-			holder.TextXAlignment = Enum.TextXAlignment.Left
-			holder.Visible = props.Visible == nil or props.Visible
-			holder.Parent = children
-			addTooltip(holder, props.Tooltip)
-			bind.Position = UDim2.new(1, -10, 0, 10)
-			bind.Visible = true
-			bind.Parent = holder
-			component.Object = holder
+		    local Holder: TextButton = Instance.new("TextButton")
+		    Holder.AutoButtonColor = false
+		    Holder.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		    Holder.BorderSizePixel = 0
+		    Holder.FontFace = UIPallet.Font
+		    Holder.Size = UDim2.new(1, 0, 0, 40)
+		    Holder.Text = `          {Props.Name}`
+		    Holder.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		    Holder.TextSize = 14
+		    Holder.TextXAlignment = Enum.TextXAlignment.Left
+		    Holder.Visible = Props.Visible == nil or Props.Visible
+		    Holder.Parent = Children
+		    AddTooltip(Holder, Props.Tooltip)
+		    Bind.Position = UDim2.new(1, -10, 0, 10)
+		    Bind.Visible = true
+		    Bind.Parent = Holder
+		    Component.Object = Holder
 		end
 		
-		function component:CreateMobileButton(position)
-			self:DestroyMobileButton()
+		function Component:CreateMobileButton(Position: Vector2)
+		    self:DestroyMobileButton()
 		
-			local isHeld = false
-			local button = Instance.new('TextButton')
-			button.AnchorPoint = Vector2.new(0.5, 0.5)
-			button.BackgroundColor3 = api.Enabled and Color3.new(0, 0.7, 0) or Color3.new()
-			button.BackgroundTransparency = 0.5
-			button.Font = Enum.Font.Gotham
-			button.Position = UDim2.fromOffset(position.X, position.Y)
-			button.Size = UDim2.fromOffset(40, 40)
-			button.Text = api.Name or 'Button'
-			button.TextColor3 = Color3.new(1, 1, 1)
-			button.TextScaled = true
-			button.Parent = gui
-			local constraint = Instance.new('UITextSizeConstraint')
-			constraint.MaxTextSize = 16
-			constraint.Parent = button
-			addCorner(button, UDim.new(1, 0))
+		    local IsHeld: boolean = false
+		    local Button: TextButton = Instance.new("TextButton")
+		    Button.AnchorPoint = Vector2.new(0.5, 0.5)
+		    Button.BackgroundColor3 = API.Enabled and Color3.new(0, 0.7, 0) or Color3.new()
+		    Button.BackgroundTransparency = 0.5
+		    Button.Font = Enum.Font.Gotham
+		    Button.Position = UDim2.fromOffset(Position.X, Position.Y)
+		    Button.Size = UDim2.fromOffset(40, 40)
+		    Button.Text = API.Name or "Button"
+		    Button.TextColor3 = Color3.new(1, 1, 1)
+		    Button.TextScaled = true
+		    Button.Parent = GUI
+		    local Constraint: UITextSizeConstraint = Instance.new("UITextSizeConstraint")
+		    Constraint.MaxTextSize = 16
+		    Constraint.Parent = Button
+		    AddCorner(Button, UDim.new(1, 0))
 		
-			button.MouseButton1Down:Connect(function()
-				isHeld = true
+		    Button.MouseButton1Down:Connect(function()
+		        IsHeld = true
 		
-				local holdtime, holdPos = os.clock(), inputService:GetMouseLocation()
-				repeat
-					isHeld = (inputService:GetMouseLocation() - holdPos).Magnitude < 6
+		        local HoldTime, HoldPosition = os.clock(), UserInputService:GetMouseLocation()
+		        repeat
+		            IsHeld = (UserInputService:GetMouseLocation() - HoldPosition).Magnitude < 6
 		
-					task.wait()
-				until (os.clock() - holdtime) > 1 or not isHeld
+		            task.wait()
+		        until (os.clock() - HoldTime) > 1 or not IsHeld
 		
-				if isHeld then
-					self:DestroyMobileButton()
-				end
-			end)
+		        if IsHeld then
+		            self:DestroyMobileButton()
+		        end
+		    end)
 		
-			button.MouseButton1Up:Connect(function()
-				isHeld = false
-			end)
+		    Button.MouseButton1Up:Connect(function()
+		        IsHeld = false
+		    end)
 		
-			button.MouseButton1Click:Connect(function()
-				self.Triggered:Fire(true)
-				button.BackgroundColor3 = api.Enabled and Color3.new(0, 0.7, 0) or Color3.new()
-			end)
+		    Button.MouseButton1Click:Connect(function()
+		        self.Triggered:Fire(true)
+		        Button.BackgroundColor3 = API.Enabled and Color3.new(0, 0.7, 0) or Color3.new()
+		    end)
 		
-			self.Mobile = button
-			vape:QueueSave()
+		    self.Mobile = Button
+		    vape:QueueSave()
 		end
 		
-		function component:Destroy()
-			bind:Destroy()
-			bind:ClearAllChildren()
+		function Component:Destroy()
+		    Bind:Destroy()
+		    Bind:ClearAllChildren()
 		
-			if self.Object then
-				self.Object:Destroy()
-				self.Object:ClearAllChildren()
-			end
+		    if self.Object then
+		        self.Object:Destroy()
+		        self.Object:ClearAllChildren()
+		    end
 		
-			if self.Mobile then
-				self.Mobile:Destroy()
-				self.Mobile = nil
-			end
+		    if self.Mobile then
+		        self.Mobile:Destroy()
+		        self.Mobile = nil
+		    end
 		
-			local index = table.find(vape.ActiveBinds, self)
-			if index then
-				table.remove(vape.ActiveBinds, index)
-			end
+		    local Index: number? = table.find(vape.ActiveBinds, self)
+		    if Index then
+		        table.remove(vape.ActiveBinds, Index)
+		    end
 		end
 		
-		function component:DestroyMobileButton()
-			if self.Mobile then
-				self.Mobile:Destroy()
-				self.Mobile = nil
-				vape:QueueSave()
-			end
+		function Component:DestroyMobileButton()
+		    if self.Mobile then
+		        self.Mobile:Destroy()
+		        self.Mobile = nil
+		        vape:QueueSave()
+		    end
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			self.Hold = false
-			self:SetBind(data.Keys)
+		    self.Hold = Data.Hold
+		    self:SetBind(Data.Keys)
 		
-			if data.Mobile then
-				self:CreateMobileButton(Vector2.new(data.Mobile.X, data.Mobile.Y))
-			end
+		    if Data.Mobile then
+		        self:CreateMobileButton(Vector2.new(Data.Mobile.X, Data.Mobile.Y))
+		    end
 		end
 		
-		function component:Save(data)
-			data[props and props.Name or 'Bind'] = {
-				Keys = self.Keys,
-				Mobile = self.Mobile and {
-					X = self.Mobile.Position.X.Offset,
-					Y = self.Mobile.Position.Y.Offset
-				},
-				Hold = false
-			}
+		function Component:Save(Data)
+		    Data[Props and Props.Name or "Bind"] = {
+		        Keys = self.Keys,
+		        Mobile = self.Mobile and {
+		            X = self.Mobile.Position.X.Offset,
+		            Y = self.Mobile.Position.Y.Offset
+		        },
+		        Hold = self.Hold
+		    }
 		end
 		
-		function component:SetBind(keys, mouse)
-			if props and props.NoRemove and #keys <= 0 then
-				keys = props.Default
-			end
+		function Component:SetBind(Keys: {string}, Mouse: boolean?)
+		    if Props and Props.NoRemove and #Keys <= 0 then
+		        Keys = Props.Default
+		    end
 		
-			self.Binding = nil
-			self.Keys = table.clone(keys)
+		    self.Binding = nil
+		    self.Keys = table.clone(Keys)
 		
-			if mouse then
-				icon.Image = getvapeasset('kingvape/assets/new/edit.png')
+		    if Mouse then
+		        Icon.Image = GetVapeAsset("kingvape/assets/new/edit.png")
 		
-				if cover then
-					coverlabel.Text = #keys <= 0 and 'BIND REMOVED' or 'BOUND TO'
-					cover.Size = UDim2.fromOffset(getfontbounds(coverlabel.Text, coverlabel.TextSize, coverlabel.FontFace).X + 20, 40)
+		        if Cover then
+		            CoverLabel.Text = #Keys <= 0 and "BIND REMOVED" or "BOUND TO"
+		            Cover.Size = UDim2.fromOffset(GetFontBounds(CoverLabel.Text, CoverLabel.TextSize, CoverLabel.FontFace).X + 20, 40)
 		
-					task.delay(1, function()
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
+		            task.delay(1, function()
+		                if vape.ThreadFix then
+		                    setthreadidentity(8)
+		                end
 		
-						cover.Visible = false
-					end)
-				end
-			end
+		                Cover.Visible = false
+		            end)
+		        end
+		    end
 		
-			if #keys <= 0 then
-				label.Visible = false
-				icon.Visible = true
-				bind.Size = UDim2.fromOffset(20, 20)
+		    if #Keys <= 0 then
+		        Label.Visible = false
+		        Icon.Visible = true
+		        Bind.Size = UDim2.fromOffset(20, 20)
 		
-				local index = table.find(vape.ActiveBinds, component)
-				if index then
-					table.remove(vape.ActiveBinds, index)
-				end
-			else
-				bind.Visible = true
-				label.Visible = true
-				icon.Visible = false
-				label.Text = table.concat(keys, ' + '):upper()
-				bind.Size = UDim2.fromOffset(math.max(getfontbounds(label.Text, label.TextSize, label.FontFace).X + 10, 20), 20)
+		        local Index: number? = table.find(vape.ActiveBinds, Component)
+		        if Index then
+		            table.remove(vape.ActiveBinds, Index)
+		        end
+		    else
+		        Bind.Visible = true
+		        Label.Visible = true
+		        Icon.Visible = false
+		        Label.Text = table.concat(Keys, " + "):upper()
+		        Bind.Size = UDim2.fromOffset(math.max(GetFontBounds(Label.Text, Label.TextSize, Label.FontFace).X + 10, 20), 20)
 		
-				if not table.find(vape.ActiveBinds, component) then
-					table.insert(vape.ActiveBinds, component)
-				end
-			end
+		        if not table.find(vape.ActiveBinds, Component) then
+		            table.insert(vape.ActiveBinds, Component)
+		        end
+		    end
 		
-			vape:QueueSave()
+		    vape:QueueSave()
 		end
 		
-		function component:SetColor(newColor)
-			icon.ImageColor3 = newColor
-			label.TextColor3 = newColor
+		function Component:SetColor(NewColor: Color3)
+		    Icon.ImageColor3 = NewColor
+		    Label.TextColor3 = NewColor
 		end
 		
-		function component:SetParent(parent)
-			bind.Parent = parent
+		function Component:SetParent(Parent: Instance)
+		    Bind.Parent = Parent
 		
-			if cover then
-				cover.Parent = parent
-			end
+		    if Cover then
+		        Cover.Parent = Parent
+		    end
 		end
 		
-		function component:SetVisible(visible)
-			bind.Visible = #self.Keys > 0 or visible
+		function Component:SetVisible(Visible: boolean)
+		    Bind.Visible = #self.Keys > 0 or Visible
 		end
 		
-		bind.MouseEnter:Connect(function()
-			label.Visible = false
-			icon.Visible = not label.Visible
-			icon.Image = getvapeasset(component.Binding and 'kingvape/assets/new/close.png' or 'kingvape/assets/new/edit.png')
+		Bind.MouseEnter:Connect(function()
+		    Label.Visible = false
+		    Icon.Visible = not Label.Visible
+		    Icon.Image = GetVapeAsset(Component.Binding and "kingvape/assets/new/close.png" or "kingvape/assets/new/edit.png")
 		
-			if not props.Cover or not api.Enabled then
-				icon.ImageColor3 = color.Dark(uipallet.Text, 0.16)
-			end
+		    if not Props.Cover or not API.Enabled then
+		        Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.16)
+		    end
 		end)
 		
-		bind.MouseLeave:Connect(function()
-			label.Visible = #component.Keys > 0
-			icon.Visible = not label.Visible
-			icon.Image = getvapeasset(component.Binding and 'kingvape/assets/new/close.png' or 'kingvape/assets/new/bind.png')
+		Bind.MouseLeave:Connect(function()
+		    Label.Visible = #Component.Keys > 0
+		    Icon.Visible = not Label.Visible
+		    Icon.Image = GetVapeAsset(Component.Binding and "kingvape/assets/new/close.png" or "kingvape/assets/new/bind.png")
 		
-			if not props.Cover or not api.Enabled then
-				icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
-			end
+		    if not Props.Cover or not API.Enabled then
+		        Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.43)
+		    end
 		end)
 		
-		function component:StartBinding()
-			if vape.Binding then
-				if vape.Binding == component then
-					component:SetBind({}, true)
-					vape.Binding = nil
-				end
+		Bind.MouseButton1Click:Connect(function()
+		    if vape.Binding then
+		        if vape.Binding == Component then
+		            Component:SetBind({}, true)
+		            vape.Binding = nil
+		        end
 		
-				return
-			end
+		        return
+		    end
 		
-			if cover then
-				coverlabel.Text = 'PRESS A KEY TO BIND'
-				cover.Size = UDim2.fromOffset(getfontbounds(coverlabel.Text, coverlabel.TextSize, coverlabel.FontFace).X + 20, 40)
-				cover.Visible = true
-			end
+		    if Props.Module and UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+		        Component.Hold = not Component.Hold
+		        if vape.CurrentTooltip then
+		            vape.CurrentTooltip()
+		        end
 		
-			component.Binding = true
-			icon.Image = getvapeasset('kingvape/assets/new/close.png')
-			vape.Binding = component
-		end
-
-		bind.MouseButton1Click:Connect(function()
-			component:StartBinding()
+		        vape:QueueSave()
+		
+		        return
+		    end
+		
+		    if Cover then
+		        CoverLabel.Text = "PRESS A KEY TO BIND"
+		        Cover.Size = UDim2.fromOffset(GetFontBounds(CoverLabel.Text, CoverLabel.TextSize, CoverLabel.FontFace).X + 20, 40)
+		        Cover.Visible = true
+		    end
+		
+		    Component.Binding = true
+		    Icon.Image = GetVapeAsset("kingvape/assets/new/close.png")
+		    vape.Binding = Component
 		end)
 		
-		if props.Module then
-			api.Bind = component
+		if Props.Module then
+		    API.Bind = Component
 		else
-			if props.Default then
-				component:SetBind(props.Default)
-			end
+		    if Props.Default then
+		        Component:SetBind(Props.Default)
+		    end
 		
-			api.Options[props.Name] = component
+		    API.Options[Props.Name] = Component
 		end
 		
-		return component
+		return Component
 	end,
-	Button = function(props, children, api)
-		local button = Instance.new('TextButton')
-		button.AutoButtonColor = false
-		button.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-		button.BorderSizePixel = 0
-		button.Size = UDim2.new(1, 0, 0, 31)
-		button.Text = ''
-		button.Parent = children
-		addTooltip(button, props.Tooltip)
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.05)
-		holder.Position = UDim2.fromOffset(10, 2)
-		holder.Size = UDim2.fromOffset(200, 27)
-		holder.Parent = button
-		addCorner(holder)
-		local title = Instance.new('TextLabel')
-		title.BackgroundColor3 = uipallet.Main
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(2, 2)
-		title.Size = UDim2.new(1, -4, 1, -4)
-		title.Text = props.Name
-		title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		title.TextSize = 14
-		title.Parent = holder
-		addCorner(title, UDim.new(0, 4))
-		props.Function = props.Function or function() end
+	Button = function(Props, Children, API)
+		local Button: TextButton = Instance.new("TextButton")
+		Button.AutoButtonColor = false
+		Button.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		Button.BorderSizePixel = 0
+		Button.Size = UDim2.new(1, 0, 0, 31)
+		Button.Text = ""
+		Button.Parent = Children
+		AddTooltip(Button, Props.Tooltip)
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.05)
+		Holder.Position = UDim2.fromOffset(10, 2)
+		Holder.Size = UDim2.fromOffset(200, 27)
+		Holder.Parent = Button
+		AddCorner(Holder)
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundColor3 = UIPallet.Main
+		Title.FontFace = UIPallet.Font
+		Title.Position = UDim2.fromOffset(2, 2)
+		Title.Size = UDim2.new(1, -4, 1, -4)
+		Title.Text = Props.Name
+		Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Title.TextSize = 14
+		Title.Parent = Holder
+		AddCorner(Title, UDim.new(0, 4))
+		Props.Function = Props.Function or function() end
 		
-		button.MouseEnter:Connect(function()
-			tween:Tween(holder, uipallet.Tween, {
-				BackgroundColor3 = color.Light(uipallet.Main, 0.0875)
-			})
+		Button.MouseEnter:Connect(function()
+		    Tween:Tween(Holder, UIPallet.Tween, {
+		        BackgroundColor3 = Color.Light(UIPallet.Main, 0.0875)
+		    })
 		end)
 		
-		button.MouseLeave:Connect(function()
-			tween:Tween(holder, uipallet.Tween, {
-				BackgroundColor3 = color.Light(uipallet.Main, 0.05)
-			})
+		Button.MouseLeave:Connect(function()
+		    Tween:Tween(Holder, UIPallet.Tween, {
+		        BackgroundColor3 = Color.Light(UIPallet.Main, 0.05)
+		    })
 		end)
 		
-		button.MouseButton1Click:Connect(props.Function)
+		Button.MouseButton1Click:Connect(Props.Function)
 	end,
-	Category = function(props, children, api)
-		local component = {
-			Expanded = false,
-			Name = props.Name,
-			Type = 'Category'
+	Category = function(Props, Children, API)
+		local Component = {
+		    Expanded = false,
+		    Name = Props.Name,
+		    Type = "Category"
 		}
 		
-		if props.NoButton then
-			component.Standalone = false
+		if Props.NoButton then
+		    Component.Standalone = false
 		end
 		
-		local window = Instance.new('TextButton')
-		window.AutoButtonColor = false
-		window.BackgroundColor3 = uipallet.Main
-		window.Name = props.Name..'Category'
-		window.Position = props.Position or UDim2.fromOffset(236, 60)
-		window.Size = UDim2.fromOffset(220, 41)
-		window.Text = ''
-		window.Visible = false
-		window.Parent = clickgui
-		addBlur(window)
-		addCorner(window)
-		addDragHandler(window)
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = props.Icon
-		icon.ImageColor3 = uipallet.Text
-		icon.Position = UDim2.fromOffset(12, (icon.Size.X.Offset > 20 and 14 or 13))
-		icon.Size = props.Size
-		icon.Parent = window
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Size = UDim2.new(1, -(props.Size.X.Offset > 18 and 40 or 33), 0, 41)
-		title.Position = UDim2.fromOffset(math.abs(title.Size.X.Offset), 0)
-		title.Text = props.Name
-		title.TextColor3 = uipallet.Text
-		title.TextSize = 13
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = window
-		local pencilbutton = Instance.new('TextButton')
-		pencilbutton.BackgroundTransparency = 1
-		pencilbutton.Position = UDim2.new(1, -49, 0, 0)
-		pencilbutton.Size = UDim2.fromOffset(20, 40)
-		pencilbutton.Text = ''
-		pencilbutton.Visible = false
-		pencilbutton.Parent = window
-		addTooltip(pencilbutton, 'Edit hidden modules')
-		local pencil = Instance.new('ImageLabel')
-		pencil.BackgroundTransparency = 1
-		pencil.Image = getvapeasset('kingvape/assets/new/editlarge.png')
-		pencil.ImageColor3 = Color3.fromRGB(140, 140, 140)
-		pencil.Size = UDim2.fromOffset(12, 12)
-		pencil.Position = UDim2.fromOffset(4, 14)
-		pencil.Parent = pencilbutton
-		local hiddencount = Instance.new('TextLabel')
-		hiddencount.BackgroundTransparency = 1
-		hiddencount.FontFace = uipallet.Font
-		hiddencount.Name = 'HiddenCount'
-		hiddencount.Position = UDim2.new(1, -73, 0, 0)
-		hiddencount.Size = UDim2.fromOffset(24, 41)
-		hiddencount.Text = ''
-		hiddencount.TextColor3 = vapecolors.Secondary
-		hiddencount.TextSize = 13
-		hiddencount.TextXAlignment = Enum.TextXAlignment.Right
-		hiddencount.Visible = false
-		hiddencount.Parent = window
-		local arrowbutton = Instance.new('TextButton')
-		arrowbutton.BackgroundTransparency = 1
-		arrowbutton.Position = UDim2.new(1, -29, 0, 0)
-		arrowbutton.Size = UDim2.fromOffset(27, 40)
-		arrowbutton.Text = ''
-		arrowbutton.Parent = window
-		local arrow = Instance.new('ImageLabel')
-		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('kingvape/assets/new/downexpand.png')
-		arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
-		arrow.Size = UDim2.fromOffset(9, 4)
-		arrow.Position = UDim2.fromOffset(9, 18)
-		arrow.Rotation = 180
-		arrow.Parent = arrowbutton
-		local done = Instance.new('TextButton')
-		done.BackgroundTransparency = 1
-		done.FontFace = uipallet.Font
-		done.Position = UDim2.new(1, -73, 0, 0)
-		done.Size = UDim2.fromOffset(42, 40)
-		done.Text = 'DONE'
-		done.TextColor3 = Color3.fromRGB(140, 140, 140)
-		done.TextSize = 12
-		done.Visible = false
-		done.Parent = window
-		component.Done = done
-		local children = Instance.new('ScrollingFrame')
-		children.BackgroundTransparency = 1
-		children.BorderSizePixel = 0
-		children.CanvasSize = UDim2.new()
-		children.Name = 'Children'
-		children.Position = UDim2.fromOffset(0, 37)
-		children.ScrollBarThickness = 2
-		children.ScrollBarImageTransparency = 0.75
-		children.Size = UDim2.new(1, 0, 1, -41)
-		children.Visible = false
-		children.Parent = window
-		local divider = Instance.new('Frame')
-		divider.BackgroundColor3 = Color3.new(1, 1, 1)
-		divider.BackgroundTransparency = 0.928
-		divider.BorderSizePixel = 0
-		divider.Position = UDim2.fromOffset(0, 37)
-		divider.Size = UDim2.new(1, 0, 0, 1)
-		divider.Visible = false
-		divider.Parent = window
-		local stroke = Instance.new('UIStroke')
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Color = Color3.fromRGB(85, 85, 85)
-		stroke.Transparency = 0.8
-		stroke.Parent = window
-		local windowlist = Instance.new('UIListLayout')
-		windowlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		windowlist.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlist.Parent = children
+		local Window: TextButton = Instance.new("TextButton")
+		Window.AutoButtonColor = false
+		Window.BackgroundColor3 = UIPallet.Main
+		Window.Name = `{Props.Name}Category`
+		Window.Position = Props.Position or UDim2.fromOffset(236, 60)
+		Window.Size = UDim2.fromOffset(220, 41)
+		Window.Text = ""
+		Window.Visible = false
+		Window.Parent = ClickGUI
+		AddBlur(Window)
+		AddCorner(Window)
+		AddDragHandler(Window)
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = Props.Icon
+		Icon.ImageColor3 = UIPallet.Text
+		Icon.Position = UDim2.fromOffset(12, (Icon.Size.X.Offset > 20 and 14 or 13))
+		Icon.Size = Props.Size
+		Icon.Parent = Window
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Size = UDim2.new(1, -(Props.Size.X.Offset > 18 and 40 or 33), 0, 41)
+		Title.Position = UDim2.fromOffset(math.abs(Title.Size.X.Offset), 0)
+		Title.Text = Props.Name
+		Title.TextColor3 = UIPallet.Text
+		Title.TextSize = 13
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Window
+		local PencilButton: TextButton = Instance.new("TextButton")
+		PencilButton.BackgroundTransparency = 1
+		PencilButton.Position = UDim2.new(1, -49, 0, 0)
+		PencilButton.Size = UDim2.fromOffset(20, 40)
+		PencilButton.Text = ""
+		PencilButton.Visible = false
+		PencilButton.Parent = Window
+		AddTooltip(PencilButton, "Edit hidden modules")
+		local Pencil: ImageLabel = Instance.new("ImageLabel")
+		Pencil.BackgroundTransparency = 1
+		Pencil.Image = GetVapeAsset("kingvape/assets/new/editlarge.png")
+		Pencil.ImageColor3 = Color3.fromRGB(140, 140, 140)
+		Pencil.Size = UDim2.fromOffset(12, 12)
+		Pencil.Position = UDim2.fromOffset(4, 14)
+		Pencil.Parent = PencilButton
+		local HiddenCount: TextLabel = Instance.new("TextLabel")
+		HiddenCount.BackgroundTransparency = 1
+		HiddenCount.FontFace = UIPallet.Font
+		HiddenCount.Name = "HiddenCount"
+		HiddenCount.Position = UDim2.new(1, -73, 0, 0)
+		HiddenCount.Size = UDim2.fromOffset(24, 41)
+		HiddenCount.Text = ""
+		HiddenCount.TextColor3 = VapeColors.Secondary
+		HiddenCount.TextSize = 13
+		HiddenCount.TextXAlignment = Enum.TextXAlignment.Right
+		HiddenCount.Visible = false
+		HiddenCount.Parent = Window
+		local ArrowButton: TextButton = Instance.new("TextButton")
+		ArrowButton.BackgroundTransparency = 1
+		ArrowButton.Position = UDim2.new(1, -29, 0, 0)
+		ArrowButton.Size = UDim2.fromOffset(27, 40)
+		ArrowButton.Text = ""
+		ArrowButton.Parent = Window
+		local Arrow: ImageLabel = Instance.new("ImageLabel")
+		Arrow.BackgroundTransparency = 1
+		Arrow.Image = GetVapeAsset("kingvape/assets/new/downexpand.png")
+		Arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
+		Arrow.Size = UDim2.fromOffset(9, 4)
+		Arrow.Position = UDim2.fromOffset(9, 18)
+		Arrow.Rotation = 180
+		Arrow.Parent = ArrowButton
+		local Done: TextButton = Instance.new("TextButton")
+		Done.BackgroundTransparency = 1
+		Done.FontFace = UIPallet.Font
+		Done.Position = UDim2.new(1, -73, 0, 0)
+		Done.Size = UDim2.fromOffset(42, 40)
+		Done.Text = "DONE"
+		Done.TextColor3 = Color3.fromRGB(140, 140, 140)
+		Done.TextSize = 12
+		Done.Visible = false
+		Done.Parent = Window
+		Component.Done = Done
+		local Children: ScrollingFrame = Instance.new("ScrollingFrame")
+		Children.BackgroundTransparency = 1
+		Children.BorderSizePixel = 0
+		Children.CanvasSize = UDim2.new()
+		Children.Name = "Children"
+		Children.Position = UDim2.fromOffset(0, 37)
+		Children.ScrollBarThickness = 2
+		Children.ScrollBarImageTransparency = 0.75
+		Children.Size = UDim2.new(1, 0, 1, -41)
+		Children.Visible = false
+		Children.Parent = Window
+		local Divider: Frame = Instance.new("Frame")
+		Divider.BackgroundColor3 = Color3.new(1, 1, 1)
+		Divider.BackgroundTransparency = 0.928
+		Divider.BorderSizePixel = 0
+		Divider.Position = UDim2.fromOffset(0, 37)
+		Divider.Size = UDim2.new(1, 0, 0, 1)
+		Divider.Visible = false
+		Divider.Parent = Window
+		local Stroke: UIStroke = Instance.new("UIStroke")
+		Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		Stroke.Color = Color3.fromRGB(85, 85, 85)
+		Stroke.Transparency = 0.8
+		Stroke.Parent = Window
+		local WindowList: UIListLayout = Instance.new("UIListLayout")
+		WindowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		WindowList.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowList.Parent = Children
 		
-		function component:Color(hue, sat, val, isRainbow)
-			if self.Paint then
-				self.Paint()
-			end
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    if self.Paint then
+		        self.Paint()
+		    end
 		end
 		
-		function component:Expand()
-			self.Expanded = not self.Expanded
-			children.Visible = self.Expanded
-			arrow.Rotation = self.Expanded and 0 or 180
-			window.Size = UDim2.fromOffset(220, self.Expanded and math.min(41 + windowlist.AbsoluteContentSize.Y / scale.Scale, 601) or 41)
-			divider.Visible = children.CanvasPosition.Y > 10 and children.Visible
-			vape:QueueSave()
+		function Component:Expand()
+		    self.Expanded = not self.Expanded
+		    Children.Visible = self.Expanded
+		    Arrow.Rotation = self.Expanded and 0 or 180
+		    Window.Size = UDim2.fromOffset(220, self.Expanded and math.min(41 + WindowList.AbsoluteContentSize.Y / Scale.Scale, 601) or 41)
+		    Divider.Visible = Children.CanvasPosition.Y > 10 and Children.Visible
+		    vape:QueueSave()
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if data.Enabled and self.Button then
-				self.Button:Toggle()
-			end
+		    if Data.Enabled and self.Button then
+		        self.Button:Toggle()
+		    end
 		
-			if (data.Expanded or false) ~= self.Expanded then
-				self:Expand()
-			end
+		    if (Data.Expanded or false) ~= self.Expanded then
+		        self:Expand()
+		    end
 		
-			if self.Standalone ~= nil then
-				if data.Standalone then
-					self:SetStandalone(true)
-				elseif data.StandaloneSet and self.Standalone then
-					self:SetStandalone(false)
-				end
-			end
+		    if self.Standalone ~= nil then
+		        if Data.Standalone then
+		            self:SetStandalone(true)
+		        elseif Data.StandaloneSet and self.Standalone then
+		            self:SetStandalone(false)
+		        end
+		    end
 		
-			if data.Position then
-				window.Position = UDim2.fromOffset(data.Position.X, data.Position.Y)
-			end
+		    if Data.Position then
+		        Window.Position = UDim2.fromOffset(Data.Position.X, Data.Position.Y)
+		    end
 		end
 		
-		function component:MirrorModule(module)
-			local row = module.Object:Clone()
-			row.LayoutOrder = (module.FavoriteIndex or 0) * 2
-			row.Name = module.Name
-			row.Parent = children
-			addTooltip(row, module.Tooltip)
-			local rowbind = row:FindFirstChild('Bind')
-			local rowindicators = row:FindFirstChild('Indicators')
+		function Component:MirrorModule(Module)
+		    local Row = Module.Object:Clone()
+		    Row.LayoutOrder = (Module.FavoriteIndex or 0) * 2
+		    Row.Name = Module.Name
+		    Row.Parent = Children
+		    AddTooltip(Row, Module.Tooltip)
+		    local RowBind = Row:FindFirstChild("Bind")
+		    local RowIndicators = Row:FindFirstChild("Indicators")
 		
-			if rowbind then
-				rowbind:Destroy()
-			end
+		    if RowBind then
+		        RowBind:Destroy()
+		    end
 		
-			if rowindicators then
-				rowindicators:Destroy()
-			end
+		    if RowIndicators then
+		        RowIndicators:Destroy()
+		    end
 		
-			local rowdots = row:FindFirstChild('Dots')
-			local rowedit = row:FindFirstChild('Edit')
-			local options = buildOptionsView(module, children, row.LayoutOrder + 1)
-			local hovered = false
+		    local RowDots = Row:FindFirstChild("Dots")
+		    local RowEdit = Row:FindFirstChild("Edit")
+		    local Options = BuildOptionsView(Module, Children, Row.LayoutOrder + 1)
+		    local Hovered: boolean = false
 		
-			local function paint()
-				local lit = hovered or options.Visible
-				row.BackgroundColor3 = module.Enabled and module.Object.BackgroundColor3 or (lit and color.Light(uipallet.Main, 0.02) or uipallet.Main)
-				row.TextColor3 = module.Enabled and module.Object.TextColor3 or (lit and uipallet.Text or color.Dark(uipallet.Text, 0.16))
-			end
+		    local function Paint()
+		        local Lit: boolean = Hovered or Options.Visible
+		        Row.BackgroundColor3 = Module.Enabled and Module.Object.BackgroundColor3 or (Lit and Color.Light(UIPallet.Main, 0.02) or UIPallet.Main)
+		        Row.TextColor3 = Module.Enabled and Module.Object.TextColor3 or (Lit and UIPallet.Text or Color.Dark(UIPallet.Text, 0.16))
+		    end
 		
-			local function toggleOptions()
-				options.Visible = not options.Visible
-				paint()
-			end
+		    local function ToggleOptions()
+		        Options.Visible = not Options.Visible
+		        Paint()
+		    end
 		
-			for _, v in {'Text', 'Visible'} do
-				listenProperty(module.Object, row, v, row)
-			end
+		    for _, v: string in {"Text", "Visible"} do
+		        ListenProperty(Module.Object, Row, v, Row)
+		    end
 		
-			for _, v in {'Color', 'Enabled'} do
-				listenProperty(module.Object.UIGradient, row.UIGradient, v, row)
-			end
+		    for _, v: string in {"Color", "Enabled"} do
+		        ListenProperty(Module.Object.UIGradient, Row.UIGradient, v, Row)
+		    end
 		
-			for _, v in {'BackgroundColor3', 'TextColor3'} do
-				local connection = module.Object:GetPropertyChangedSignal(v):Connect(paint)
+		    for _, v: string in {"BackgroundColor3", "TextColor3"} do
+		        local Connection: RBXScriptConnection = Module.Object:GetPropertyChangedSignal(v):Connect(Paint)
 		
-				row.Destroying:Once(function()
-					connection:Disconnect()
-				end)
-			end
+		        Row.Destroying:Once(function()
+		            Connection:Disconnect()
+		        end)
+		    end
 		
-			if rowdots then
-				listenProperty(module.Object.Dots.Dots, rowdots.Dots, 'ImageColor3', row)
+		    if RowDots then
+		        ListenProperty(Module.Object.Dots.Dots, RowDots.Dots, "ImageColor3", Row)
 		
-				rowdots.MouseButton1Click:Connect(toggleOptions)
+		        RowDots.MouseButton1Click:Connect(ToggleOptions)
 		
-				rowdots.MouseButton2Click:Connect(toggleOptions)
-			end
+		        RowDots.MouseButton2Click:Connect(ToggleOptions)
+		    end
 		
-			if rowedit then
-				listenProperty(module.Edit, rowedit, 'Visible', row)
-				listenProperty(module.Edit.EditBox, rowedit.EditBox, 'BackgroundTransparency', row)
-				listenProperty(module.Edit.EditBox.UIStroke, rowedit.EditBox.UIStroke, 'Color', row)
+		    if RowEdit then
+		        ListenProperty(Module.Edit, RowEdit, "Visible", Row)
+		        ListenProperty(Module.Edit.EditBox, RowEdit.EditBox, "BackgroundTransparency", Row)
+		        ListenProperty(Module.Edit.EditBox.UIStroke, RowEdit.EditBox.UIStroke, "Color", Row)
 		
-				rowedit.MouseButton1Click:Connect(function()
-					module:SetVisible(not module.Visible)
-				end)
-			end
+		        RowEdit.MouseButton1Click:Connect(function()
+		            Module:SetVisible(not Module.Visible)
+		        end)
+		    end
 		
-			row:GetPropertyChangedSignal('Visible'):Connect(function()
-				if not row.Visible then
-					options.Visible = false
-				end
-			end)
+		    Row:GetPropertyChangedSignal("Visible"):Connect(function()
+		        if not Row.Visible then
+		            Options.Visible = false
+		        end
+		    end)
 		
-			row.MouseEnter:Connect(function()
-				hovered = true
-				paint()
-			end)
+		    Row.MouseEnter:Connect(function()
+		        Hovered = true
+		        Paint()
+		    end)
 		
-			row.MouseLeave:Connect(function()
-				hovered = false
-				paint()
-			end)
+		    Row.MouseLeave:Connect(function()
+		        Hovered = false
+		        Paint()
+		    end)
 		
-			row.MouseButton1Click:Connect(function()
-				if vape.EditGUI then
-					return
-				end
+		    Row.MouseButton1Click:Connect(function()
+		        if vape.EditGUI then
+		            return
+		        end
 		
-				module:Toggle()
-				paint()
-			end)
+		        Module:Toggle()
+		        Paint()
+		    end)
 		
-			row.MouseButton2Click:Connect(toggleOptions)
+		    Row.MouseButton2Click:Connect(ToggleOptions)
 		
-			row.Destroying:Once(function()
-				options:Destroy()
-			end)
-			paint()
+		    Row.Destroying:Once(function()
+		        Options:Destroy()
+		    end)
+		    Paint()
 		
-			return row
+		    return Row
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Enabled = self.Button and self.Button.Enabled,
-				Expanded = self.Expanded,
-				Position = {
-					X = window.Position.X.Offset,
-					Y = window.Position.Y.Offset
-				},
-				Standalone = self.Standalone,
-				StandaloneSet = self.StandaloneSet
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Enabled = self.Button and self.Button.Enabled,
+		        Expanded = self.Expanded,
+		        Position = {
+		            X = Window.Position.X.Offset,
+		            Y = Window.Position.Y.Offset
+		        },
+		        Standalone = self.Standalone,
+		        StandaloneSet = self.StandaloneSet
+		    }
 		end
 		
-		function component:SetStandalone(state, byUser)
-			self.Standalone = state
-			self.StandaloneSet = self.StandaloneSet or byUser
-			window.Visible = state
+		function Component:SetStandalone(State: boolean, ByUser: boolean?)
+		    self.Standalone = State
+		    self.StandaloneSet = self.StandaloneSet or ByUser
+		    Window.Visible = State
 		
-			if self.Paint then
-				self.Paint()
-			end
+		    if self.Paint then
+		        self.Paint()
+		    end
 		end
 		
-		function component:UpdateHidden()
-			local count = 0
+		function Component:UpdateHidden()
+		    local Count: number = 0
 		
-			for _, module in vape.Modules do
-				if module.Category == props.Name and not module.Visible then
-					count += 1
-				end
-			end
+		    for _, Module: any in vape.Modules do
+		        if Module.Category == Props.Name and not Module.Visible then
+		            Count += 1
+		        end
+		    end
 		
-			if count > 0 then
-				pencil.Image = getvapeasset('kingvape/assets/new/newhide.png')
-				pencil.Position = UDim2.fromOffset(3, 14)
-				pencil.Size = UDim2.fromOffset(14, 12)
-			else
-				pencil.Image = getvapeasset('kingvape/assets/new/editlarge.png')
-				pencil.Position = UDim2.fromOffset(4, 14)
-				pencil.Size = UDim2.fromOffset(12, 12)
-			end
+		    if Count > 0 then
+		        Pencil.Image = GetVapeAsset("kingvape/assets/new/newhide.png")
+		        Pencil.Position = UDim2.fromOffset(3, 14)
+		        Pencil.Size = UDim2.fromOffset(14, 12)
+		    else
+		        Pencil.Image = GetVapeAsset("kingvape/assets/new/editlarge.png")
+		        Pencil.Position = UDim2.fromOffset(4, 14)
+		        Pencil.Size = UDim2.fromOffset(12, 12)
+		    end
 		
-			hiddencount.Text = count > 0 and tostring(count) or ''
-			hiddencount.Visible = count > 0 and pencilbutton.Visible
+		    HiddenCount.Text = Count > 0 and tostring(Count) or ""
+		    HiddenCount.Visible = Count > 0 and PencilButton.Visible
 		end
 		
-		for index, comp in components do
-			component['Create'..index] = function(_, props)
-				return comp(props, children, component)
-			end
+		for ComponentName: string, Constructor: (...any) -> ...any in Components do
+		    Component[`Create{ComponentName}`] = function(_, Properties)
+		        return Constructor(Properties, Children, Component)
+		    end
 		end
 		
-		arrowbutton.MouseButton1Click:Connect(function()
-			component:Expand()
+		ArrowButton.MouseButton1Click:Connect(function()
+		    Component:Expand()
 		end)
 		
-		arrowbutton.MouseButton2Click:Connect(function()
-			component:Expand()
+		ArrowButton.MouseButton2Click:Connect(function()
+		    Component:Expand()
 		end)
 		
-		arrowbutton.MouseEnter:Connect(function()
-			arrow.ImageColor3 = Color3.fromRGB(220, 220, 220)
+		ArrowButton.MouseEnter:Connect(function()
+		    Arrow.ImageColor3 = Color3.fromRGB(220, 220, 220)
 		end)
 		
-		arrowbutton.MouseLeave:Connect(function()
-			arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
+		ArrowButton.MouseLeave:Connect(function()
+		    Arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 		end)
 		
-		done.MouseButton1Click:Connect(function()
-			vape.EditGUI = false
-			pencilbutton.Visible = true
+		Done.MouseButton1Click:Connect(function()
+		    vape.EditGUI = false
+		    PencilButton.Visible = true
 		
-			for _, category in vape.Categories do
-				if category.Type == 'Category' then
-					category.Done.Visible = false
-					category:UpdateHidden()
-				end
-			end
+		    for _, Category: any in vape.Categories do
+		        if Category.Type == "Category" then
+		            Category.Done.Visible = false
+		            Category:UpdateHidden()
+		        end
+		    end
 		
-			for _, module in vape.Modules do
-				module.Object.Visible = module.Visible
-				module.Object.Text = string.rep(' ', 12)..module.Name
-				module.Edit.Visible = false
-			end
+		    for _, Module: any in vape.Modules do
+		        Module.Object.Visible = Module.Visible
+		        Module.Object.Text = `{string.rep(" ", 12)}{Module.Name}`
+		        Module.Edit.Visible = false
+		    end
 		end)
 		
-		done.MouseEnter:Connect(function()
-			done.TextColor3 = Color3.fromRGB(220, 220, 220)
+		Done.MouseEnter:Connect(function()
+		    Done.TextColor3 = Color3.fromRGB(220, 220, 220)
 		end)
 		
-		done.MouseLeave:Connect(function()
-			done.TextColor3 = Color3.fromRGB(140, 140, 140)
+		Done.MouseLeave:Connect(function()
+		    Done.TextColor3 = Color3.fromRGB(140, 140, 140)
 		end)
 		
-		pencilbutton.MouseButton1Click:Connect(function()
-			vape.EditGUI = true
-			pencilbutton.Visible = false
+		PencilButton.MouseButton1Click:Connect(function()
+		    vape.EditGUI = true
+		    PencilButton.Visible = false
 		
-			for _, category in vape.Categories do
-				if category.Type == 'Category' then
-					category.Done.Visible = true
-				end
-			end
+		    for _, Category: any in vape.Categories do
+		        if Category.Type == "Category" then
+		            Category.Done.Visible = true
+		        end
+		    end
 		
-			for _, module in vape.Modules do
-				module.Object.Visible = true
-				module.Object.Text = string.rep(' ', 50)..module.Name
-				module.Edit.Visible = true
-			end
+		    for _, Module: any in vape.Modules do
+		        Module.Object.Visible = true
+		        Module.Object.Text = `{string.rep(" ", 50)}{Module.Name}`
+		        Module.Edit.Visible = true
+		    end
 		end)
 		
-		pencilbutton.MouseButton2Click:Connect(function()
-			component:Expand()
+		PencilButton.MouseButton2Click:Connect(function()
+		    Component:Expand()
 		end)
 		
-		pencilbutton.MouseEnter:Connect(function()
-			pencil.ImageColor3 = Color3.fromRGB(220, 220, 220)
+		PencilButton.MouseEnter:Connect(function()
+		    Pencil.ImageColor3 = Color3.fromRGB(220, 220, 220)
 		end)
 		
-		pencilbutton.MouseLeave:Connect(function()
-			pencil.ImageColor3 = Color3.fromRGB(140, 140, 140)
+		PencilButton.MouseLeave:Connect(function()
+		    Pencil.ImageColor3 = Color3.fromRGB(140, 140, 140)
 		end)
 		
-		window.MouseEnter:Connect(function()
-			pencilbutton.Visible = not vape.EditGUI
-			component:UpdateHidden()
+		Window.MouseEnter:Connect(function()
+		    PencilButton.Visible = not vape.EditGUI
+		    Component:UpdateHidden()
 		end)
 		
-		window.MouseLeave:Connect(function()
-			pencilbutton.Visible = false
-			hiddencount.Visible = false
+		Window.MouseLeave:Connect(function()
+		    PencilButton.Visible = false
+		    HiddenCount.Visible = false
 		end)
 		
-		window.InputBegan:Connect(function(input)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		Window.InputBegan:Connect(function(Input: InputObject)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if input.Position.Y < window.AbsolutePosition.Y + 41 and input.UserInputType == Enum.UserInputType.MouseButton2 then
-				component:Expand()
-			end
+		    if Input.Position.Y < Window.AbsolutePosition.Y + 41 and Input.UserInputType == Enum.UserInputType.MouseButton2 then
+		        Component:Expand()
+		    end
 		end)
 		
-		children:GetPropertyChangedSignal('CanvasPosition'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		Children:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			divider.Visible = children.CanvasPosition.Y > 10 and children.Visible
+		    Divider.Visible = Children.CanvasPosition.Y > 10 and Children.Visible
 		end)
 		
-		windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		WindowList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			children.CanvasSize = UDim2.fromOffset(0, windowlist.AbsoluteContentSize.Y / scale.Scale)
-			if component.Expanded then
-				window.Size = UDim2.fromOffset(220, math.min(41 + windowlist.AbsoluteContentSize.Y / scale.Scale, 601))
-			end
+		    Children.CanvasSize = UDim2.fromOffset(0, WindowList.AbsoluteContentSize.Y / Scale.Scale)
+		    if Component.Expanded then
+		        Window.Size = UDim2.fromOffset(220, math.min(41 + WindowList.AbsoluteContentSize.Y / Scale.Scale, 601))
+		    end
 		end)
 		
-		if props.Expanded then
-			component:Expand()
+		if Props.Expanded then
+		    Component:Expand()
 		end
 		
-		if not props.NoButton then
-			component.Button = vape.Categories.Main:CreateGUIButton({
-				Name = props.Name,
-				Icon = props.Icon,
-				Size = props.Size,
-				Window = window
-			})
+		if not Props.NoButton then
+		    Component.Button = vape.Categories.Main:CreateGUIButton({
+		        Name = Props.Name,
+		        Icon = Props.Icon,
+		        Size = Props.Size,
+		        Window = Window
+		    })
 		end
 		
-		component.Object = window
-		vape.Categories[props.Name] = component
+		Component.Object = Window
+		vape.Categories[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	CategoryList = function(props, children, api)
-		local component = {
-			Expanded = false,
-			List = {},
-			ListEnabled = {},
-			Objects = {},
-			Options = {},
-			Type = 'CategoryList'
+	CategoryList = function(Props, Children, API)
+		local Component = {
+		    Expanded = false,
+		    List = {},
+		    ListEnabled = {},
+		    Objects = {},
+		    Options = {},
+		    Type = "CategoryList"
 		}
-		props.Color = props.Color or Color3.fromRGB(5, 134, 105)
-		
-		local window = Instance.new('TextButton')
-		window.AutoButtonColor = false
-		window.BackgroundColor3 = uipallet.Main
-		window.Name = props.Name..'CategoryList'
-		window.Position = UDim2.fromOffset(240, 46)
-		window.Size = UDim2.fromOffset(220, 45)
-		window.Text = ''
-		window.Visible = false
-		window.Parent = clickgui
-		addBlur(window)
-		addCorner(window)
-		addDragHandler(window)
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = props.Icon
-		icon.ImageColor3 = uipallet.Text
-		icon.Name = 'Icon'
-		icon.Size = props.Size
-		icon.Position = props.Position or UDim2.fromOffset(12, (props.Size.X.Offset > 20 and 13 or 12))
-		icon.Parent = window
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Name = 'Title'
-		title.Size = UDim2.new(1, -(props.Size.X.Offset > 20 and 44 or 36), 0, 20)
-		title.Position = UDim2.fromOffset(math.abs(title.Size.X.Offset), 12)
-		title.Text = props.Name
-		title.TextColor3 = uipallet.Text
-		title.TextSize = 13
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = window
-		local arrowbutton = Instance.new('TextButton')
-		arrowbutton.BackgroundTransparency = 1
-		arrowbutton.Name = 'Arrow'
-		arrowbutton.Position = UDim2.new(1, -40, 0, 0)
-		arrowbutton.Size = UDim2.fromOffset(40, 40)
-		arrowbutton.Text = ''
-		arrowbutton.Parent = window
-		local arrow = Instance.new('ImageLabel')
-		arrow.Name = 'Arrow'
-		arrow.Size = UDim2.fromOffset(9, 4)
-		arrow.Position = UDim2.fromOffset(15, 20)
-		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('kingvape/assets/new/downexpand.png')
-		arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
-		arrow.Rotation = 180
-		arrow.Parent = arrowbutton
-		local children = Instance.new('ScrollingFrame')
-		children.Name = 'Children'
-		children.Size = UDim2.new(1, 0, 1, -45)
-		children.Position = UDim2.fromOffset(0, 45)
-		children.BackgroundTransparency = 1
-		children.BorderSizePixel = 0
-		children.Visible = false
-		children.ScrollBarThickness = 2
-		children.ScrollBarImageTransparency = 0.75
-		children.CanvasSize = UDim2.new()
-		children.Parent = window
-		local childrentwo = Instance.new('Frame')
-		childrentwo.BackgroundTransparency = 1
-		childrentwo.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		childrentwo.Visible = false
-		childrentwo.Parent = children
-		local settings = Instance.new('ImageButton')
-		settings.AutoButtonColor = false
-		settings.BackgroundTransparency = 1
-		settings.Image = getvapeasset('kingvape/assets/new/settings.png')
-		settings.ImageColor3 = color.Dark(uipallet.Text, 0.43)
-		settings.Name = 'Settings'
-		settings.Position = UDim2.new(1, -56, 0, 15)
-		settings.Size = UDim2.fromOffset(14, 14)
-		settings.Parent = window
-		local divider = Instance.new('Frame')
-		divider.BackgroundColor3 = Color3.new(1, 1, 1)
-		divider.BackgroundTransparency = 0.928
-		divider.BorderSizePixel = 0
-		divider.Name = 'Divider'
-		divider.Position = UDim2.fromOffset(0, 41)
-		divider.Size = UDim2.new(1, 0, 0, 1)
-		divider.Visible = false
-		divider.Parent = window
-		local stroke = Instance.new('UIStroke')
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Color = Color3.fromRGB(85, 85, 85)
-		stroke.Transparency = 0.8
-		stroke.Parent = window
-		local windowlist = Instance.new('UIListLayout')
-		windowlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		windowlist.Padding = UDim.new(0, 4)
-		windowlist.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlist.Parent = children
-		local windowlisttwo = Instance.new('UIListLayout')
-		windowlisttwo.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		windowlisttwo.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlisttwo.Parent = childrentwo
-		local addbkg = Instance.new('Frame')
-		addbkg.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-		addbkg.Position = UDim2.fromOffset(10, 45)
-		addbkg.Size = UDim2.fromOffset(200, 31)
-		addbkg.Parent = children
-		addCorner(addbkg)
-		local addbox = addbkg:Clone()
-		addbox.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		addbox.Position = UDim2.fromOffset(1, 1)
-		addbox.Size = UDim2.new(1, -2, 1, -2)
-		addbox.Parent = addbkg
-		local addvalue = Instance.new('TextBox')
-		addvalue.BackgroundTransparency = 1
-		addvalue.ClearTextOnFocus = false
-		addvalue.FontFace = uipallet.Font
-		addvalue.PlaceholderText = props.Placeholder or 'Add entry...'
-		addvalue.PlaceholderColor3 = Color3.new(0.8, 0.8, 0.8)
-		addvalue.Position = UDim2.fromOffset(10, 0)
-		addvalue.Size = UDim2.new(1, -35, 1, 0)
-		addvalue.Text = ''
-		addvalue.TextColor3 = Color3.new(1, 1, 1)
-		addvalue.TextSize = 13
-		addvalue.TextXAlignment = Enum.TextXAlignment.Left
-		addvalue.Parent = addbkg
-		local addbutton = Instance.new('ImageButton')
-		addbutton.AnchorPoint = Vector2.new(0, 0.5)
-		addbutton.BackgroundTransparency = 1
-		addbutton.Image = getvapeasset('kingvape/assets/new/add.png')
-		addbutton.ImageColor3 = props.Color
-		addbutton.ImageTransparency = 0.3
-		addbutton.Name = 'AddButton'
-		addbutton.Position = UDim2.new(1, -26, 0.5, 0)
-		addbutton.Size = UDim2.fromOffset(16, 16)
-		addbutton.Parent = addbkg
-		local rowpaints = {}
-		
-		if props.Profiles then
-			local addrow = Instance.new('Frame')
-			addrow.BackgroundTransparency = 1
-			addrow.LayoutOrder = addbkg.LayoutOrder
-			addrow.Name = 'AddRow'
-			addrow.Size = UDim2.new(1, -20, 0, 40)
-			addrow.Parent = children
-		
-			addbkg.LayoutOrder = addrow.LayoutOrder + 1
-			addbkg.Position = UDim2.fromOffset(0, 0)
-			addbkg.Size = UDim2.fromOffset(200, 31)
-			addbkg.Visible = false
-			addvalue.Size = UDim2.new(1, -35, 1, 0)
-			addvalue.TextSize = 15
-		
-			local function accentColor()
-				return Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-			end
-		
-			local function accentTextColor()
-				return vape:TextColor(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-			end
-		
-			local function addRowButton(name, asset, text, accenticon, tooltip, iconoffset)
-				local iconx = 16 + (iconoffset * 2)
-				local labelx = iconx + 13
-				local width = getfontbounds(text, 11, uipallet.Font).X
-				local button = Instance.new('TextButton')
-				button.AutoButtonColor = false
-				button.BackgroundColor3 = accentColor()
-				button.BackgroundTransparency = 1
-				button.Name = name
-				button.Position = UDim2.fromOffset(0, 5)
-				button.Size = UDim2.fromOffset(width + 40, 29)
-				button.Text = ''
-				button.Parent = addrow
-				addCorner(button, UDim.new(0, 3))
-				addTooltip(button, tooltip)
-				local stroke = Instance.new('UIStroke')
-				stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-				stroke.Color = vapecolors.Outline
-				stroke.Thickness = 1
-				stroke.Transparency = 0.624
-				stroke.Parent = button
-				local icon = Instance.new('ImageLabel')
-				icon.AnchorPoint = Vector2.new(0.5, 0.5)
-				icon.BackgroundTransparency = 1
-				icon.Image = getvapeasset(asset)
-				icon.ImageColor3 = accenticon and accentColor() or vapecolors.Icon
-				icon.Name = 'Icon'
-				icon.Position = UDim2.new(0, iconx, 0.5, 0)
-				icon.Size = UDim2.fromOffset(13, 13)
-				icon.Parent = button
-				local label = Instance.new('TextLabel')
-				label.BackgroundTransparency = 1
-				label.FontFace = uipallet.Font
-				label.Position = UDim2.fromOffset(labelx, 0)
-				label.Size = UDim2.new(1, -labelx, 1, 0)
-				label.Text = text
-				label.TextColor3 = vapecolors.Secondary
-				label.TextSize = 11
-				label.TextXAlignment = Enum.TextXAlignment.Left
-				label.Parent = button
-		
-				local hovered = false
-		
-				local function paint(accent, contrast)
-					accent = accent or accentColor()
-					contrast = contrast or accentTextColor()
-					button.BackgroundColor3 = accent
-					label.TextColor3 = hovered and contrast or vapecolors.Secondary
-					icon.ImageColor3 = hovered and contrast or (accenticon and accent or vapecolors.Icon)
-				end
-		
-				table.insert(rowpaints, paint)
-		
-				button.MouseEnter:Connect(function()
-					hovered = true
-					paint()
-		
-					tween:Tween(button, uipallet.Tween, {
-						BackgroundTransparency = 0
-					})
-				end)
-				button.MouseLeave:Connect(function()
-					hovered = false
-					paint()
-		
-					tween:Tween(button, uipallet.Tween, {
-						BackgroundTransparency = 1
-					})
-				end)
-		
-				return button
-			end
-		
-			local createbkg = addRowButton('CreateNew', 'kingvape/assets/new/add.png', 'CREATE NEW', true, 'Create a new profile', 2)
-		
-			local newprofile = Instance.new('Frame')
-			newprofile.BackgroundColor3 = uipallet.Main
-			newprofile.BorderSizePixel = 0
-			newprofile.Name = 'NewProfile'
-			newprofile.Size = UDim2.new(1, 0, 1, 0)
-			newprofile.Visible = false
-			newprofile.ZIndex = 3
-			newprofile.Parent = window
-		
-			local back = Instance.new('TextButton')
-			back.AutoButtonColor = true
-			back.BackgroundColor3 = color.Light(uipallet.Main, 0.06)
-			back.Name = 'Back'
-			back.Position = UDim2.fromOffset(14, 15)
-			back.Size = UDim2.fromOffset(15, 15)
-			back.Text = ''
-			back.ZIndex = 4
-			back.Parent = newprofile
-			addCorner(back, UDim.new(1, 0))
-			local backicon = Instance.new('ImageLabel')
-			backicon.AnchorPoint = Vector2.new(0.5, 0.5)
-			backicon.BackgroundTransparency = 1
-			backicon.Image = getvapeasset('kingvape/assets/new/back.png')
-			backicon.ImageColor3 = uipallet.Text
-			backicon.Position = UDim2.fromScale(0.5, 0.5)
-			backicon.Size = UDim2.fromScale(1, 1)
-			backicon.ZIndex = 5
-			backicon.Parent = back
-		
-			local newtitle = Instance.new('TextLabel')
-			newtitle.BackgroundTransparency = 1
-			newtitle.FontFace = uipallet.Font
-			newtitle.Position = UDim2.fromOffset(36, 12)
-			newtitle.Size = UDim2.fromOffset(150, 20)
-			newtitle.Text = 'New Profile'
-			newtitle.TextColor3 = uipallet.Text
-			newtitle.TextSize = 13
-			newtitle.TextXAlignment = Enum.TextXAlignment.Left
-			newtitle.ZIndex = 4
-			newtitle.Parent = newprofile
-		
-			local newarrowbutton = Instance.new('TextButton')
-			newarrowbutton.BackgroundTransparency = 1
-			newarrowbutton.Name = 'Arrow'
-			newarrowbutton.Position = UDim2.new(1, -40, 0, 0)
-			newarrowbutton.Size = UDim2.fromOffset(40, 40)
-			newarrowbutton.Text = ''
-			newarrowbutton.ZIndex = 4
-			newarrowbutton.Parent = newprofile
-			local newarrow = Instance.new('ImageLabel')
-			newarrow.BackgroundTransparency = 1
-			newarrow.Image = getvapeasset('kingvape/assets/new/expandup.png')
-			newarrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
-			newarrow.Name = 'Arrow'
-			newarrow.Position = UDim2.fromOffset(20, 19)
-			newarrow.Size = UDim2.fromOffset(9, 4)
-			newarrow.ZIndex = 5
-			newarrow.Parent = newarrowbutton
-			local namebkg = addbkg:Clone()
-			namebkg.Name = 'NameBox'
-			namebkg.Position = UDim2.fromOffset(10, 42)
-			namebkg.Size = UDim2.new(1, -20, 0, 36)
-			namebkg.Visible = true
-			namebkg.ZIndex = 4
-			for _, v in namebkg:GetDescendants() do
-				if v:IsA('GuiObject') then v.ZIndex = 5 end
-			end
-			namebkg.Parent = newprofile
-			local namebox = namebkg:FindFirstChildWhichIsA('TextBox')
-			local nameadd = namebkg:FindFirstChild('AddButton')
-			nameadd.ImageColor3 = accentColor()
-			table.insert(rowpaints, function(accent)
-				nameadd.ImageColor3 = accent
-			end)
-		
-			local countlabel = Instance.new('TextLabel')
-			countlabel.BackgroundTransparency = 1
-			countlabel.FontFace = uipallet.FontSemiBold
-			countlabel.Name = 'Count'
-			countlabel.Position = UDim2.fromOffset(10, 94)
-			countlabel.RichText = true
-			countlabel.Size = UDim2.fromOffset(150, 16)
-			countlabel.Text = ''
-			countlabel.TextColor3 = vapecolors.Muted
-			countlabel.TextSize = 12
-			countlabel.TextXAlignment = Enum.TextXAlignment.Left
-			countlabel.ZIndex = 4
-			countlabel.Parent = newprofile
-		
-			local editall = Instance.new('TextButton')
-			editall.AutoButtonColor = false
-			editall.BackgroundTransparency = 1
-			editall.FontFace = uipallet.Font
-			editall.Name = 'EditAll'
-			editall.Position = UDim2.new(1, -60, 0, 94)
-			editall.Size = UDim2.fromOffset(50, 16)
-			editall.Text = 'edit all'
-			editall.TextColor3 = vapecolors.Secondary
-			editall.TextSize = 12
-			editall.TextXAlignment = Enum.TextXAlignment.Right
-			editall.ZIndex = 4
-			editall.Parent = newprofile
-		
-			local modulelist = Instance.new('ScrollingFrame')
-			modulelist.BackgroundTransparency = 1
-			modulelist.BorderSizePixel = 0
-			modulelist.CanvasSize = UDim2.new()
-			modulelist.Name = 'Modules'
-			modulelist.Position = UDim2.fromOffset(8, 114)
-			modulelist.ScrollBarImageTransparency = 1
-			modulelist.ScrollBarThickness = 0
-			modulelist.Size = UDim2.new(1, -16, 1, -123)
-			modulelist.ZIndex = 4
-			modulelist.Parent = newprofile
-			local modulelayout = Instance.new('UIListLayout')
-			modulelayout.Padding = UDim.new(0, 4)
-			modulelayout.SortOrder = Enum.SortOrder.LayoutOrder
-			modulelayout.Parent = modulelist
-			local modulepadding = Instance.new('UIPadding')
-			modulepadding.PaddingLeft = UDim.new(0, 2)
-			modulepadding.PaddingTop = UDim.new(0, 2)
-			modulepadding.Parent = modulelist
-		
-			local openEditor
-		
-			local function listModules(query, affectedonly)
-				local list = {}
-				for i, v in vape.Modules do
-					local rank = v.Bind.Keys[1] and 1 or (v.Enabled and 2 or 3)
-					if (rank < 3 or not affectedonly) and (query == '' or tostring(i):lower():find(query, 1, true)) then
-						table.insert(list, {Name = tostring(i), Module = v, Rank = rank})
-					end
-				end
-				table.sort(list, function(a, b)
-					if a.Rank ~= b.Rank then
-						return a.Rank < b.Rank
-					end
-		
-					return a.Name < b.Name
-				end)
-		
-				return list
-			end
-		
-			local function addModuleChip(row, text, width, offset, accent)
-				local chip = Instance.new('Frame')
-				chip.AnchorPoint = Vector2.new(1, 0.5)
-				chip.BackgroundColor3 = accent and accentColor() or vapecolors.Outline
-				chip.BackgroundTransparency = accent and 0 or 0.5
-				chip.BorderSizePixel = 0
-				chip.Name = 'Chip'
-				chip.Position = UDim2.new(1, -offset, 0.5, 0)
-				chip.Size = UDim2.fromOffset(width, 16)
-				chip.ZIndex = 5
-				chip.Parent = row
-				addCorner(chip, UDim.new(0, 4))
-				local chiptext = Instance.new('TextLabel')
-				chiptext.BackgroundTransparency = 1
-				chiptext.FontFace = uipallet.FontBold
-				chiptext.Name = 'Text'
-				chiptext.Size = UDim2.fromScale(1, 1)
-				chiptext.Text = text
-				chiptext.TextColor3 = accent and accentTextColor() or vapecolors.Secondary
-				chiptext.TextSize = 10
-				chiptext.ZIndex = 6
-				chiptext.Parent = chip
-		
-				return chip
-			end
-		
-			local refreshid = 0
-		
-			local function refreshModules()
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
-		
-				refreshid += 1
-				local id = refreshid
-				local buildclock = os.clock()
-		
-				for _, v in modulelist:GetChildren() do
-					if v:IsA('TextButton') then
-						v:Destroy()
-					end
-				end
-		
-				local list = listModules('', false)
-				countlabel.Text = `<font color="rgb(209,209,209)">{#listModules('', true)}</font> AFFECTED MODULES`
-		
-				for i, v in list do
-					if id ~= refreshid then return end
-		
-					local bind = v.Module.Bind.Keys[1] and tostring(v.Module.Bind.Keys[1]):upper() or ''
-					local offset = 12
-					local row = Instance.new('TextButton')
-					row.AutoButtonColor = false
-					row.BackgroundColor3 = vapecolors.Panel
-					row.BorderSizePixel = 0
-					row.LayoutOrder = i
-					row.Name = v.Name
-					row.Position = UDim2.fromOffset(10, 0)
-					row.Size = UDim2.new(1, -22, 0, 36)
-					row.Text = ''
-					row.ZIndex = 4
-					row.Parent = modulelist
-					addCorner(row, UDim.new(0, 3))
-					local rowstroke = Instance.new('UIStroke')
-					rowstroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-					rowstroke.Color = vapecolors.Outline
-					rowstroke.Enabled = false
-					rowstroke.Thickness = 2
-					rowstroke.Transparency = 0.2
-					rowstroke.Parent = row
-					local label = Instance.new('TextLabel')
-					label.BackgroundTransparency = 1
-					label.FontFace = uipallet.Font
-					label.Name = 'Label'
-					label.Position = UDim2.fromOffset(10, 0)
-					label.Size = UDim2.new(1, -50, 1, 0)
-					label.Text = v.Name
-					label.TextColor3 = vapecolors.Primary
-					label.TextSize = 14
-					label.TextTruncate = Enum.TextTruncate.AtEnd
-					label.TextXAlignment = Enum.TextXAlignment.Left
-					label.ZIndex = 5
-					label.Parent = row
-		
-					if v.Module.Enabled then
-						addModuleChip(row, 'ON', 28, offset, true)
-						offset += 32
-					end
-		
-					if bind ~= '' then
-						addModuleChip(row, bind, math.max(16, getfontbounds(bind, 10, uipallet.FontBold).X) + 12, offset, false)
-					end
-		
-					row.MouseEnter:Connect(function()
-						rowstroke.Enabled = true
-					end)
-					row.MouseLeave:Connect(function()
-						rowstroke.Enabled = false
-					end)
-					row.MouseButton1Click:Connect(function()
-						openEditor(v.Name)
-					end)
-		
-					if os.clock() - buildclock > 0.004 then
-						task.wait()
-						buildclock = os.clock()
-					end
-				end
-		
-				modulelist.CanvasSize = UDim2.fromOffset(0, (#list * 40) + 4)
-			end
-		
-			local editor = Instance.new('Frame')
-			editor.BackgroundColor3 = uipallet.Main
-			editor.Name = 'ModuleEditor'
-			editor.Position = UDim2.new(0.5, -336, 0.5, -190)
-			editor.Size = UDim2.fromOffset(672, 380)
-			editor.Visible = false
-			editor.Parent = scaledgui
-			addShadow(editor)
-			addCorner(editor)
-			addDragHandler(editor)
-			table.insert(vape.Windows, editor)
-		
-			local editorside = Instance.new('Frame')
-			editorside.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-			editorside.BorderSizePixel = 0
-			editorside.Name = 'Sidebar'
-			editorside.Size = UDim2.fromOffset(244, 380)
-			editorside.Parent = editor
-			addCorner(editorside)
-			local sideedge = Instance.new('Frame')
-			sideedge.BackgroundColor3 = editorside.BackgroundColor3
-			sideedge.BorderSizePixel = 0
-			sideedge.Name = 'Edge'
-			sideedge.Position = UDim2.fromOffset(238, 0)
-			sideedge.Size = UDim2.fromOffset(6, 380)
-			sideedge.Parent = editorside
-		
-			local editortitle = Instance.new('TextLabel')
-			editortitle.BackgroundTransparency = 1
-			editortitle.FontFace = uipallet.FontSemiBold
-			editortitle.Name = 'Title'
-			editortitle.Position = UDim2.fromOffset(24, 21)
-			editortitle.Size = UDim2.fromOffset(200, 28)
-			editortitle.Text = ''
-			editortitle.TextColor3 = Color3.new(1, 1, 1)
-			editortitle.TextSize = 19
-			editortitle.TextTruncate = Enum.TextTruncate.AtEnd
-			editortitle.TextXAlignment = Enum.TextXAlignment.Left
-			editortitle.Parent = editorside
-		
-			local searchbkg = Instance.new('Frame')
-			searchbkg.BackgroundColor3 = color.Dark(uipallet.Main, 0.015)
-			searchbkg.BorderSizePixel = 0
-			searchbkg.Name = 'Search'
-			searchbkg.Position = UDim2.fromOffset(24, 57)
-			searchbkg.Size = UDim2.fromOffset(176, 32)
-			searchbkg.Parent = editorside
-			addCorner(searchbkg)
-			local searchstroke = Instance.new('UIStroke')
-			searchstroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			searchstroke.Color = color.Light(uipallet.Main, 0.06)
-			searchstroke.Parent = searchbkg
-			local searchicon = Instance.new('ImageLabel')
-			searchicon.BackgroundTransparency = 1
-			searchicon.Image = getvapeasset('kingvape/assets/new/search.png')
-			searchicon.ImageColor3 = Color3.fromRGB(122, 122, 122)
-			searchicon.Name = 'Icon'
-			searchicon.Position = UDim2.fromOffset(12, 9)
-			searchicon.Size = UDim2.fromOffset(12, 12)
-			searchicon.Parent = searchbkg
-			local searchbox = Instance.new('TextBox')
-			searchbox.BackgroundTransparency = 1
-			searchbox.ClearTextOnFocus = false
-			searchbox.FontFace = uipallet.Font
-			searchbox.PlaceholderColor3 = Color3.fromRGB(122, 122, 122)
-			searchbox.PlaceholderText = 'Search modules...'
-			searchbox.Position = UDim2.fromOffset(33, 0)
-			searchbox.Size = UDim2.new(1, -44, 1, 0)
-			searchbox.Text = ''
-			searchbox.TextColor3 = uipallet.Text
-			searchbox.TextSize = 13
-			searchbox.TextXAlignment = Enum.TextXAlignment.Left
-			searchbox.Parent = searchbkg
-		
-			local filterbtn = Instance.new('TextButton')
-			filterbtn.AutoButtonColor = false
-			filterbtn.BackgroundColor3 = searchbkg.BackgroundColor3
-			filterbtn.Name = 'Filter'
-			filterbtn.Position = UDim2.fromOffset(204, 57)
-			filterbtn.Size = UDim2.fromOffset(32, 32)
-			filterbtn.Text = ''
-			filterbtn.Parent = editorside
-			addCorner(filterbtn)
-			local filterstroke = searchstroke:Clone()
-			filterstroke.Parent = filterbtn
-			local filtericon = Instance.new('Frame')
-			filtericon.AnchorPoint = Vector2.new(0.5, 0.5)
-			filtericon.BackgroundTransparency = 1
-			filtericon.Name = 'Icon'
-			filtericon.Position = UDim2.fromScale(0.5, 0.5)
-			filtericon.Size = UDim2.fromOffset(12, 10)
-			filtericon.Parent = filterbtn
-			local filterbars = {}
-			for i, v in {12, 8, 4} do
-				local bar = Instance.new('Frame')
-				bar.AnchorPoint = Vector2.new(0.5, 0)
-				bar.BackgroundColor3 = Color3.fromRGB(171, 171, 171)
-				bar.BorderSizePixel = 0
-				bar.Name = `Bar{i}`
-				bar.Position = UDim2.new(0.5, 0, 0, (i - 1) * 4)
-				bar.Size = UDim2.fromOffset(v, 2)
-				bar.Parent = filtericon
-				addCorner(bar, UDim.new(1, 0))
-				table.insert(filterbars, bar)
-			end
-		
-			local editorcount = Instance.new('TextLabel')
-			editorcount.BackgroundTransparency = 1
-			editorcount.FontFace = uipallet.FontBold
-			editorcount.Name = 'Count'
-			editorcount.Position = UDim2.fromOffset(28, 101)
-			editorcount.RichText = true
-			editorcount.Size = UDim2.fromOffset(160, 24)
-			editorcount.Text = ''
-			editorcount.TextColor3 = vapecolors.Muted
-			editorcount.TextSize = 13
-			editorcount.TextXAlignment = Enum.TextXAlignment.Left
-			editorcount.Parent = editorside
-		
-			local resetall = Instance.new('TextButton')
-			resetall.AutoButtonColor = false
-			resetall.BackgroundTransparency = 1
-			resetall.FontFace = uipallet.Font
-			resetall.Name = 'ResetAll'
-			resetall.Position = UDim2.fromOffset(158, 101)
-			resetall.Size = UDim2.fromOffset(70, 24)
-			resetall.Text = 'Reset all'
-			resetall.TextColor3 = vapecolors.Secondary
-			resetall.TextSize = 12
-			resetall.TextXAlignment = Enum.TextXAlignment.Right
-			resetall.Parent = editorside
-		
-			local editorlist = Instance.new('ScrollingFrame')
-			editorlist.BackgroundTransparency = 1
-			editorlist.BorderSizePixel = 0
-			editorlist.CanvasSize = UDim2.new()
-			editorlist.Name = 'Modules'
-			editorlist.Position = UDim2.fromOffset(24, 129)
-			editorlist.ScrollBarImageTransparency = 1
-			editorlist.ScrollBarThickness = 0
-			editorlist.Size = UDim2.fromOffset(216, 243)
-			editorlist.Parent = editorside
-			local editorlayout = Instance.new('UIListLayout')
-			editorlayout.Padding = UDim.new(0, 2)
-			editorlayout.SortOrder = Enum.SortOrder.LayoutOrder
-			editorlayout.Parent = editorlist
-			local editorpadding = Instance.new('UIPadding')
-			editorpadding.PaddingLeft = UDim.new(0, 2)
-			editorpadding.PaddingTop = UDim.new(0, 2)
-			editorpadding.Parent = editorlist
-		
-			local moduletitle = Instance.new('TextLabel')
-			moduletitle.BackgroundTransparency = 1
-			moduletitle.FontFace = uipallet.FontSemiBold
-			moduletitle.Name = 'ModuleTitle'
-			moduletitle.Position = UDim2.fromOffset(260, 28)
-			moduletitle.Size = UDim2.fromOffset(260, 26)
-			moduletitle.Text = ''
-			moduletitle.TextColor3 = Color3.new(1, 1, 1)
-			moduletitle.TextSize = 17
-			moduletitle.TextTruncate = Enum.TextTruncate.AtEnd
-			moduletitle.TextXAlignment = Enum.TextXAlignment.Left
-			moduletitle.Parent = editor
-		
-			local function addChip(parent, name, width)
-				local chip = Instance.new('Frame')
-				chip.BackgroundColor3 = color.Light(uipallet.Main, 0.09)
-				chip.BorderSizePixel = 0
-				chip.Name = name
-				chip.Size = UDim2.fromOffset(width, 17)
-				chip.Visible = false
-				chip.Parent = parent
-				addCorner(chip, UDim.new(0, 4))
-				local text = Instance.new('TextLabel')
-				text.BackgroundTransparency = 1
-				text.FontFace = uipallet.FontSemiBold
-				text.Name = 'Text'
-				text.Size = UDim2.fromScale(1, 1)
-				text.Text = ''
-				text.TextColor3 = Color3.fromRGB(171, 171, 171)
-				text.TextSize = 10
-				text.ZIndex = 2
-				text.Parent = chip
-				return chip, text
-			end
-		
-			local function chipWidth(text)
-				return math.max(getfontbounds(text, 10, uipallet.FontSemiBold).X + 14, 22)
-			end
-		
-			local statechip, statetext = addChip(editor, 'State', 28)
-			local bindchip, bindtext = addChip(editor, 'Bind', 22)
-		
-			local resetmodule = Instance.new('TextButton')
-			resetmodule.AutoButtonColor = false
-			resetmodule.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-			resetmodule.FontFace = uipallet.FontSemiBold
-			resetmodule.Name = 'ResetModule'
-			resetmodule.Position = UDim2.fromOffset(540, 28)
-			resetmodule.Size = UDim2.fromOffset(104, 20)
-			resetmodule.Text = 'RESET THIS MODULE'
-			resetmodule.TextColor3 = Color3.fromRGB(171, 171, 171)
-			resetmodule.TextSize = 10
-			resetmodule.Visible = false
-			resetmodule.Parent = editor
-			addCorner(resetmodule, UDim.new(0, 4))
-		
-			local settingscaption = Instance.new('TextLabel')
-			settingscaption.BackgroundTransparency = 1
-			settingscaption.FontFace = uipallet.FontBold
-			settingscaption.Name = 'Caption'
-			settingscaption.Position = UDim2.fromOffset(260, 56)
-			settingscaption.Size = UDim2.fromOffset(200, 14)
-			settingscaption.Text = 'SETTINGS'
-			settingscaption.TextColor3 = vapecolors.Muted
-			settingscaption.TextSize = 12
-			settingscaption.TextXAlignment = Enum.TextXAlignment.Left
-			settingscaption.Visible = false
-			settingscaption.Parent = editor
-		
-			local settingslist = Instance.new('ScrollingFrame')
-			settingslist.BackgroundTransparency = 1
-			settingslist.BorderSizePixel = 0
-			settingslist.CanvasSize = UDim2.new()
-			settingslist.Name = 'Settings'
-			settingslist.Position = UDim2.fromOffset(260, 70)
-			settingslist.ScrollBarImageTransparency = 1
-			settingslist.ScrollBarThickness = 0
-			settingslist.Size = UDim2.fromOffset(412, 302)
-			settingslist.Parent = editor
-			local settingslayout = Instance.new('UIListLayout')
-			settingslayout.SortOrder = Enum.SortOrder.LayoutOrder
-			settingslayout.Parent = settingslist
-		
-			local editorclose = addCloseButton(editor, false, UDim2.new(1, -35, 0, 8))
-		
-			local targetsscrim = Instance.new('TextButton')
-			targetsscrim.AutoButtonColor = false
-			targetsscrim.BackgroundColor3 = Color3.new()
-			targetsscrim.BackgroundTransparency = 0.45
-			targetsscrim.Name = 'TargetsScrim'
-			targetsscrim.Size = UDim2.fromScale(1, 1)
-			targetsscrim.Text = ''
-			targetsscrim.Visible = false
-			targetsscrim.ZIndex = 8
-			targetsscrim.Parent = editor
-			addCorner(targetsscrim)
-		
-			local targetspanel = Instance.new('Frame')
-			targetspanel.BackgroundColor3 = color.Light(uipallet.Main, 0.07)
-			targetspanel.BorderSizePixel = 0
-			targetspanel.Name = 'TargetsPanel'
-			targetspanel.Size = UDim2.fromOffset(220, 113)
-			targetspanel.Visible = false
-			targetspanel.ZIndex = 9
-			targetspanel.Parent = editor
-			addCorner(targetspanel, UDim.new(0, 6))
-		
-			local function addResetButton(row, y, callback)
-				local reset = Instance.new('TextButton')
-				reset.AutoButtonColor = false
-				reset.BackgroundTransparency = 1
-				reset.Name = 'Reset'
-				reset.Position = UDim2.fromOffset(368, y)
-				reset.Size = UDim2.fromOffset(18, 18)
-				reset.Text = ''
-				reset.Parent = row
-				local ring = Instance.new('Frame')
-				ring.AnchorPoint = Vector2.new(0.5, 0.5)
-				ring.BackgroundTransparency = 1
-				ring.Name = 'Ring'
-				ring.Position = UDim2.fromScale(0.5, 0.5)
-				ring.Size = UDim2.fromOffset(12, 12)
-				ring.Parent = reset
-				addCorner(ring, UDim.new(1, 0))
-				local ringstroke = Instance.new('UIStroke')
-				ringstroke.Color = Color3.fromRGB(128, 128, 128)
-				ringstroke.Thickness = 1.3
-				ringstroke.Parent = ring
-				local gap = Instance.new('Frame')
-				gap.BackgroundColor3 = uipallet.Main
-				gap.BorderSizePixel = 0
-				gap.Name = 'Gap'
-				gap.Position = UDim2.fromOffset(6, -2)
-				gap.Size = UDim2.fromOffset(6, 5)
-				gap.Parent = ring
-				local head = Instance.new('ImageLabel')
-				head.BackgroundTransparency = 1
-				head.Image = getvapeasset('kingvape/assets/new/range.png')
-				head.ImageColor3 = ringstroke.Color
-				head.Name = 'Head'
-				head.Position = UDim2.fromOffset(7, -1)
-				head.Rotation = 180
-				head.Size = UDim2.fromOffset(5, 6)
-				head.Parent = ring
-		
-				reset.MouseEnter:Connect(function()
-					ringstroke.Color = Color3.new(1, 1, 1)
-					head.ImageColor3 = ringstroke.Color
-				end)
-				reset.MouseLeave:Connect(function()
-					ringstroke.Color = Color3.fromRGB(128, 128, 128)
-					head.ImageColor3 = ringstroke.Color
-				end)
-				reset.MouseButton1Click:Connect(callback)
-		
-				return reset
-			end
-		
-			local function addRowLabel(row, text, size, y, height)
-				local label = Instance.new('TextLabel')
-				label.BackgroundTransparency = 1
-				label.FontFace = uipallet.Font
-				label.Name = 'Label'
-				label.Position = UDim2.fromOffset(0, y)
-				label.Size = UDim2.fromOffset(240, height)
-				label.Text = text
-				label.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				label.TextSize = size
-				label.TextTruncate = Enum.TextTruncate.AtEnd
-				label.TextXAlignment = Enum.TextXAlignment.Left
-				label.Parent = row
-				return label
-			end
-		
-			local function addValueLabel(row, text, y)
-				local label = Instance.new('TextLabel')
-				label.BackgroundTransparency = 1
-				label.FontFace = uipallet.Font
-				label.Name = 'Value'
-				label.Position = UDim2.fromOffset(197, y)
-				label.Size = UDim2.fromOffset(160, 22)
-				label.Text = text
-				label.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				label.TextSize = 12
-				label.TextXAlignment = Enum.TextXAlignment.Right
-				label.Parent = row
-				return label
-			end
-		
-			local function addTogglePill(parent, x, y, enabled)
-				local pill = Instance.new('TextButton')
-				pill.AutoButtonColor = false
-				pill.BackgroundColor3 = enabled and accentColor() or color.Light(uipallet.Main, 0.14)
-				pill.Name = 'Toggle'
-				pill.Position = UDim2.fromOffset(x, y)
-				pill.Size = UDim2.fromOffset(25, 13)
-				pill.Text = ''
-				pill.Parent = parent
-				addCorner(pill, UDim.new(1, 0))
-				local knob = Instance.new('Frame')
-				knob.BackgroundColor3 = enabled and accentTextColor() or Color3.new(1, 1, 1)
-				knob.BorderSizePixel = 0
-				knob.Name = 'Knob'
-				knob.Position = UDim2.fromOffset(enabled and 14 or 2, 2)
-				knob.Size = UDim2.fromOffset(9, 9)
-				knob.Parent = pill
-				addCorner(knob, UDim.new(1, 0))
-				return pill, knob
-			end
-		
-			local function trackRatio(ratio)
-				return math.clamp(ratio, 0.04, 0.96)
-			end
-		
-			local function addSliderTrack(row, y)
-				local track = Instance.new('Frame')
-				track.BackgroundColor3 = color.Light(uipallet.Main, 0.09)
-				track.BorderSizePixel = 0
-				track.Name = 'Track'
-				track.Position = UDim2.fromOffset(0, y)
-				track.Size = UDim2.fromOffset(357, 3)
-				track.Parent = row
-				addCorner(track, UDim.new(1, 0))
-				local fill = Instance.new('Frame')
-				fill.BackgroundColor3 = accentColor()
-				fill.BorderSizePixel = 0
-				fill.Name = 'Fill'
-				fill.Parent = track
-				addCorner(fill, UDim.new(1, 0))
-				return track, fill
-			end
-		
-			local function addDragInput(row, track, callback)
-				row.InputBegan:Connect(function(inputObj)
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
-		
-					if
-						(inputObj.UserInputType ~= Enum.UserInputType.MouseButton1 and inputObj.UserInputType ~= Enum.UserInputType.Touch)
-						or (inputObj.Position.Y - row.AbsolutePosition.Y) < (26 * scale.Scale)
-					then
-						return
-					end
-		
-					callback(math.clamp((inputObj.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1), true)
-					local changed = inputService.InputChanged:Connect(function(input)
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
-		
-						if input.UserInputType == (inputObj.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
-							callback(math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1), false)
-						end
-					end)
-		
-					local ended
-					ended = inputObj.Changed:Connect(function()
-						if inputObj.UserInputState == Enum.UserInputState.End then
-							changed:Disconnect()
-							ended:Disconnect()
-							callback(nil, false, true)
-						end
-					end)
-				end)
-			end
-		
-			local function getOptions(mod)
-				local order = mod.Children and mod.Children:GetChildren() or {}
-				local list = {}
-				for i, v in mod.Options do
-					table.insert(list, {
-						Name = tostring(i),
-						Option = v,
-						Order = table.find(order, v.Object) or 1000
-					})
-				end
-				table.sort(list, function(a, b)
-					return a.Order < b.Order
-				end)
-		
-				return list
-			end
-		
-			local function sameList(list, other)
-				if #list ~= #other then return false end
-				for _, v in list do
-					if not table.find(other, v) then return false end
-				end
-		
-				return true
-			end
-		
-			local function isDefault(opt)
-				if opt.Type == 'Toggle' then
-					return opt.Enabled == opt.Default
-				elseif opt.Type == 'Slider' then
-					return opt.Value == opt.Default
-				elseif opt.Type == 'TwoSlider' then
-					return opt.ValueMin == opt.DefaultMin and opt.ValueMax == opt.DefaultMax
-				elseif opt.Type == 'Dropdown' or opt.Type == 'TextBox' then
-					return opt.Value == opt.Default
-				elseif opt.Type == 'TextList' then
-					return sameList(opt.List, opt.Default) and sameList(opt.ListEnabled, opt.Default)
-				elseif opt.Type == 'Targets' then
-					return opt.Players.Enabled == opt.Default.Players and opt.NPCs.Enabled == opt.Default.NPCs and opt.Invisible.Enabled == opt.Default.Invisible and opt.Walls.Enabled == opt.Default.Walls and opt.Priority.Value == opt.Default.Priority
-				end
-		
-				return true
-			end
-		
-			local function resetOption(opt)
-				if opt.Type == 'Toggle' then
-					if opt.Enabled ~= opt.Default then
-						opt:Toggle()
-					end
-				elseif opt.Type == 'Slider' then
-					opt:SetValue(opt.Default, nil, true)
-				elseif opt.Type == 'TwoSlider' then
-					opt:SetValue(false, opt.DefaultMin)
-					opt:SetValue(true, opt.DefaultMax)
-				elseif opt.Type == 'Dropdown' then
-					opt:SetValue(opt.Default, true)
-				elseif opt.Type == 'TextBox' then
-					opt:SetValue(opt.Default or '')
-				elseif opt.Type == 'TextList' then
-					opt:Load({List = table.clone(opt.Default), ListEnabled = table.clone(opt.Default)})
-				elseif opt.Type == 'Targets' then
-					opt:Load(opt.Default)
-				end
-				vape:QueueSave()
-			end
-		
-			local selectedmodule
-			local selectedname
-			local expandedoption
-			local refreshEditor
-			local refreshSettings
-		
-			local function addToggleRow(entry, order, listicon)
-				local opt = entry.Option
-				local row = Instance.new('Frame')
-				row.BackgroundTransparency = 1
-				row.LayoutOrder = order
-				row.Name = entry.Name
-				row.Size = UDim2.new(1, 0, 0, 30)
-				row.Parent = settingslist
-				addRowLabel(row, entry.Name, 13, 0, 30)
-		
-				if listicon then
-					local icon = Instance.new('ImageLabel')
-					icon.BackgroundTransparency = 1
-					icon.Image = listicon
-					icon.Name = 'ListIcon'
-					icon.Position = UDim2.fromOffset(315, 9)
-					icon.Size = UDim2.fromOffset(14, 12)
-					icon.Parent = row
-				end
-		
-				local pill, knob = addTogglePill(row, 332, 9, opt.Enabled)
-				if not isDefault(opt) then
-					addResetButton(row, 6, function()
-						resetOption(opt)
-						refreshSettings()
-					end)
-				end
-		
-				pill.MouseButton1Click:Connect(function()
-					opt:Toggle()
-					vape:QueueSave()
-		
-					tween:Tween(pill, uipallet.Tween, {
-						BackgroundColor3 = opt.Enabled and accentColor() or color.Light(uipallet.Main, 0.14)
-					})
-		
-					tween:Tween(knob, uipallet.Tween, {
-						Position = UDim2.fromOffset(opt.Enabled and 14 or 2, 2),
-						BackgroundColor3 = opt.Enabled and accentTextColor() or Color3.new(1, 1, 1)
-					})
-		
-					refreshSettings()
-				end)
-			end
-		
-			local function addSliderRow(entry, order)
-				local opt = entry.Option
-				local row = Instance.new('TextButton')
-				row.AutoButtonColor = false
-				row.BackgroundTransparency = 1
-				row.LayoutOrder = order
-				row.Name = entry.Name
-				row.Size = UDim2.new(1, 0, 0, 50)
-				row.Text = ''
-				row.Parent = settingslist
-				addRowLabel(row, entry.Name, 12, 4, 22)
-		
-				local function formatValue()
-					local suffix = type(opt.Suffix) == 'function' and opt.Suffix(opt.Value) or opt.Suffix
-					return suffix and `{opt.Value} {suffix}` or tostring(opt.Value)
-				end
-		
-				local value = addValueLabel(row, formatValue(), 4)
-				local range = math.max(opt.Max - opt.Min, 1e-6)
-				local track, fill = addSliderTrack(row, 36)
-				fill.Size = UDim2.fromScale(trackRatio((opt.Value - opt.Min) / range), 1)
-				local knob = Instance.new('Frame')
-				knob.AnchorPoint = Vector2.new(0.5, 0.5)
-				knob.BackgroundColor3 = accentColor()
-				knob.BorderSizePixel = 0
-				knob.Name = 'Knob'
-				knob.Position = UDim2.fromScale(1, 0.5)
-				knob.Size = UDim2.fromOffset(13, 13)
-				knob.ZIndex = 2
-				knob.Parent = fill
-				addCorner(knob, UDim.new(1, 0))
-		
-				local hadreset = not isDefault(opt)
-				if hadreset then
-					addResetButton(row, 12, function()
-						resetOption(opt)
-						refreshSettings()
-					end)
-				end
-		
-				row.MouseEnter:Connect(function()
-					tween:Tween(knob, uipallet.Tween, {
-						Size = UDim2.fromOffset(15, 15)
-					})
-				end)
-				row.MouseLeave:Connect(function()
-					tween:Tween(knob, uipallet.Tween, {
-						Size = UDim2.fromOffset(13, 13)
-					})
-				end)
-		
-				addDragInput(row, track, function(pos, _, final)
-					if final then
-						opt:SetValue(opt.Value, nil, true)
-						vape:QueueSave()
-						if hadreset == isDefault(opt) then
-							refreshSettings()
-						end
-		
-						return
-					end
-					opt:SetValue(math.floor((opt.Min + range * pos) * opt.Decimal) / opt.Decimal, pos)
-					value.Text = formatValue()
-		
-					tween:Tween(fill, uipallet.Tween, {
-						Size = UDim2.fromScale(trackRatio(pos), 1)
-					})
-				end)
-			end
-		
-			local function addTwoSliderRow(entry, order)
-				local opt = entry.Option
-				local row = Instance.new('TextButton')
-				row.AutoButtonColor = false
-				row.BackgroundTransparency = 1
-				row.LayoutOrder = order
-				row.Name = entry.Name
-				row.Size = UDim2.new(1, 0, 0, 50)
-				row.Text = ''
-				row.Parent = settingslist
-				addRowLabel(row, entry.Name, 12, 4, 22)
-		
-				local maxwidth = getfontbounds(tostring(opt.ValueMax), 12, uipallet.Font).X
-				local maxvalue = addValueLabel(row, opt.ValueMax, 4)
-				local arrow = Instance.new('ImageLabel')
-				arrow.BackgroundTransparency = 1
-				arrow.Name = 'Arrow'
-				arrow.Position = UDim2.fromOffset(339 - maxwidth, 12)
-				arrow.Size = UDim2.fromOffset(12, 6)
-				arrow.Image = getvapeasset('kingvape/assets/new/rangearrow.png')
-				arrow.ImageColor3 = color.Light(uipallet.Main, 0.2)
-				arrow.Parent = row
-				local minvalue = addValueLabel(row, opt.ValueMin, 4)
-				minvalue.Position = UDim2.fromOffset(161 - maxwidth, 4)
-		
-				local range = math.max(opt.Max - opt.Min, 1e-6)
-				local minratio = trackRatio((opt.ValueMin - opt.Min) / range)
-				local maxratio = trackRatio((opt.ValueMax - opt.Min) / range)
-				local track, fill = addSliderTrack(row, 36)
-				fill.Position = UDim2.fromScale(minratio, 0)
-				fill.Size = UDim2.fromScale(math.max(maxratio - minratio, 0), 1)
-		
-				local function addKnob(name, edge, flipped)
-					local knob = Instance.new('ImageLabel')
-					knob.AnchorPoint = Vector2.new(0.5, 0.5)
-					knob.BackgroundTransparency = 1
-					knob.Image = getvapeasset('kingvape/assets/new/range.png')
-					knob.ImageColor3 = accentColor()
-					knob.Name = name
-					knob.Position = UDim2.fromScale(edge, 0.5)
-					knob.Rotation = flipped and 180 or 0
-					knob.Size = UDim2.fromOffset(9, 16)
-					knob.ZIndex = 2
-					knob.Parent = fill
-		
-					knob.MouseEnter:Connect(function()
-						tween:Tween(knob, uipallet.Tween, {
-							Size = UDim2.fromOffset(11, 18)
-						})
-					end)
-					knob.MouseLeave:Connect(function()
-						tween:Tween(knob, uipallet.Tween, {
-							Size = UDim2.fromOffset(9, 16)
-						})
-					end)
-		
-					return knob
-				end
-		
-				addKnob('KnobMin', 0, false)
-				addKnob('KnobMax', 1, true)
-		
-				local hadreset = not isDefault(opt)
-				if hadreset then
-					addResetButton(row, 12, function()
-						resetOption(opt)
-						refreshSettings()
-					end)
-				end
-		
-				local editingmax = false
-				addDragInput(row, track, function(pos, began, final)
-					if final then
-						vape:QueueSave()
-						if hadreset == isDefault(opt) then
-							refreshSettings()
-						end
-		
-						return
-					end
-					if began then
-						editingmax = math.abs(pos - maxratio) <= math.abs(pos - minratio)
-					end
-					opt:SetValue(editingmax, math.floor((opt.Min + range * pos) * opt.Decimal) / opt.Decimal)
-					minratio = trackRatio((opt.ValueMin - opt.Min) / range)
-					maxratio = trackRatio((opt.ValueMax - opt.Min) / range)
-					minvalue.Text = opt.ValueMin
-					maxvalue.Text = opt.ValueMax
-		
-					tween:Tween(fill, uipallet.Tween, {
-						Position = UDim2.fromScale(minratio, 0),
-						Size = UDim2.fromScale(math.max(maxratio - minratio, 0), 1)
-					})
-				end)
-			end
-		
-			local function addDropdownRow(entry, order, expanded)
-				local opt = entry.Option
-				local options = opt.List or {}
-				local row = Instance.new('Frame')
-				row.BackgroundTransparency = 1
-				row.LayoutOrder = order
-				row.Name = entry.Name
-				row.Size = UDim2.new(1, 0, 0, expanded and 40 + (#options * 26) or 40)
-				row.Parent = settingslist
-		
-				local bkg = Instance.new('Frame')
-				bkg.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-				bkg.BorderSizePixel = 0
-				bkg.Name = 'BKG'
-				bkg.Position = UDim2.fromOffset(0, 4)
-				bkg.Size = UDim2.new(0, 357, 1, -9)
-				bkg.Parent = row
-				addCorner(bkg, UDim.new(0, 6))
-				local button = Instance.new('TextButton')
-				button.AutoButtonColor = false
-				button.BackgroundColor3 = uipallet.Main
-				button.Name = 'Dropdown'
-				button.Position = UDim2.fromOffset(1, 1)
-				button.Size = UDim2.new(1, -2, 1, -2)
-				button.Text = ''
-				button.Parent = bkg
-				addCorner(button, UDim.new(0, 6))
-				local title = Instance.new('TextLabel')
-				title.BackgroundTransparency = 1
-				title.FontFace = uipallet.Font
-				title.Name = 'Title'
-				title.Position = UDim2.fromOffset(14, 0)
-				title.Size = UDim2.new(1, -44, 0, 29)
-				title.Text = `{entry.Name} - {opt.Value}`
-				title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				title.TextSize = 13
-				title.TextTruncate = Enum.TextTruncate.AtEnd
-				title.TextXAlignment = Enum.TextXAlignment.Left
-				title.Parent = button
-				local arrow = Instance.new('ImageLabel')
-				arrow.BackgroundTransparency = 1
-				arrow.Image = getvapeasset('kingvape/assets/new/expandright.png')
-				arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
-				arrow.Name = 'Arrow'
-				arrow.Position = UDim2.new(1, -17, 0, 11)
-				arrow.Rotation = expanded and 270 or 90
-				arrow.Size = UDim2.fromOffset(4, 8)
-				arrow.Parent = button
-		
-				row.MouseEnter:Connect(function()
-					tween:Tween(bkg, uipallet.Tween, {
-						BackgroundColor3 = color.Light(uipallet.Main, 0.0875)
-					})
-				end)
-				row.MouseLeave:Connect(function()
-					tween:Tween(bkg, uipallet.Tween, {
-						BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-					})
-				end)
-		
-				if not isDefault(opt) then
-					addResetButton(row, 11, function()
-						resetOption(opt)
-						refreshSettings()
-					end)
-				end
-		
-				button.MouseButton1Click:Connect(function()
-					expandedoption = not expanded and entry.Name or nil
-					refreshSettings()
-				end)
-		
-				if not expanded then return end
-		
-				for i, v in options do
-					local choice = Instance.new('TextButton')
-					choice.AutoButtonColor = false
-					choice.BackgroundColor3 = uipallet.Main
-					choice.BorderSizePixel = 0
-					choice.Name = v
-					choice.Position = UDim2.fromOffset(0, 29 + ((i - 1) * 26))
-					choice.Size = UDim2.new(1, 0, 0, 26)
-					choice.Text = ''
-					choice.Parent = button
-					local choicetext = Instance.new('TextLabel')
-					choicetext.BackgroundTransparency = 1
-					choicetext.FontFace = uipallet.Font
-					choicetext.Name = 'Text'
-					choicetext.Position = UDim2.fromOffset(14, 0)
-					choicetext.Size = UDim2.new(1, -28, 1, 0)
-					choicetext.Text = v
-					choicetext.TextColor3 = v == opt.Value and Color3.new(1, 1, 1) or color.Dark(uipallet.Text, 0.16)
-					choicetext.TextSize = 13
-					choicetext.TextTruncate = Enum.TextTruncate.AtEnd
-					choicetext.TextXAlignment = Enum.TextXAlignment.Left
-					choicetext.Parent = choice
-		
-					choice.MouseEnter:Connect(function()
-						tween:Tween(choice, uipallet.Tween, {
-							BackgroundColor3 = color.Light(uipallet.Main, 0.04)
-						})
-					end)
-					choice.MouseLeave:Connect(function()
-						tween:Tween(choice, uipallet.Tween, {
-							BackgroundColor3 = uipallet.Main
-						})
-					end)
-					choice.MouseButton1Click:Connect(function()
-						opt:SetValue(v, true)
-						vape:QueueSave()
-						expandedoption = nil
-						refreshSettings()
-					end)
-				end
-			end
-		
-			local function showTargets(opt, rowy)
-				for _, v in targetspanel:GetChildren() do
-					if not v:IsA('UICorner') then
-						v:Destroy()
-					end
-				end
-		
-				local function addTargetTab(name, toggle, asset, size, x)
-					local tab = Instance.new('TextButton')
-					tab.AutoButtonColor = false
-					tab.BackgroundColor3 = toggle.Enabled and accentColor() or color.Light(uipallet.Main, 0.12)
-					tab.Name = name
-					tab.Position = UDim2.fromOffset(x, 12)
-					tab.Size = UDim2.fromOffset(61, 28)
-					tab.Text = ''
-					tab.ZIndex = 10
-					tab.Parent = targetspanel
-					addCorner(tab, UDim.new(0, 5))
-					local icon = Instance.new('ImageLabel')
-					icon.AnchorPoint = Vector2.new(0.5, 0.5)
-					icon.BackgroundTransparency = 1
-					icon.Image = getvapeasset(asset)
-					icon.ImageColor3 = toggle.Enabled and accentTextColor() or Color3.fromRGB(171, 171, 171)
-					icon.Name = 'Icon'
-					icon.Position = UDim2.fromScale(0.5, 0.5)
-					icon.Size = size
-					icon.ZIndex = 11
-					icon.Parent = tab
-		
-					tab.MouseButton1Click:Connect(function()
-						toggle:Toggle()
-						vape:QueueSave()
-						refreshSettings()
-					end)
-				end
-		
-				addTargetTab('Players', opt.Players, 'kingvape/assets/new/targetplayers1.png', UDim2.fromOffset(15, 16), 12)
-				addTargetTab('NPCs', opt.NPCs, 'kingvape/assets/new/targetnpc1.png', UDim2.fromOffset(12, 16), 79)
-		
-				local function addTargetToggle(name, toggle, y)
-					local label = Instance.new('TextLabel')
-					label.BackgroundTransparency = 1
-					label.FontFace = uipallet.Font
-					label.Name = name
-					label.Position = UDim2.fromOffset(14, y)
-					label.Size = UDim2.new(1, -70, 0, 22)
-					label.Text = name
-					label.TextColor3 = color.Dark(uipallet.Text, 0.16)
-					label.TextSize = 13
-					label.TextXAlignment = Enum.TextXAlignment.Left
-					label.ZIndex = 10
-					label.Parent = targetspanel
-		
-					local pill, knob = addTogglePill(targetspanel, 181, y + 4, toggle.Enabled)
-					pill.ZIndex = 10
-					knob.ZIndex = 11
-					pill.MouseButton1Click:Connect(function()
-						toggle:Toggle()
-						vape:QueueSave()
-						refreshSettings()
-					end)
-				end
-		
-				addTargetToggle('Ignore invisible', opt.Invisible, 52)
-				addTargetToggle('Ignore behind walls', opt.Walls, 84)
-		
-				targetspanel.Position = UDim2.fromOffset(332, 134 + rowy - settingslist.CanvasPosition.Y)
-				targetspanel.Visible = true
-				targetsscrim.Visible = true
-			end
-		
-			local function addTargetsRow(entry, order, rowy, expanded)
-				local opt = entry.Option
-				local row = Instance.new('Frame')
-				row.BackgroundTransparency = 1
-				row.LayoutOrder = order
-				row.Name = entry.Name
-				row.Size = UDim2.new(1, 0, 0, 50)
-				row.Parent = settingslist
-		
-				local bkg = Instance.new('Frame')
-				bkg.BackgroundColor3 = color.Light(uipallet.Main, 0.06)
-				bkg.BorderSizePixel = 0
-				bkg.Name = 'BKG'
-				bkg.Position = UDim2.fromOffset(0, 9)
-				bkg.Size = UDim2.fromOffset(357, 32)
-				bkg.Parent = row
-				addCorner(bkg, UDim.new(0, 6))
-				local inner = Instance.new('Frame')
-				inner.BackgroundColor3 = uipallet.Main
-				inner.BorderSizePixel = 0
-				inner.Name = 'Inner'
-				inner.Position = UDim2.fromOffset(1, 1)
-				inner.Size = UDim2.new(1, -2, 1, -2)
-				inner.Parent = bkg
-				addCorner(inner, UDim.new(0, 6))
-		
-				local tag = Instance.new('Frame')
-				tag.BackgroundColor3 = color.Light(uipallet.Main, 0.055)
-				tag.BorderSizePixel = 0
-				tag.Name = 'Tag'
-				tag.Size = UDim2.fromOffset(81, 30)
-				tag.Parent = inner
-				addCorner(tag, UDim.new(0, 6))
-				local tagicon = Instance.new('ImageLabel')
-				tagicon.BackgroundTransparency = 1
-				tagicon.Image = getvapeasset('kingvape/assets/new/targetstab.png')
-				tagicon.ImageColor3 = Color3.fromRGB(171, 171, 171)
-				tagicon.Name = 'Icon'
-				tagicon.Position = UDim2.fromOffset(14, 9)
-				tagicon.Size = UDim2.fromOffset(15, 12)
-				tagicon.Parent = tag
-				local tagtext = Instance.new('TextLabel')
-				tagtext.BackgroundTransparency = 1
-				tagtext.FontFace = uipallet.Font
-				tagtext.Name = 'Text'
-				tagtext.Position = UDim2.fromOffset(36, 0)
-				tagtext.Size = UDim2.new(1, -36, 1, 0)
-				tagtext.Text = entry.Name
-				tagtext.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				tagtext.TextSize = 13
-				tagtext.TextXAlignment = Enum.TextXAlignment.Left
-				tagtext.Parent = tag
-		
-				local targets = {}
-				if opt.Players.Enabled then table.insert(targets, 'Players') end
-				if opt.NPCs.Enabled then table.insert(targets, 'NPCs') end
-				local valuetext = Instance.new('TextLabel')
-				valuetext.BackgroundTransparency = 1
-				valuetext.FontFace = uipallet.Font
-				valuetext.Name = 'Value'
-				valuetext.Position = UDim2.fromOffset(95, 0)
-				valuetext.Size = UDim2.new(1, -150, 1, 0)
-				valuetext.Text = #targets > 0 and table.concat(targets, ', ') or 'None'
-				valuetext.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				valuetext.TextSize = 13
-				valuetext.TextTruncate = Enum.TextTruncate.AtEnd
-				valuetext.TextXAlignment = Enum.TextXAlignment.Left
-				valuetext.Parent = inner
-		
-				local edit = Instance.new('TextButton')
-				edit.AutoButtonColor = false
-				edit.BackgroundTransparency = 1
-				edit.FontFace = uipallet.Font
-				edit.Name = 'Edit'
-				edit.Position = UDim2.new(1, -50, 0, 0)
-				edit.Size = UDim2.fromOffset(40, 32)
-				edit.Text = 'edit'
-				edit.TextColor3 = Color3.fromRGB(171, 171, 171)
-				edit.TextSize = 12
-				edit.TextXAlignment = Enum.TextXAlignment.Right
-				edit.Parent = inner
-		
-				if not isDefault(opt) then
-					addResetButton(row, 16, function()
-						resetOption(opt)
-						refreshSettings()
-					end)
-				end
-		
-				edit.MouseButton1Click:Connect(function()
-					expandedoption = not expanded and entry.Name or nil
-					refreshSettings()
-				end)
-		
-				if expanded then
-					showTargets(opt, rowy)
-				end
-			end
-		
-			local function addTextListRow(entry, order)
-				local opt = entry.Option
-				local row = Instance.new('Frame')
-				row.BackgroundTransparency = 1
-				row.LayoutOrder = order
-				row.Name = entry.Name
-				row.Size = UDim2.new(1, 0, 0, 48)
-				row.Parent = settingslist
-		
-				local card = Instance.new('Frame')
-				card.BackgroundColor3 = color.Light(uipallet.Main, 0.045)
-				card.BorderSizePixel = 0
-				card.Name = 'Card'
-				card.Position = UDim2.fromOffset(26, 2)
-				card.Size = UDim2.fromOffset(331, 40)
-				card.Parent = row
-				addCorner(card, UDim.new(0, 6))
-				local icon = Instance.new('ImageLabel')
-				icon.BackgroundTransparency = 1
-				icon.Name = 'Icon'
-				icon.Position = UDim2.fromOffset(14, 14)
-				icon.Size = UDim2.fromOffset(14, 12)
-				icon.Image = opt.Icon or getvapeasset('kingvape/assets/new/allowedicon.png')
-				icon.Parent = card
-				local title = Instance.new('TextLabel')
-				title.BackgroundTransparency = 1
-				title.FontFace = uipallet.Font
-				title.Name = 'Title'
-				title.Position = UDim2.fromOffset(38, 6)
-				title.Size = UDim2.new(1, -80, 0, 16)
-				title.Text = entry.Name
-				title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				title.TextSize = 13
-				title.TextTruncate = Enum.TextTruncate.AtEnd
-				title.TextXAlignment = Enum.TextXAlignment.Left
-				title.Parent = card
-				local items = Instance.new('TextLabel')
-				items.BackgroundTransparency = 1
-				items.FontFace = uipallet.Font
-				items.Name = 'Items'
-				items.Position = UDim2.fromOffset(38, 21)
-				items.Size = UDim2.new(1, -80, 0, 14)
-				items.Text = #opt.ListEnabled > 0 and table.concat(opt.ListEnabled, ', ') or 'None'
-				items.TextColor3 = color.Dark(uipallet.Text, 0.43)
-				items.TextSize = 11
-				items.TextTruncate = Enum.TextTruncate.AtEnd
-				items.TextXAlignment = Enum.TextXAlignment.Left
-				items.Parent = card
-				local amount = Instance.new('TextLabel')
-				amount.BackgroundTransparency = 1
-				amount.FontFace = uipallet.Font
-				amount.Name = 'Amount'
-				amount.Size = UDim2.new(1, -20, 1, 0)
-				amount.Text = #opt.List
-				amount.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				amount.TextSize = 13
-				amount.TextXAlignment = Enum.TextXAlignment.Right
-				amount.Parent = card
-		
-				if not isDefault(opt) then
-					addResetButton(row, 13, function()
-						resetOption(opt)
-						refreshSettings()
-					end)
-				end
-			end
-		
-			local function addColorRow(entry, order)
-				local opt = entry.Option
-				local row = Instance.new('Frame')
-				row.BackgroundTransparency = 1
-				row.LayoutOrder = order
-				row.Name = entry.Name
-				row.Size = UDim2.new(1, 0, 0, 30)
-				row.Parent = settingslist
-				addRowLabel(row, entry.Name, 13, 0, 30)
-		
-				local swatch = Instance.new('Frame')
-				swatch.BackgroundColor3 = Color3.fromHSV(opt.Hue, opt.Sat, opt.Value)
-				swatch.BorderSizePixel = 0
-				swatch.Name = 'Color'
-				swatch.Position = UDim2.fromOffset(332, 9)
-				swatch.Size = UDim2.fromOffset(26, 14)
-				swatch.Parent = row
-				addCorner(swatch, UDim.new(0, 4))
-			end
-		
-			local function addValueRow(entry, order, text)
-				local row = Instance.new('Frame')
-				row.BackgroundTransparency = 1
-				row.LayoutOrder = order
-				row.Name = entry.Name
-				row.Size = UDim2.new(1, 0, 0, 30)
-				row.Parent = settingslist
-				addRowLabel(row, entry.Name, 13, 0, 30)
-				local value = addValueLabel(row, text, 4)
-				value.TextColor3 = color.Dark(uipallet.Text, 0.43)
-			end
-		
-			function refreshSettings()
-				for _, v in settingslist:GetChildren() do
-					if not v:IsA('UIListLayout') then
-						v:Destroy()
-					end
-				end
-				targetsscrim.Visible = false
-				targetspanel.Visible = false
-		
-				local mod = selectedmodule
-				settingscaption.Visible = mod ~= nil
-				resetmodule.Visible = mod ~= nil
-				moduletitle.Text = mod and selectedname or ''
-				statechip.Visible = mod ~= nil
-				bindchip.Visible = mod ~= nil and mod.Bind.Keys[1] ~= nil
-		
-				if not mod then
-					settingslist.CanvasSize = UDim2.new()
-					return
-				end
-		
-				local namewidth = getfontbounds(selectedname, 17, uipallet.FontSemiBold).X
-				statetext.Text = mod.Enabled and 'ON' or 'OFF'
-				statechip.BackgroundColor3 = mod.Enabled and accentColor() or color.Light(uipallet.Main, 0.09)
-				statechip.Position = UDim2.fromOffset(272 + namewidth, 32)
-				statechip.Size = UDim2.fromOffset(chipWidth(statetext.Text), 18)
-				statetext.TextColor3 = mod.Enabled and accentTextColor() or Color3.fromRGB(171, 171, 171)
-		
-				bindtext.Text = mod.Bind.Keys[1] and tostring(mod.Bind.Keys[1]):upper() or ''
-				bindchip.Position = UDim2.fromOffset(278 + namewidth + statechip.Size.X.Offset, 32)
-				bindchip.Size = UDim2.fromOffset(chipWidth(bindtext.Text), 18)
-		
-				local options = getOptions(mod)
-				local y = 0
-				for i, v in options do
-					local following = options[i + 1]
-					local opt = v.Option
-					if opt.Type == 'Toggle' then
-						local sublist = following and following.Option.Type == 'TextList'
-						addToggleRow(v, i, sublist and (following.Option.Icon or getvapeasset('kingvape/assets/new/allowedicon.png')) or nil)
-						y += 30
-					elseif opt.Type == 'Slider' then
-						addSliderRow(v, i)
-						y += 50
-					elseif opt.Type == 'TwoSlider' then
-						addTwoSliderRow(v, i)
-						y += 50
-					elseif opt.Type == 'Dropdown' then
-						local expanded = expandedoption == v.Name
-						addDropdownRow(v, i, expanded)
-						y += expanded and 40 + (#(opt.List or {}) * 26) or 40
-					elseif opt.Type == 'Targets' then
-						addTargetsRow(v, i, y, expandedoption == v.Name)
-						y += 50
-					elseif opt.Type == 'TextList' then
-						addTextListRow(v, i)
-						y += 48
-					elseif opt.Type == 'ColorSlider' then
-						addColorRow(v, i)
-						y += 30
-					elseif opt.Type == 'TextBox' then
-						addValueRow(v, i, tostring(opt.Value))
-						y += 30
-					end
-				end
-		
-				settingslist.CanvasSize = UDim2.fromOffset(0, y)
-			end
-		
-			local function addEditorRow(entry, order, selected)
-				local row = Instance.new('TextButton')
-				row.AutoButtonColor = false
-				row.BackgroundColor3 = color.Light(uipallet.Main, 0.06)
-				row.BackgroundTransparency = selected and 0 or 1
-				row.LayoutOrder = order
-				row.Name = entry.Name
-				row.Size = UDim2.new(1, -4, 0, 34)
-				row.Text = ''
-				row.Parent = editorlist
-				addCorner(row)
-				local stroke = Instance.new('UIStroke')
-				stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-				stroke.Color = color.Light(uipallet.Main, 0.13)
-				stroke.Enabled = selected
-				stroke.Parent = row
-				local label = Instance.new('TextLabel')
-				label.BackgroundTransparency = 1
-				label.FontFace = uipallet.Font
-				label.Name = 'Label'
-				label.Position = UDim2.fromOffset(10, 0)
-				label.Size = UDim2.new(1, -58, 1, 0)
-				label.Text = entry.Name
-				label.TextColor3 = selected and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
-				label.TextSize = 13
-				label.TextTruncate = Enum.TextTruncate.AtEnd
-				label.TextXAlignment = Enum.TextXAlignment.Left
-				label.Parent = row
-				local chevron = Instance.new('ImageLabel')
-				chevron.AnchorPoint = Vector2.new(1, 0.5)
-				chevron.BackgroundTransparency = 1
-				chevron.Image = getvapeasset('kingvape/assets/new/expandright.png')
-				chevron.ImageColor3 = Color3.fromRGB(122, 122, 122)
-				chevron.Name = 'Chevron'
-				chevron.Position = UDim2.new(1, -12, 0.5, 0)
-				chevron.Size = UDim2.fromOffset(5, 9)
-				chevron.Parent = row
-		
-				local bindname = entry.Module.Bind.Keys[1] and tostring(entry.Module.Bind.Keys[1]):upper() or ''
-				if entry.Module.Enabled or bindname ~= '' then
-					local chip, chiptext = addChip(row, 'Chip', 22)
-					chiptext.Text = entry.Module.Enabled and 'ON' or bindname
-					chip.AnchorPoint = Vector2.new(1, 0.5)
-					chip.Position = UDim2.new(1, -28, 0.5, 0)
-					chip.Size = UDim2.fromOffset(chipWidth(chiptext.Text), 18)
-					chip.Visible = true
-					if entry.Module.Enabled then
-						chip.BackgroundColor3 = accentColor()
-						chiptext.TextColor3 = accentTextColor()
-					end
-				end
-		
-				row.MouseEnter:Connect(function()
-					if not selected then
-						tween:Tween(row, uipallet.Tween, {
-							BackgroundTransparency = 0.55
-						})
-					end
-				end)
-				row.MouseLeave:Connect(function()
-					if not selected then
-						tween:Tween(row, uipallet.Tween, {
-							BackgroundTransparency = 1
-						})
-					end
-				end)
-				row.MouseButton1Click:Connect(function()
-					selectedname = entry.Name
-					selectedmodule = entry.Module
-					expandedoption = nil
-					refreshEditor()
-				end)
-			end
-		
-			local affectedonly = false
-		
-			local function getModules()
-				return listModules(searchbox.Text:lower(), affectedonly)
-			end
-		
-			function refreshEditor()
-				for _, v in editorlist:GetChildren() do
-					if v:IsA('TextButton') then
-						v:Destroy()
-					end
-				end
-		
-				local active = getModules()
-				editorcount.Text = `<font color="rgb(209,209,209)">{#listModules('', true)}</font> AFFECTED MODULES`
-		
-				if selectedname and not vape.Modules[selectedname] then
-					selectedname = nil
-					selectedmodule = nil
-				end
-		
-				for i, v in active do
-					addEditorRow(v, i, v.Name == selectedname)
-				end
-		
-				editorlist.CanvasSize = UDim2.fromOffset(0, (#active * 36) + 4)
-				refreshSettings()
-			end
-		
-			function openEditor(target)
-				editortitle.Text = vape.Profile or 'Profile'
-				searchbox.Text = ''
-				expandedoption = nil
-		
-				local active = getModules()
-				selectedname = typeof(target) == 'string' and target or (active[1] and active[1].Name)
-				selectedmodule = selectedname and vape.Modules[selectedname]
-		
-				refreshEditor()
-				editor.Position = UDim2.new(0.5, -336, 0.5, -190)
-				editor.Visible = true
-			end
-		
-			searchbox:GetPropertyChangedSignal('Text'):Connect(refreshEditor)
-		
-			targetsscrim.MouseButton1Click:Connect(function()
-				expandedoption = nil
-				refreshSettings()
-			end)
-		
-			filterbtn.MouseButton1Click:Connect(function()
-				affectedonly = not affectedonly
-				for _, v in filterbars do
-					v.BackgroundColor3 = affectedonly and accentColor() or Color3.fromRGB(171, 171, 171)
-				end
-				refreshEditor()
-			end)
-		
-			resetmodule.MouseEnter:Connect(function()
-				tween:Tween(resetmodule, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.075)
-				})
-			end)
-			resetmodule.MouseLeave:Connect(function()
-				tween:Tween(resetmodule, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-				})
-			end)
-			resetmodule.MouseButton1Click:Connect(function()
-				if selectedmodule then
-					for _, v in getOptions(selectedmodule) do
-						resetOption(v.Option)
-					end
-					expandedoption = nil
-					refreshSettings()
-				end
-			end)
-		
-			resetall.MouseEnter:Connect(function()
-				resetall.TextColor3 = Color3.new(1, 1, 1)
-			end)
-			resetall.MouseLeave:Connect(function()
-				resetall.TextColor3 = Color3.fromRGB(171, 171, 171)
-			end)
-			resetall.MouseButton1Click:Connect(function()
-				for _, v in listModules('', true) do
-					for _, v2 in getOptions(v.Module) do
-						resetOption(v2.Option)
-					end
-				end
-				expandedoption = nil
-				refreshEditor()
-			end)
-		
-			editall.MouseButton1Click:Connect(function()
-				openEditor()
-			end)
-			editorclose.MouseButton1Click:Connect(function()
-				editor.Visible = false
-			end)
-		
-			createbkg.MouseButton1Click:Connect(function()
-				refreshModules()
-				namebox.Text = ''
-				newprofile.Visible = true
-				namebox:CaptureFocus()
-			end)
-		
-			back.MouseButton1Click:Connect(function()
-				newprofile.Visible = false
-			end)
-		
-			nameadd.MouseButton1Click:Connect(function()
-				if namebox.Text == '' then return end
-				component:ChangeValue(namebox.Text)
-				namebox.Text = ''
-				newprofile.Visible = false
-			end)
-		
-			local publicbkg = addRowButton('Public', 'kingvape/assets/new/profileworld.png', 'PUBLIC', false, 'Browse public profiles', 1)
-			publicbkg.Position = UDim2.new(1, -publicbkg.Size.X.Offset, 0, publicbkg.Position.Y.Offset)
-		
-			publicbkg.MouseButton1Click:Connect(function()
-				local public = vape.PublicProfiles
-				if not public then return end
-				public.Window.Position = UDim2.new(0.5, -356, 0.5, -214)
-				public.Window.Visible = true
-			end)
-		
-			newarrowbutton.MouseButton1Click:Connect(function()
-				component:Expand()
-				newarrow.Rotation = arrow.Rotation
-			end)
+		Props.Color = Props.Color or Color3.fromRGB(5, 134, 105)
+		
+		local Window: TextButton = Instance.new("TextButton")
+		Window.AutoButtonColor = false
+		Window.BackgroundColor3 = UIPallet.Main
+		Window.Name = `{Props.Name}CategoryList`
+		Window.Position = UDim2.fromOffset(240, 46)
+		Window.Size = UDim2.fromOffset(220, 45)
+		Window.Text = ""
+		Window.Visible = false
+		Window.Parent = ClickGUI
+		AddBlur(Window)
+		AddCorner(Window)
+		AddDragHandler(Window)
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = Props.Icon
+		Icon.ImageColor3 = UIPallet.Text
+		Icon.Name = "Icon"
+		Icon.Size = Props.Size
+		Icon.Position = Props.Position or UDim2.fromOffset(12, (Props.Size.X.Offset > 20 and 13 or 12))
+		Icon.Parent = Window
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Name = "Title"
+		Title.Size = UDim2.new(1, -(Props.Size.X.Offset > 20 and 44 or 36), 0, 20)
+		Title.Position = UDim2.fromOffset(math.abs(Title.Size.X.Offset), 12)
+		Title.Text = Props.Name
+		Title.TextColor3 = UIPallet.Text
+		Title.TextSize = 13
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Window
+		local ArrowButton: TextButton = Instance.new("TextButton")
+		ArrowButton.BackgroundTransparency = 1
+		ArrowButton.Name = "Arrow"
+		ArrowButton.Position = UDim2.new(1, -40, 0, 0)
+		ArrowButton.Size = UDim2.fromOffset(40, 40)
+		ArrowButton.Text = ""
+		ArrowButton.Parent = Window
+		local Arrow: ImageLabel = Instance.new("ImageLabel")
+		Arrow.Name = "Arrow"
+		Arrow.Size = UDim2.fromOffset(9, 4)
+		Arrow.Position = UDim2.fromOffset(15, 20)
+		Arrow.BackgroundTransparency = 1
+		Arrow.Image = GetVapeAsset("kingvape/assets/new/downexpand.png")
+		Arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
+		Arrow.Rotation = 180
+		Arrow.Parent = ArrowButton
+		local Children: ScrollingFrame = Instance.new("ScrollingFrame")
+		Children.Name = "Children"
+		Children.Size = UDim2.new(1, 0, 1, -45)
+		Children.Position = UDim2.fromOffset(0, 45)
+		Children.BackgroundTransparency = 1
+		Children.BorderSizePixel = 0
+		Children.Visible = false
+		Children.ScrollBarThickness = 2
+		Children.ScrollBarImageTransparency = 0.75
+		Children.CanvasSize = UDim2.new()
+		Children.Parent = Window
+		local ChildrenTwo: Frame = Instance.new("Frame")
+		ChildrenTwo.BackgroundTransparency = 1
+		ChildrenTwo.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		ChildrenTwo.Visible = false
+		ChildrenTwo.Parent = Children
+		local Settings: ImageButton = Instance.new("ImageButton")
+		Settings.AutoButtonColor = false
+		Settings.BackgroundTransparency = 1
+		Settings.Image = GetVapeAsset("kingvape/assets/new/settings.png")
+		Settings.ImageColor3 = Color.Dark(UIPallet.Text, 0.43)
+		Settings.Name = "Settings"
+		Settings.Position = UDim2.new(1, -56, 0, 15)
+		Settings.Size = UDim2.fromOffset(14, 14)
+		Settings.Parent = Window
+		local Divider: Frame = Instance.new("Frame")
+		Divider.BackgroundColor3 = Color3.new(1, 1, 1)
+		Divider.BackgroundTransparency = 0.928
+		Divider.BorderSizePixel = 0
+		Divider.Name = "Divider"
+		Divider.Position = UDim2.fromOffset(0, 41)
+		Divider.Size = UDim2.new(1, 0, 0, 1)
+		Divider.Visible = false
+		Divider.Parent = Window
+		local Stroke: UIStroke = Instance.new("UIStroke")
+		Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		Stroke.Color = Color3.fromRGB(85, 85, 85)
+		Stroke.Transparency = 0.8
+		Stroke.Parent = Window
+		local WindowList: UIListLayout = Instance.new("UIListLayout")
+		WindowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		WindowList.Padding = UDim.new(0, 4)
+		WindowList.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowList.Parent = Children
+		local WindowListTwo: UIListLayout = Instance.new("UIListLayout")
+		WindowListTwo.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		WindowListTwo.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowListTwo.Parent = ChildrenTwo
+		local AddBackground: Frame = Instance.new("Frame")
+		AddBackground.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		AddBackground.Position = UDim2.fromOffset(10, 45)
+		AddBackground.Size = UDim2.fromOffset(200, 31)
+		AddBackground.Parent = Children
+		AddCorner(AddBackground)
+		local AddBox: Frame = AddBackground:Clone()
+		AddBox.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		AddBox.Position = UDim2.fromOffset(1, 1)
+		AddBox.Size = UDim2.new(1, -2, 1, -2)
+		AddBox.Parent = AddBackground
+		local AddValue: TextBox = Instance.new("TextBox")
+		AddValue.BackgroundTransparency = 1
+		AddValue.ClearTextOnFocus = false
+		AddValue.FontFace = UIPallet.Font
+		AddValue.PlaceholderText = Props.Placeholder or "Add entry..."
+		AddValue.PlaceholderColor3 = Color3.new(0.8, 0.8, 0.8)
+		AddValue.Position = UDim2.fromOffset(10, 0)
+		AddValue.Size = UDim2.new(1, -35, 1, 0)
+		AddValue.Text = ""
+		AddValue.TextColor3 = Color3.new(1, 1, 1)
+		AddValue.TextSize = 13
+		AddValue.TextXAlignment = Enum.TextXAlignment.Left
+		AddValue.Parent = AddBackground
+		local AddButton: ImageButton = Instance.new("ImageButton")
+		AddButton.AnchorPoint = Vector2.new(0, 0.5)
+		AddButton.BackgroundTransparency = 1
+		AddButton.Image = GetVapeAsset("kingvape/assets/new/add.png")
+		AddButton.ImageColor3 = Props.Color
+		AddButton.ImageTransparency = 0.3
+		AddButton.Name = "AddButton"
+		AddButton.Position = UDim2.new(1, -26, 0.5, 0)
+		AddButton.Size = UDim2.fromOffset(16, 16)
+		AddButton.Parent = AddBackground
+		local RowPaints = {}
+		
+		if Props.Profiles then
+		    local AddRow: Frame = Instance.new("Frame")
+		    AddRow.BackgroundTransparency = 1
+		    AddRow.LayoutOrder = AddBackground.LayoutOrder
+		    AddRow.Name = "AddRow"
+		    AddRow.Size = UDim2.new(1, -20, 0, 40)
+		    AddRow.Parent = Children
+		
+		    AddBackground.LayoutOrder = AddRow.LayoutOrder + 1
+		    AddBackground.Position = UDim2.fromOffset(0, 0)
+		    AddBackground.Size = UDim2.fromOffset(200, 31)
+		    AddBackground.Visible = false
+		    AddValue.Size = UDim2.new(1, -35, 1, 0)
+		    AddValue.TextSize = 15
+		
+		    local function AccentColor()
+		        return Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		    end
+		
+		    local function AccentTextColor()
+		        return vape:TextColor(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		    end
+		
+		    local function AddRowButton(Name: string, Asset: string, Text: string, AccentIcon: boolean, Tooltip: string, IconOffset: number)
+		        local IconX: number = 16 + (IconOffset * 2)
+		        local LabelX: number = IconX + 13
+		        local Width: number = GetFontBounds(Text, 11, UIPallet.Font).X
+		        local Button: TextButton = Instance.new("TextButton")
+		        Button.AutoButtonColor = false
+		        Button.BackgroundColor3 = AccentColor()
+		        Button.BackgroundTransparency = 1
+		        Button.Name = Name
+		        Button.Position = UDim2.fromOffset(0, 5)
+		        Button.Size = UDim2.fromOffset(Width + 40, 29)
+		        Button.Text = ""
+		        Button.Parent = AddRow
+		        AddCorner(Button, UDim.new(0, 3))
+		        AddTooltip(Button, Tooltip)
+		        local Stroke: UIStroke = Instance.new("UIStroke")
+		        Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		        Stroke.Color = VapeColors.Outline
+		        Stroke.Thickness = 1
+		        Stroke.Transparency = 0.624
+		        Stroke.Parent = Button
+		        local Icon: ImageLabel = Instance.new("ImageLabel")
+		        Icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		        Icon.BackgroundTransparency = 1
+		        Icon.Image = GetVapeAsset(Asset)
+		        Icon.ImageColor3 = AccentIcon and AccentColor() or VapeColors.Icon
+		        Icon.Name = "Icon"
+		        Icon.Position = UDim2.new(0, IconX, 0.5, 0)
+		        Icon.Size = UDim2.fromOffset(13, 13)
+		        Icon.Parent = Button
+		        local Label: TextLabel = Instance.new("TextLabel")
+		        Label.BackgroundTransparency = 1
+		        Label.FontFace = UIPallet.Font
+		        Label.Position = UDim2.fromOffset(LabelX, 0)
+		        Label.Size = UDim2.new(1, -LabelX, 1, 0)
+		        Label.Text = Text
+		        Label.TextColor3 = VapeColors.Secondary
+		        Label.TextSize = 11
+		        Label.TextXAlignment = Enum.TextXAlignment.Left
+		        Label.Parent = Button
+		
+		        local Hovered: boolean = false
+		
+		        local function Paint(Accent: Color3?, Contrast: Color3?)
+		            Accent = Accent or AccentColor()
+		            Contrast = Contrast or AccentTextColor()
+		            Button.BackgroundColor3 = Accent
+		            Label.TextColor3 = Hovered and Contrast or VapeColors.Secondary
+		            Icon.ImageColor3 = Hovered and Contrast or (AccentIcon and Accent or VapeColors.Icon)
+		        end
+		
+		        table.insert(RowPaints, Paint)
+		
+		        Button.MouseEnter:Connect(function()
+		            Hovered = true
+		            Paint()
+		
+		            Tween:Tween(Button, UIPallet.Tween, {
+		                BackgroundTransparency = 0
+		            })
+		        end)
+		        Button.MouseLeave:Connect(function()
+		            Hovered = false
+		            Paint()
+		
+		            Tween:Tween(Button, UIPallet.Tween, {
+		                BackgroundTransparency = 1
+		            })
+		        end)
+		
+		        return Button
+		    end
+		
+		    local CreateButton: TextButton = AddRowButton("CreateNew", "kingvape/assets/new/add.png", "CREATE NEW", true, "Create a new profile", 2)
+		
+		    local NewProfile: Frame = Instance.new("Frame")
+		    NewProfile.BackgroundColor3 = UIPallet.Main
+		    NewProfile.BorderSizePixel = 0
+		    NewProfile.Name = "NewProfile"
+		    NewProfile.Size = UDim2.new(1, 0, 1, 0)
+		    NewProfile.Visible = false
+		    NewProfile.ZIndex = 3
+		    NewProfile.Parent = Window
+		
+		    local Back: TextButton = Instance.new("TextButton")
+		    Back.AutoButtonColor = true
+		    Back.BackgroundColor3 = Color.Light(UIPallet.Main, 0.06)
+		    Back.Name = "Back"
+		    Back.Position = UDim2.fromOffset(14, 15)
+		    Back.Size = UDim2.fromOffset(15, 15)
+		    Back.Text = ""
+		    Back.ZIndex = 4
+		    Back.Parent = NewProfile
+		    AddCorner(Back, UDim.new(1, 0))
+		    local BackIcon: ImageLabel = Instance.new("ImageLabel")
+		    BackIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		    BackIcon.BackgroundTransparency = 1
+		    BackIcon.Image = GetVapeAsset("kingvape/assets/new/back.png")
+		    BackIcon.ImageColor3 = UIPallet.Text
+		    BackIcon.Position = UDim2.fromScale(0.5, 0.5)
+		    BackIcon.Size = UDim2.fromScale(1, 1)
+		    BackIcon.ZIndex = 5
+		    BackIcon.Parent = Back
+		
+		    local NewTitle: TextLabel = Instance.new("TextLabel")
+		    NewTitle.BackgroundTransparency = 1
+		    NewTitle.FontFace = UIPallet.Font
+		    NewTitle.Position = UDim2.fromOffset(36, 12)
+		    NewTitle.Size = UDim2.fromOffset(150, 20)
+		    NewTitle.Text = "New Profile"
+		    NewTitle.TextColor3 = UIPallet.Text
+		    NewTitle.TextSize = 13
+		    NewTitle.TextXAlignment = Enum.TextXAlignment.Left
+		    NewTitle.ZIndex = 4
+		    NewTitle.Parent = NewProfile
+		
+		    local NewArrowButton: TextButton = Instance.new("TextButton")
+		    NewArrowButton.BackgroundTransparency = 1
+		    NewArrowButton.Name = "Arrow"
+		    NewArrowButton.Position = UDim2.new(1, -40, 0, 0)
+		    NewArrowButton.Size = UDim2.fromOffset(40, 40)
+		    NewArrowButton.Text = ""
+		    NewArrowButton.ZIndex = 4
+		    NewArrowButton.Parent = NewProfile
+		    local NewArrow: ImageLabel = Instance.new("ImageLabel")
+		    NewArrow.BackgroundTransparency = 1
+		    NewArrow.Image = GetVapeAsset("kingvape/assets/new/expandup.png")
+		    NewArrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
+		    NewArrow.Name = "Arrow"
+		    NewArrow.Position = UDim2.fromOffset(20, 19)
+		    NewArrow.Size = UDim2.fromOffset(9, 4)
+		    NewArrow.ZIndex = 5
+		    NewArrow.Parent = NewArrowButton
+		    local NameBackground: Frame = AddBackground:Clone()
+		    NameBackground.Name = "NameBox"
+		    NameBackground.Position = UDim2.fromOffset(10, 42)
+		    NameBackground.Size = UDim2.new(1, -20, 0, 36)
+		    NameBackground.Visible = true
+		    NameBackground.ZIndex = 4
+		    for _, v: Instance in NameBackground:GetDescendants() do
+		        if v:IsA("GuiObject") then v.ZIndex = 5 end
+		    end
+		    NameBackground.Parent = NewProfile
+		    local NameBox = NameBackground:FindFirstChildWhichIsA("TextBox")
+		    local NameAdd = NameBackground:FindFirstChild("AddButton")
+		    NameAdd.ImageColor3 = AccentColor()
+		    table.insert(RowPaints, function(Accent: Color3)
+		        NameAdd.ImageColor3 = Accent
+		    end)
+		
+		    local CountLabel: TextLabel = Instance.new("TextLabel")
+		    CountLabel.BackgroundTransparency = 1
+		    CountLabel.FontFace = UIPallet.FontSemiBold
+		    CountLabel.Name = "Count"
+		    CountLabel.Position = UDim2.fromOffset(10, 94)
+		    CountLabel.RichText = true
+		    CountLabel.Size = UDim2.fromOffset(150, 16)
+		    CountLabel.Text = ""
+		    CountLabel.TextColor3 = VapeColors.Muted
+		    CountLabel.TextSize = 12
+		    CountLabel.TextXAlignment = Enum.TextXAlignment.Left
+		    CountLabel.ZIndex = 4
+		    CountLabel.Parent = NewProfile
+		
+		    local EditAll: TextButton = Instance.new("TextButton")
+		    EditAll.AutoButtonColor = false
+		    EditAll.BackgroundTransparency = 1
+		    EditAll.FontFace = UIPallet.Font
+		    EditAll.Name = "EditAll"
+		    EditAll.Position = UDim2.new(1, -60, 0, 94)
+		    EditAll.Size = UDim2.fromOffset(50, 16)
+		    EditAll.Text = "edit all"
+		    EditAll.TextColor3 = VapeColors.Secondary
+		    EditAll.TextSize = 12
+		    EditAll.TextXAlignment = Enum.TextXAlignment.Right
+		    EditAll.ZIndex = 4
+		    EditAll.Parent = NewProfile
+		
+		    local ModuleList: ScrollingFrame = Instance.new("ScrollingFrame")
+		    ModuleList.BackgroundTransparency = 1
+		    ModuleList.BorderSizePixel = 0
+		    ModuleList.CanvasSize = UDim2.new()
+		    ModuleList.Name = "Modules"
+		    ModuleList.Position = UDim2.fromOffset(8, 114)
+		    ModuleList.ScrollBarImageTransparency = 1
+		    ModuleList.ScrollBarThickness = 0
+		    ModuleList.Size = UDim2.new(1, -16, 1, -123)
+		    ModuleList.ZIndex = 4
+		    ModuleList.Parent = NewProfile
+		    local ModuleLayout: UIListLayout = Instance.new("UIListLayout")
+		    ModuleLayout.Padding = UDim.new(0, 4)
+		    ModuleLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		    ModuleLayout.Parent = ModuleList
+		    local ModulePadding: UIPadding = Instance.new("UIPadding")
+		    ModulePadding.PaddingLeft = UDim.new(0, 2)
+		    ModulePadding.PaddingTop = UDim.new(0, 2)
+		    ModulePadding.Parent = ModuleList
+		
+		    local OpenEditor
+		
+		    local function ListModules(Query: string, AffectedOnly: boolean)
+		        local List = {}
+		        for Name: string, v: any in vape.Modules do
+		            local Rank: number = v.Bind.Keys[1] and 1 or (v.Enabled and 2 or 3)
+		            if (Rank < 3 or not AffectedOnly) and (Query == "" or tostring(Name):lower():find(Query, 1, true)) then
+		                table.insert(List, {Name = tostring(Name), Module = v, Rank = Rank})
+		            end
+		        end
+		        table.sort(List, function(A, B)
+		            if A.Rank ~= B.Rank then
+		                return A.Rank < B.Rank
+		            end
+		
+		            return A.Name < B.Name
+		        end)
+		
+		        return List
+		    end
+		
+		    local function AddModuleChip(Row, Text, Width, Offset, Accent)
+		        local Chip: Frame = Instance.new("Frame")
+		        Chip.AnchorPoint = Vector2.new(1, 0.5)
+		        Chip.BackgroundColor3 = Accent and AccentColor() or VapeColors.Outline
+		        Chip.BackgroundTransparency = Accent and 0 or 0.5
+		        Chip.BorderSizePixel = 0
+		        Chip.Name = "Chip"
+		        Chip.Position = UDim2.new(1, -Offset, 0.5, 0)
+		        Chip.Size = UDim2.fromOffset(Width, 16)
+		        Chip.ZIndex = 5
+		        Chip.Parent = Row
+		        AddCorner(Chip, UDim.new(0, 4))
+		        local ChipText: TextLabel = Instance.new("TextLabel")
+		        ChipText.BackgroundTransparency = 1
+		        ChipText.FontFace = UIPallet.FontBold
+		        ChipText.Name = "Text"
+		        ChipText.Size = UDim2.fromScale(1, 1)
+		        ChipText.Text = Text
+		        ChipText.TextColor3 = Accent and AccentTextColor() or VapeColors.Secondary
+		        ChipText.TextSize = 10
+		        ChipText.ZIndex = 6
+		        ChipText.Parent = Chip
+		
+		        return Chip
+		    end
+		
+		    local RefreshId: number = 0
+		
+		    local function RefreshModules()
+		        if vape.ThreadFix then
+		            setthreadidentity(8)
+		        end
+		
+		        RefreshId += 1
+		        local Id: number = RefreshId
+		        local BuildClock: number = os.clock()
+		
+		        for _, v: Instance in ModuleList:GetChildren() do
+		            if v:IsA("TextButton") then
+		                v:Destroy()
+		            end
+		        end
+		
+		        local List = ListModules("", false)
+		        CountLabel.Text = `<font color="rgb(209,209,209)">{#ListModules("", true)}</font> AFFECTED MODULES`
+		
+		        for i: number, v: {Name: string, Module: any, Rank: number} in List do
+		            if Id ~= RefreshId then return end
+		
+		            local Bind: string = v.Module.Bind.Keys[1] and tostring(v.Module.Bind.Keys[1]):upper() or ""
+		            local Offset: number = 12
+		            local Row: TextButton = Instance.new("TextButton")
+		            Row.AutoButtonColor = false
+		            Row.BackgroundColor3 = VapeColors.Panel
+		            Row.BorderSizePixel = 0
+		            Row.LayoutOrder = i
+		            Row.Name = v.Name
+		            Row.Position = UDim2.fromOffset(10, 0)
+		            Row.Size = UDim2.new(1, -22, 0, 36)
+		            Row.Text = ""
+		            Row.ZIndex = 4
+		            Row.Parent = ModuleList
+		            AddCorner(Row, UDim.new(0, 3))
+		            local RowStroke: UIStroke = Instance.new("UIStroke")
+		            RowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		            RowStroke.Color = VapeColors.Outline
+		            RowStroke.Enabled = false
+		            RowStroke.Thickness = 2
+		            RowStroke.Transparency = 0.2
+		            RowStroke.Parent = Row
+		            local Label: TextLabel = Instance.new("TextLabel")
+		            Label.BackgroundTransparency = 1
+		            Label.FontFace = UIPallet.Font
+		            Label.Name = "Label"
+		            Label.Position = UDim2.fromOffset(10, 0)
+		            Label.Size = UDim2.new(1, -50, 1, 0)
+		            Label.Text = v.Name
+		            Label.TextColor3 = VapeColors.Primary
+		            Label.TextSize = 14
+		            Label.TextTruncate = Enum.TextTruncate.AtEnd
+		            Label.TextXAlignment = Enum.TextXAlignment.Left
+		            Label.ZIndex = 5
+		            Label.Parent = Row
+		
+		            if v.Module.Enabled then
+		                AddModuleChip(Row, "ON", 28, Offset, true)
+		                Offset += 32
+		            end
+		
+		            if Bind ~= "" then
+		                AddModuleChip(Row, Bind, math.max(16, GetFontBounds(Bind, 10, UIPallet.FontBold).X) + 12, Offset, false)
+		            end
+		
+		            Row.MouseEnter:Connect(function()
+		                RowStroke.Enabled = true
+		            end)
+		            Row.MouseLeave:Connect(function()
+		                RowStroke.Enabled = false
+		            end)
+		            Row.MouseButton1Click:Connect(function()
+		                OpenEditor(v.Name)
+		            end)
+		
+		            if os.clock() - BuildClock > 0.004 then
+		                task.wait()
+		                BuildClock = os.clock()
+		            end
+		        end
+		
+		        ModuleList.CanvasSize = UDim2.fromOffset(0, (#List * 40) + 4)
+		    end
+		
+		    local Editor: Frame = Instance.new("Frame")
+		    Editor.BackgroundColor3 = UIPallet.Main
+		    Editor.Name = "ModuleEditor"
+		    Editor.Position = UDim2.new(0.5, -336, 0.5, -190)
+		    Editor.Size = UDim2.fromOffset(672, 380)
+		    Editor.Visible = false
+		    Editor.Parent = ScaledGUI
+		    AddShadow(Editor)
+		    AddCorner(Editor)
+		    AddDragHandler(Editor)
+		    table.insert(vape.Windows, Editor)
+		
+		    local EditorSide: Frame = Instance.new("Frame")
+		    EditorSide.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		    EditorSide.BorderSizePixel = 0
+		    EditorSide.Name = "Sidebar"
+		    EditorSide.Size = UDim2.fromOffset(244, 380)
+		    EditorSide.Parent = Editor
+		    AddCorner(EditorSide)
+		    local SideEdge: Frame = Instance.new("Frame")
+		    SideEdge.BackgroundColor3 = EditorSide.BackgroundColor3
+		    SideEdge.BorderSizePixel = 0
+		    SideEdge.Name = "Edge"
+		    SideEdge.Position = UDim2.fromOffset(238, 0)
+		    SideEdge.Size = UDim2.fromOffset(6, 380)
+		    SideEdge.Parent = EditorSide
+		
+		    local EditorTitle: TextLabel = Instance.new("TextLabel")
+		    EditorTitle.BackgroundTransparency = 1
+		    EditorTitle.FontFace = UIPallet.FontSemiBold
+		    EditorTitle.Name = "Title"
+		    EditorTitle.Position = UDim2.fromOffset(24, 21)
+		    EditorTitle.Size = UDim2.fromOffset(200, 28)
+		    EditorTitle.Text = ""
+		    EditorTitle.TextColor3 = Color3.new(1, 1, 1)
+		    EditorTitle.TextSize = 19
+		    EditorTitle.TextTruncate = Enum.TextTruncate.AtEnd
+		    EditorTitle.TextXAlignment = Enum.TextXAlignment.Left
+		    EditorTitle.Parent = EditorSide
+		
+		    local SearchBackground: Frame = Instance.new("Frame")
+		    SearchBackground.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.015)
+		    SearchBackground.BorderSizePixel = 0
+		    SearchBackground.Name = "Search"
+		    SearchBackground.Position = UDim2.fromOffset(24, 57)
+		    SearchBackground.Size = UDim2.fromOffset(176, 32)
+		    SearchBackground.Parent = EditorSide
+		    AddCorner(SearchBackground)
+		    local SearchStroke: UIStroke = Instance.new("UIStroke")
+		    SearchStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		    SearchStroke.Color = Color.Light(UIPallet.Main, 0.06)
+		    SearchStroke.Parent = SearchBackground
+		    local SearchIcon: ImageLabel = Instance.new("ImageLabel")
+		    SearchIcon.BackgroundTransparency = 1
+		    SearchIcon.Image = GetVapeAsset("kingvape/assets/new/search.png")
+		    SearchIcon.ImageColor3 = Color3.fromRGB(122, 122, 122)
+		    SearchIcon.Name = "Icon"
+		    SearchIcon.Position = UDim2.fromOffset(12, 9)
+		    SearchIcon.Size = UDim2.fromOffset(12, 12)
+		    SearchIcon.Parent = SearchBackground
+		    local SearchBox: TextBox = Instance.new("TextBox")
+		    SearchBox.BackgroundTransparency = 1
+		    SearchBox.ClearTextOnFocus = false
+		    SearchBox.FontFace = UIPallet.Font
+		    SearchBox.PlaceholderColor3 = Color3.fromRGB(122, 122, 122)
+		    SearchBox.PlaceholderText = "Search modules..."
+		    SearchBox.Position = UDim2.fromOffset(33, 0)
+		    SearchBox.Size = UDim2.new(1, -44, 1, 0)
+		    SearchBox.Text = ""
+		    SearchBox.TextColor3 = UIPallet.Text
+		    SearchBox.TextSize = 13
+		    SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+		    SearchBox.Parent = SearchBackground
+		
+		    local FilterButton: TextButton = Instance.new("TextButton")
+		    FilterButton.AutoButtonColor = false
+		    FilterButton.BackgroundColor3 = SearchBackground.BackgroundColor3
+		    FilterButton.Name = "Filter"
+		    FilterButton.Position = UDim2.fromOffset(204, 57)
+		    FilterButton.Size = UDim2.fromOffset(32, 32)
+		    FilterButton.Text = ""
+		    FilterButton.Parent = EditorSide
+		    AddCorner(FilterButton)
+		    local FilterStroke: UIStroke = SearchStroke:Clone()
+		    FilterStroke.Parent = FilterButton
+		    local FilterIcon: Frame = Instance.new("Frame")
+		    FilterIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		    FilterIcon.BackgroundTransparency = 1
+		    FilterIcon.Name = "Icon"
+		    FilterIcon.Position = UDim2.fromScale(0.5, 0.5)
+		    FilterIcon.Size = UDim2.fromOffset(12, 10)
+		    FilterIcon.Parent = FilterButton
+		    local FilterBars: {Frame} = {}
+		    for i: number, Width: number in {12, 8, 4} do
+		        local Bar: Frame = Instance.new("Frame")
+		        Bar.AnchorPoint = Vector2.new(0.5, 0)
+		        Bar.BackgroundColor3 = Color3.fromRGB(171, 171, 171)
+		        Bar.BorderSizePixel = 0
+		        Bar.Name = `Bar{i}`
+		        Bar.Position = UDim2.new(0.5, 0, 0, (i - 1) * 4)
+		        Bar.Size = UDim2.fromOffset(Width, 2)
+		        Bar.Parent = FilterIcon
+		        AddCorner(Bar, UDim.new(1, 0))
+		        table.insert(FilterBars, Bar)
+		    end
+		
+		    local EditorCount: TextLabel = Instance.new("TextLabel")
+		    EditorCount.BackgroundTransparency = 1
+		    EditorCount.FontFace = UIPallet.FontBold
+		    EditorCount.Name = "Count"
+		    EditorCount.Position = UDim2.fromOffset(28, 101)
+		    EditorCount.RichText = true
+		    EditorCount.Size = UDim2.fromOffset(160, 24)
+		    EditorCount.Text = ""
+		    EditorCount.TextColor3 = VapeColors.Muted
+		    EditorCount.TextSize = 13
+		    EditorCount.TextXAlignment = Enum.TextXAlignment.Left
+		    EditorCount.Parent = EditorSide
+		
+		    local ResetAll: TextButton = Instance.new("TextButton")
+		    ResetAll.AutoButtonColor = false
+		    ResetAll.BackgroundTransparency = 1
+		    ResetAll.FontFace = UIPallet.Font
+		    ResetAll.Name = "ResetAll"
+		    ResetAll.Position = UDim2.fromOffset(158, 101)
+		    ResetAll.Size = UDim2.fromOffset(70, 24)
+		    ResetAll.Text = "Reset all"
+		    ResetAll.TextColor3 = VapeColors.Secondary
+		    ResetAll.TextSize = 12
+		    ResetAll.TextXAlignment = Enum.TextXAlignment.Right
+		    ResetAll.Parent = EditorSide
+		
+		    local EditorList: ScrollingFrame = Instance.new("ScrollingFrame")
+		    EditorList.BackgroundTransparency = 1
+		    EditorList.BorderSizePixel = 0
+		    EditorList.CanvasSize = UDim2.new()
+		    EditorList.Name = "Modules"
+		    EditorList.Position = UDim2.fromOffset(24, 129)
+		    EditorList.ScrollBarImageTransparency = 1
+		    EditorList.ScrollBarThickness = 0
+		    EditorList.Size = UDim2.fromOffset(216, 243)
+		    EditorList.Parent = EditorSide
+		    local EditorLayout: UIListLayout = Instance.new("UIListLayout")
+		    EditorLayout.Padding = UDim.new(0, 2)
+		    EditorLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		    EditorLayout.Parent = EditorList
+		    local EditorPadding: UIPadding = Instance.new("UIPadding")
+		    EditorPadding.PaddingLeft = UDim.new(0, 2)
+		    EditorPadding.PaddingTop = UDim.new(0, 2)
+		    EditorPadding.Parent = EditorList
+		
+		    local ModuleTitle: TextLabel = Instance.new("TextLabel")
+		    ModuleTitle.BackgroundTransparency = 1
+		    ModuleTitle.FontFace = UIPallet.FontSemiBold
+		    ModuleTitle.Name = "ModuleTitle"
+		    ModuleTitle.Position = UDim2.fromOffset(260, 28)
+		    ModuleTitle.Size = UDim2.fromOffset(260, 26)
+		    ModuleTitle.Text = ""
+		    ModuleTitle.TextColor3 = Color3.new(1, 1, 1)
+		    ModuleTitle.TextSize = 17
+		    ModuleTitle.TextTruncate = Enum.TextTruncate.AtEnd
+		    ModuleTitle.TextXAlignment = Enum.TextXAlignment.Left
+		    ModuleTitle.Parent = Editor
+		
+		    local function AddChip(Parent: Instance, Name: string, Width: number)
+		        local Chip: Frame = Instance.new("Frame")
+		        Chip.BackgroundColor3 = Color.Light(UIPallet.Main, 0.09)
+		        Chip.BorderSizePixel = 0
+		        Chip.Name = Name
+		        Chip.Size = UDim2.fromOffset(Width, 17)
+		        Chip.Visible = false
+		        Chip.Parent = Parent
+		        AddCorner(Chip, UDim.new(0, 4))
+		        local Text: TextLabel = Instance.new("TextLabel")
+		        Text.BackgroundTransparency = 1
+		        Text.FontFace = UIPallet.FontSemiBold
+		        Text.Name = "Text"
+		        Text.Size = UDim2.fromScale(1, 1)
+		        Text.Text = ""
+		        Text.TextColor3 = Color3.fromRGB(171, 171, 171)
+		        Text.TextSize = 10
+		        Text.ZIndex = 2
+		        Text.Parent = Chip
+		        return Chip, Text
+		    end
+		
+		    local function ChipWidth(Text: string)
+		        return math.max(GetFontBounds(Text, 10, UIPallet.FontSemiBold).X + 14, 22)
+		    end
+		
+		    local StateChip, StateText = AddChip(Editor, "State", 28)
+		    local BindChip, BindText = AddChip(Editor, "Bind", 22)
+		
+		    local ResetModule: TextButton = Instance.new("TextButton")
+		    ResetModule.AutoButtonColor = false
+		    ResetModule.BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		    ResetModule.FontFace = UIPallet.FontSemiBold
+		    ResetModule.Name = "ResetModule"
+		    ResetModule.Position = UDim2.fromOffset(540, 28)
+		    ResetModule.Size = UDim2.fromOffset(104, 20)
+		    ResetModule.Text = "RESET THIS MODULE"
+		    ResetModule.TextColor3 = Color3.fromRGB(171, 171, 171)
+		    ResetModule.TextSize = 10
+		    ResetModule.Visible = false
+		    ResetModule.Parent = Editor
+		    AddCorner(ResetModule, UDim.new(0, 4))
+		
+		    local SettingsCaption: TextLabel = Instance.new("TextLabel")
+		    SettingsCaption.BackgroundTransparency = 1
+		    SettingsCaption.FontFace = UIPallet.FontBold
+		    SettingsCaption.Name = "Caption"
+		    SettingsCaption.Position = UDim2.fromOffset(260, 56)
+		    SettingsCaption.Size = UDim2.fromOffset(200, 14)
+		    SettingsCaption.Text = "SETTINGS"
+		    SettingsCaption.TextColor3 = VapeColors.Muted
+		    SettingsCaption.TextSize = 12
+		    SettingsCaption.TextXAlignment = Enum.TextXAlignment.Left
+		    SettingsCaption.Visible = false
+		    SettingsCaption.Parent = Editor
+		
+		    local SettingsList: ScrollingFrame = Instance.new("ScrollingFrame")
+		    SettingsList.BackgroundTransparency = 1
+		    SettingsList.BorderSizePixel = 0
+		    SettingsList.CanvasSize = UDim2.new()
+		    SettingsList.Name = "Settings"
+		    SettingsList.Position = UDim2.fromOffset(260, 70)
+		    SettingsList.ScrollBarImageTransparency = 1
+		    SettingsList.ScrollBarThickness = 0
+		    SettingsList.Size = UDim2.fromOffset(412, 302)
+		    SettingsList.Parent = Editor
+		    local SettingsLayout: UIListLayout = Instance.new("UIListLayout")
+		    SettingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		    SettingsLayout.Parent = SettingsList
+		
+		    local EditorClose = AddCloseButton(Editor, false, UDim2.new(1, -35, 0, 8))
+		
+		    local TargetsScrim: TextButton = Instance.new("TextButton")
+		    TargetsScrim.AutoButtonColor = false
+		    TargetsScrim.BackgroundColor3 = Color3.new()
+		    TargetsScrim.BackgroundTransparency = 0.45
+		    TargetsScrim.Name = "TargetsScrim"
+		    TargetsScrim.Size = UDim2.fromScale(1, 1)
+		    TargetsScrim.Text = ""
+		    TargetsScrim.Visible = false
+		    TargetsScrim.ZIndex = 8
+		    TargetsScrim.Parent = Editor
+		    AddCorner(TargetsScrim)
+		
+		    local TargetsPanel: Frame = Instance.new("Frame")
+		    TargetsPanel.BackgroundColor3 = Color.Light(UIPallet.Main, 0.07)
+		    TargetsPanel.BorderSizePixel = 0
+		    TargetsPanel.Name = "TargetsPanel"
+		    TargetsPanel.Size = UDim2.fromOffset(220, 113)
+		    TargetsPanel.Visible = false
+		    TargetsPanel.ZIndex = 9
+		    TargetsPanel.Parent = Editor
+		    AddCorner(TargetsPanel, UDim.new(0, 6))
+		
+		    local function AddResetButton(Row: Instance, Y: number, Callback)
+		        local Reset: TextButton = Instance.new("TextButton")
+		        Reset.AutoButtonColor = false
+		        Reset.BackgroundTransparency = 1
+		        Reset.Name = "Reset"
+		        Reset.Position = UDim2.fromOffset(368, Y)
+		        Reset.Size = UDim2.fromOffset(18, 18)
+		        Reset.Text = ""
+		        Reset.Parent = Row
+		        local Ring: Frame = Instance.new("Frame")
+		        Ring.AnchorPoint = Vector2.new(0.5, 0.5)
+		        Ring.BackgroundTransparency = 1
+		        Ring.Name = "Ring"
+		        Ring.Position = UDim2.fromScale(0.5, 0.5)
+		        Ring.Size = UDim2.fromOffset(12, 12)
+		        Ring.Parent = Reset
+		        AddCorner(Ring, UDim.new(1, 0))
+		        local RingStroke: UIStroke = Instance.new("UIStroke")
+		        RingStroke.Color = Color3.fromRGB(128, 128, 128)
+		        RingStroke.Thickness = 1.3
+		        RingStroke.Parent = Ring
+		        local Gap: Frame = Instance.new("Frame")
+		        Gap.BackgroundColor3 = UIPallet.Main
+		        Gap.BorderSizePixel = 0
+		        Gap.Name = "Gap"
+		        Gap.Position = UDim2.fromOffset(6, -2)
+		        Gap.Size = UDim2.fromOffset(6, 5)
+		        Gap.Parent = Ring
+		        local Head: ImageLabel = Instance.new("ImageLabel")
+		        Head.BackgroundTransparency = 1
+		        Head.Image = GetVapeAsset("kingvape/assets/new/range.png")
+		        Head.ImageColor3 = RingStroke.Color
+		        Head.Name = "Head"
+		        Head.Position = UDim2.fromOffset(7, -1)
+		        Head.Rotation = 180
+		        Head.Size = UDim2.fromOffset(5, 6)
+		        Head.Parent = Ring
+		
+		        Reset.MouseEnter:Connect(function()
+		            RingStroke.Color = Color3.new(1, 1, 1)
+		            Head.ImageColor3 = RingStroke.Color
+		        end)
+		        Reset.MouseLeave:Connect(function()
+		            RingStroke.Color = Color3.fromRGB(128, 128, 128)
+		            Head.ImageColor3 = RingStroke.Color
+		        end)
+		        Reset.MouseButton1Click:Connect(Callback)
+		
+		        return Reset
+		    end
+		
+		    local function AddRowLabel(Row: Instance, Text: string, Size: number, Y: number, Height: number)
+		        local Label: TextLabel = Instance.new("TextLabel")
+		        Label.BackgroundTransparency = 1
+		        Label.FontFace = UIPallet.Font
+		        Label.Name = "Label"
+		        Label.Position = UDim2.fromOffset(0, Y)
+		        Label.Size = UDim2.fromOffset(240, Height)
+		        Label.Text = Text
+		        Label.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        Label.TextSize = Size
+		        Label.TextTruncate = Enum.TextTruncate.AtEnd
+		        Label.TextXAlignment = Enum.TextXAlignment.Left
+		        Label.Parent = Row
+		        return Label
+		    end
+		
+		    local function AddValueLabel(Row: Instance, Text, Y: number)
+		        local Label: TextLabel = Instance.new("TextLabel")
+		        Label.BackgroundTransparency = 1
+		        Label.FontFace = UIPallet.Font
+		        Label.Name = "Value"
+		        Label.Position = UDim2.fromOffset(197, Y)
+		        Label.Size = UDim2.fromOffset(160, 22)
+		        Label.Text = Text
+		        Label.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        Label.TextSize = 12
+		        Label.TextXAlignment = Enum.TextXAlignment.Right
+		        Label.Parent = Row
+		        return Label
+		    end
+		
+		    local function AddTogglePill(Parent: Instance, X: number, Y: number, Enabled: boolean)
+		        local Pill: TextButton = Instance.new("TextButton")
+		        Pill.AutoButtonColor = false
+		        Pill.BackgroundColor3 = Enabled and AccentColor() or Color.Light(UIPallet.Main, 0.14)
+		        Pill.Name = "Toggle"
+		        Pill.Position = UDim2.fromOffset(X, Y)
+		        Pill.Size = UDim2.fromOffset(25, 13)
+		        Pill.Text = ""
+		        Pill.Parent = Parent
+		        AddCorner(Pill, UDim.new(1, 0))
+		        local Knob: Frame = Instance.new("Frame")
+		        Knob.BackgroundColor3 = Enabled and AccentTextColor() or Color3.new(1, 1, 1)
+		        Knob.BorderSizePixel = 0
+		        Knob.Name = "Knob"
+		        Knob.Position = UDim2.fromOffset(Enabled and 14 or 2, 2)
+		        Knob.Size = UDim2.fromOffset(9, 9)
+		        Knob.Parent = Pill
+		        AddCorner(Knob, UDim.new(1, 0))
+		        return Pill, Knob
+		    end
+		
+		    local function TrackRatio(Ratio: number)
+		        return math.clamp(Ratio, 0.04, 0.96)
+		    end
+		
+		    local function AddSliderTrack(Row: Instance, Y: number)
+		        local Track: Frame = Instance.new("Frame")
+		        Track.BackgroundColor3 = Color.Light(UIPallet.Main, 0.09)
+		        Track.BorderSizePixel = 0
+		        Track.Name = "Track"
+		        Track.Position = UDim2.fromOffset(0, Y)
+		        Track.Size = UDim2.fromOffset(357, 3)
+		        Track.Parent = Row
+		        AddCorner(Track, UDim.new(1, 0))
+		        local Fill: Frame = Instance.new("Frame")
+		        Fill.BackgroundColor3 = AccentColor()
+		        Fill.BorderSizePixel = 0
+		        Fill.Name = "Fill"
+		        Fill.Parent = Track
+		        AddCorner(Fill, UDim.new(1, 0))
+		        return Track, Fill
+		    end
+		
+		    local function AddDragInput(Row, Track, Callback)
+		        Row.InputBegan:Connect(function(Input: InputObject)
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
+		
+		            if
+		                (Input.UserInputType ~= Enum.UserInputType.MouseButton1 and Input.UserInputType ~= Enum.UserInputType.Touch)
+		                or (Input.Position.Y - Row.AbsolutePosition.Y) < (26 * Scale.Scale)
+		            then
+		                return
+		            end
+		
+		            Callback(math.clamp((Input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1), true)
+		            local MoveConnection: RBXScriptConnection = UserInputService.InputChanged:Connect(function(NewInput: InputObject)
+		                if vape.ThreadFix then
+		                    setthreadidentity(8)
+		                end
+		
+		                if NewInput.UserInputType == (Input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
+		                    Callback(math.clamp((NewInput.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1), false)
+		                end
+		            end)
+		
+		            local ReleaseConnection
+		            ReleaseConnection = Input.Changed:Connect(function()
+		                if Input.UserInputState == Enum.UserInputState.End then
+		                    MoveConnection:Disconnect()
+		                    ReleaseConnection:Disconnect()
+		                    Callback(nil, false, true)
+		                end
+		            end)
+		        end)
+		    end
+		
+		    local function GetOptions(Module)
+		        local Order = Module.Children and Module.Children:GetChildren() or {}
+		        local List = {}
+		        for Name: string, v: any in Module.Options do
+		            table.insert(List, {
+		                Name = tostring(Name),
+		                Option = v,
+		                Order = table.find(Order, v.Object) or 1000
+		            })
+		        end
+		        table.sort(List, function(A, B)
+		            return A.Order < B.Order
+		        end)
+		
+		        return List
+		    end
+		
+		    local function SameList(List: {any}, Other: {any})
+		        if #List ~= #Other then return false end
+		        for _, v: any in List do
+		            if not table.find(Other, v) then return false end
+		        end
+		
+		        return true
+		    end
+		
+		    local function IsDefault(Option)
+		        if Option.Type == "Toggle" then
+		            return Option.Enabled == Option.Default
+		        elseif Option.Type == "Slider" then
+		            return Option.Value == Option.Default
+		        elseif Option.Type == "TwoSlider" then
+		            return Option.ValueMin == Option.DefaultMin and Option.ValueMax == Option.DefaultMax
+		        elseif Option.Type == "Dropdown" or Option.Type == "TextBox" then
+		            return Option.Value == Option.Default
+		        elseif Option.Type == "TextList" then
+		            return SameList(Option.List, Option.Default) and SameList(Option.ListEnabled, Option.Default)
+		        elseif Option.Type == "Targets" then
+		            return Option.Players.Enabled == Option.Default.Players and Option.NPCs.Enabled == Option.Default.NPCs and Option.Invisible.Enabled == Option.Default.Invisible and Option.Walls.Enabled == Option.Default.Walls and Option.Priority.Value == Option.Default.Priority
+		        end
+		
+		        return true
+		    end
+		
+		    local function ResetOption(Option)
+		        if Option.Type == "Toggle" then
+		            if Option.Enabled ~= Option.Default then
+		                Option:Toggle()
+		            end
+		        elseif Option.Type == "Slider" then
+		            Option:SetValue(Option.Default, nil, true)
+		        elseif Option.Type == "TwoSlider" then
+		            Option:SetValue(false, Option.DefaultMin)
+		            Option:SetValue(true, Option.DefaultMax)
+		        elseif Option.Type == "Dropdown" then
+		            Option:SetValue(Option.Default, true)
+		        elseif Option.Type == "TextBox" then
+		            Option:SetValue(Option.Default or "")
+		        elseif Option.Type == "TextList" then
+		            Option:Load({List = table.clone(Option.Default), ListEnabled = table.clone(Option.Default)})
+		        elseif Option.Type == "Targets" then
+		            Option:Load(Option.Default)
+		        end
+		        vape:QueueSave()
+		    end
+		
+		    local SelectedModule
+		    local SelectedName
+		    local ExpandedOption
+		    local RefreshEditor
+		    local RefreshSettings
+		
+		    local function AddToggleRow(Entry, Order: number, ListIcon: string?)
+		        local Option = Entry.Option
+		        local Row: Frame = Instance.new("Frame")
+		        Row.BackgroundTransparency = 1
+		        Row.LayoutOrder = Order
+		        Row.Name = Entry.Name
+		        Row.Size = UDim2.new(1, 0, 0, 30)
+		        Row.Parent = SettingsList
+		        AddRowLabel(Row, Entry.Name, 13, 0, 30)
+		
+		        if ListIcon then
+		            local Icon: ImageLabel = Instance.new("ImageLabel")
+		            Icon.BackgroundTransparency = 1
+		            Icon.Image = ListIcon
+		            Icon.Name = "ListIcon"
+		            Icon.Position = UDim2.fromOffset(315, 9)
+		            Icon.Size = UDim2.fromOffset(14, 12)
+		            Icon.Parent = Row
+		        end
+		
+		        local Pill, Knob = AddTogglePill(Row, 332, 9, Option.Enabled)
+		        if not IsDefault(Option) then
+		            AddResetButton(Row, 6, function()
+		                ResetOption(Option)
+		                RefreshSettings()
+		            end)
+		        end
+		
+		        Pill.MouseButton1Click:Connect(function()
+		            Option:Toggle()
+		            vape:QueueSave()
+		
+		            Tween:Tween(Pill, UIPallet.Tween, {
+		                BackgroundColor3 = Option.Enabled and AccentColor() or Color.Light(UIPallet.Main, 0.14)
+		            })
+		
+		            Tween:Tween(Knob, UIPallet.Tween, {
+		                Position = UDim2.fromOffset(Option.Enabled and 14 or 2, 2),
+		                BackgroundColor3 = Option.Enabled and AccentTextColor() or Color3.new(1, 1, 1)
+		            })
+		
+		            RefreshSettings()
+		        end)
+		    end
+		
+		    local function AddSliderRow(Entry, Order: number)
+		        local Option = Entry.Option
+		        local Row: TextButton = Instance.new("TextButton")
+		        Row.AutoButtonColor = false
+		        Row.BackgroundTransparency = 1
+		        Row.LayoutOrder = Order
+		        Row.Name = Entry.Name
+		        Row.Size = UDim2.new(1, 0, 0, 50)
+		        Row.Text = ""
+		        Row.Parent = SettingsList
+		        AddRowLabel(Row, Entry.Name, 12, 4, 22)
+		
+		        local function FormatValue()
+		            local Suffix = type(Option.Suffix) == "function" and Option.Suffix(Option.Value) or Option.Suffix
+		            return Suffix and `{Option.Value} {Suffix}` or tostring(Option.Value)
+		        end
+		
+		        local ValueLabel: TextLabel = AddValueLabel(Row, FormatValue(), 4)
+		        local Range: number = math.max(Option.Max - Option.Min, 1e-6)
+		        local Track, Fill = AddSliderTrack(Row, 36)
+		        Fill.Size = UDim2.fromScale(TrackRatio((Option.Value - Option.Min) / Range), 1)
+		        local Knob: Frame = Instance.new("Frame")
+		        Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+		        Knob.BackgroundColor3 = AccentColor()
+		        Knob.BorderSizePixel = 0
+		        Knob.Name = "Knob"
+		        Knob.Position = UDim2.fromScale(1, 0.5)
+		        Knob.Size = UDim2.fromOffset(13, 13)
+		        Knob.ZIndex = 2
+		        Knob.Parent = Fill
+		        AddCorner(Knob, UDim.new(1, 0))
+		
+		        local HadReset: boolean = not IsDefault(Option)
+		        if HadReset then
+		            AddResetButton(Row, 12, function()
+		                ResetOption(Option)
+		                RefreshSettings()
+		            end)
+		        end
+		
+		        Row.MouseEnter:Connect(function()
+		            Tween:Tween(Knob, UIPallet.Tween, {
+		                Size = UDim2.fromOffset(15, 15)
+		            })
+		        end)
+		        Row.MouseLeave:Connect(function()
+		            Tween:Tween(Knob, UIPallet.Tween, {
+		                Size = UDim2.fromOffset(13, 13)
+		            })
+		        end)
+		
+		        AddDragInput(Row, Track, function(Ratio: number?, _, Final: boolean?)
+		            if Final then
+		                Option:SetValue(Option.Value, nil, true)
+		                vape:QueueSave()
+		                if HadReset == IsDefault(Option) then
+		                    RefreshSettings()
+		                end
+		
+		                return
+		            end
+		            Option:SetValue(math.floor((Option.Min + Range * Ratio) * Option.Decimal) / Option.Decimal, Ratio)
+		            ValueLabel.Text = FormatValue()
+		
+		            Tween:Tween(Fill, UIPallet.Tween, {
+		                Size = UDim2.fromScale(TrackRatio(Ratio), 1)
+		            })
+		        end)
+		    end
+		
+		    local function AddTwoSliderRow(Entry, Order: number)
+		        local Option = Entry.Option
+		        local Row: TextButton = Instance.new("TextButton")
+		        Row.AutoButtonColor = false
+		        Row.BackgroundTransparency = 1
+		        Row.LayoutOrder = Order
+		        Row.Name = Entry.Name
+		        Row.Size = UDim2.new(1, 0, 0, 50)
+		        Row.Text = ""
+		        Row.Parent = SettingsList
+		        AddRowLabel(Row, Entry.Name, 12, 4, 22)
+		
+		        local MaxWidth: number = GetFontBounds(tostring(Option.ValueMax), 12, UIPallet.Font).X
+		        local MaxValue: TextLabel = AddValueLabel(Row, Option.ValueMax, 4)
+		        local Arrow: ImageLabel = Instance.new("ImageLabel")
+		        Arrow.BackgroundTransparency = 1
+		        Arrow.Name = "Arrow"
+		        Arrow.Position = UDim2.fromOffset(339 - MaxWidth, 12)
+		        Arrow.Size = UDim2.fromOffset(12, 6)
+		        Arrow.Image = GetVapeAsset("kingvape/assets/new/rangearrow.png")
+		        Arrow.ImageColor3 = Color.Light(UIPallet.Main, 0.2)
+		        Arrow.Parent = Row
+		        local MinValue: TextLabel = AddValueLabel(Row, Option.ValueMin, 4)
+		        MinValue.Position = UDim2.fromOffset(161 - MaxWidth, 4)
+		
+		        local Range: number = math.max(Option.Max - Option.Min, 1e-6)
+		        local MinRatio: number = TrackRatio((Option.ValueMin - Option.Min) / Range)
+		        local MaxRatio: number = TrackRatio((Option.ValueMax - Option.Min) / Range)
+		        local Track, Fill = AddSliderTrack(Row, 36)
+		        Fill.Position = UDim2.fromScale(MinRatio, 0)
+		        Fill.Size = UDim2.fromScale(math.max(MaxRatio - MinRatio, 0), 1)
+		
+		        local function AddKnob(Name: string, Edge: number, Flipped: boolean)
+		            local Knob: ImageLabel = Instance.new("ImageLabel")
+		            Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+		            Knob.BackgroundTransparency = 1
+		            Knob.Image = GetVapeAsset("kingvape/assets/new/range.png")
+		            Knob.ImageColor3 = AccentColor()
+		            Knob.Name = Name
+		            Knob.Position = UDim2.fromScale(Edge, 0.5)
+		            Knob.Rotation = Flipped and 180 or 0
+		            Knob.Size = UDim2.fromOffset(9, 16)
+		            Knob.ZIndex = 2
+		            Knob.Parent = Fill
+		
+		            Knob.MouseEnter:Connect(function()
+		                Tween:Tween(Knob, UIPallet.Tween, {
+		                    Size = UDim2.fromOffset(11, 18)
+		                })
+		            end)
+		            Knob.MouseLeave:Connect(function()
+		                Tween:Tween(Knob, UIPallet.Tween, {
+		                    Size = UDim2.fromOffset(9, 16)
+		                })
+		            end)
+		
+		            return Knob
+		        end
+		
+		        AddKnob("KnobMin", 0, false)
+		        AddKnob("KnobMax", 1, true)
+		
+		        local HadReset: boolean = not IsDefault(Option)
+		        if HadReset then
+		            AddResetButton(Row, 12, function()
+		                ResetOption(Option)
+		                RefreshSettings()
+		            end)
+		        end
+		
+		        local EditingMax: boolean = false
+		        AddDragInput(Row, Track, function(Ratio: number?, Began: boolean?, Final: boolean?)
+		            if Final then
+		                vape:QueueSave()
+		                if HadReset == IsDefault(Option) then
+		                    RefreshSettings()
+		                end
+		
+		                return
+		            end
+		            if Began then
+		                EditingMax = math.abs(Ratio - MaxRatio) <= math.abs(Ratio - MinRatio)
+		            end
+		            Option:SetValue(EditingMax, math.floor((Option.Min + Range * Ratio) * Option.Decimal) / Option.Decimal)
+		            MinRatio = TrackRatio((Option.ValueMin - Option.Min) / Range)
+		            MaxRatio = TrackRatio((Option.ValueMax - Option.Min) / Range)
+		            MinValue.Text = Option.ValueMin
+		            MaxValue.Text = Option.ValueMax
+		
+		            Tween:Tween(Fill, UIPallet.Tween, {
+		                Position = UDim2.fromScale(MinRatio, 0),
+		                Size = UDim2.fromScale(math.max(MaxRatio - MinRatio, 0), 1)
+		            })
+		        end)
+		    end
+		
+		    local function AddDropdownRow(Entry, Order: number, Expanded: boolean)
+		        local Option = Entry.Option
+		        local Options: {string} = Option.List or {}
+		        local Row: Frame = Instance.new("Frame")
+		        Row.BackgroundTransparency = 1
+		        Row.LayoutOrder = Order
+		        Row.Name = Entry.Name
+		        Row.Size = UDim2.new(1, 0, 0, Expanded and 40 + (#Options * 26) or 40)
+		        Row.Parent = SettingsList
+		
+		        local Background: Frame = Instance.new("Frame")
+		        Background.BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		        Background.BorderSizePixel = 0
+		        Background.Name = "BKG"
+		        Background.Position = UDim2.fromOffset(0, 4)
+		        Background.Size = UDim2.new(0, 357, 1, -9)
+		        Background.Parent = Row
+		        AddCorner(Background, UDim.new(0, 6))
+		        local Button: TextButton = Instance.new("TextButton")
+		        Button.AutoButtonColor = false
+		        Button.BackgroundColor3 = UIPallet.Main
+		        Button.Name = "Dropdown"
+		        Button.Position = UDim2.fromOffset(1, 1)
+		        Button.Size = UDim2.new(1, -2, 1, -2)
+		        Button.Text = ""
+		        Button.Parent = Background
+		        AddCorner(Button, UDim.new(0, 6))
+		        local Title: TextLabel = Instance.new("TextLabel")
+		        Title.BackgroundTransparency = 1
+		        Title.FontFace = UIPallet.Font
+		        Title.Name = "Title"
+		        Title.Position = UDim2.fromOffset(14, 0)
+		        Title.Size = UDim2.new(1, -44, 0, 29)
+		        Title.Text = `{Entry.Name} - {Option.Value}`
+		        Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        Title.TextSize = 13
+		        Title.TextTruncate = Enum.TextTruncate.AtEnd
+		        Title.TextXAlignment = Enum.TextXAlignment.Left
+		        Title.Parent = Button
+		        local Arrow: ImageLabel = Instance.new("ImageLabel")
+		        Arrow.BackgroundTransparency = 1
+		        Arrow.Image = GetVapeAsset("kingvape/assets/new/expandright.png")
+		        Arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
+		        Arrow.Name = "Arrow"
+		        Arrow.Position = UDim2.new(1, -17, 0, 11)
+		        Arrow.Rotation = Expanded and 270 or 90
+		        Arrow.Size = UDim2.fromOffset(4, 8)
+		        Arrow.Parent = Button
+		
+		        Row.MouseEnter:Connect(function()
+		            Tween:Tween(Background, UIPallet.Tween, {
+		                BackgroundColor3 = Color.Light(UIPallet.Main, 0.0875)
+		            })
+		        end)
+		        Row.MouseLeave:Connect(function()
+		            Tween:Tween(Background, UIPallet.Tween, {
+		                BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		            })
+		        end)
+		
+		        if not IsDefault(Option) then
+		            AddResetButton(Row, 11, function()
+		                ResetOption(Option)
+		                RefreshSettings()
+		            end)
+		        end
+		
+		        Button.MouseButton1Click:Connect(function()
+		            ExpandedOption = not Expanded and Entry.Name or nil
+		            RefreshSettings()
+		        end)
+		
+		        if not Expanded then return end
+		
+		        for i: number, v: string in Options do
+		            local Choice: TextButton = Instance.new("TextButton")
+		            Choice.AutoButtonColor = false
+		            Choice.BackgroundColor3 = UIPallet.Main
+		            Choice.BorderSizePixel = 0
+		            Choice.Name = v
+		            Choice.Position = UDim2.fromOffset(0, 29 + ((i - 1) * 26))
+		            Choice.Size = UDim2.new(1, 0, 0, 26)
+		            Choice.Text = ""
+		            Choice.Parent = Button
+		            local ChoiceText: TextLabel = Instance.new("TextLabel")
+		            ChoiceText.BackgroundTransparency = 1
+		            ChoiceText.FontFace = UIPallet.Font
+		            ChoiceText.Name = "Text"
+		            ChoiceText.Position = UDim2.fromOffset(14, 0)
+		            ChoiceText.Size = UDim2.new(1, -28, 1, 0)
+		            ChoiceText.Text = v
+		            ChoiceText.TextColor3 = v == Option.Value and Color3.new(1, 1, 1) or Color.Dark(UIPallet.Text, 0.16)
+		            ChoiceText.TextSize = 13
+		            ChoiceText.TextTruncate = Enum.TextTruncate.AtEnd
+		            ChoiceText.TextXAlignment = Enum.TextXAlignment.Left
+		            ChoiceText.Parent = Choice
+		
+		            Choice.MouseEnter:Connect(function()
+		                Tween:Tween(Choice, UIPallet.Tween, {
+		                    BackgroundColor3 = Color.Light(UIPallet.Main, 0.04)
+		                })
+		            end)
+		            Choice.MouseLeave:Connect(function()
+		                Tween:Tween(Choice, UIPallet.Tween, {
+		                    BackgroundColor3 = UIPallet.Main
+		                })
+		            end)
+		            Choice.MouseButton1Click:Connect(function()
+		                Option:SetValue(v, true)
+		                vape:QueueSave()
+		                ExpandedOption = nil
+		                RefreshSettings()
+		            end)
+		        end
+		    end
+		
+		    local function ShowTargets(Option, RowY: number)
+		        for _, v: Instance in TargetsPanel:GetChildren() do
+		            if not v:IsA("UICorner") then
+		                v:Destroy()
+		            end
+		        end
+		
+		        local function AddTargetTab(Name: string, Toggle, Asset: string, Size: UDim2, X: number)
+		            local Tab: TextButton = Instance.new("TextButton")
+		            Tab.AutoButtonColor = false
+		            Tab.BackgroundColor3 = Toggle.Enabled and AccentColor() or Color.Light(UIPallet.Main, 0.12)
+		            Tab.Name = Name
+		            Tab.Position = UDim2.fromOffset(X, 12)
+		            Tab.Size = UDim2.fromOffset(61, 28)
+		            Tab.Text = ""
+		            Tab.ZIndex = 10
+		            Tab.Parent = TargetsPanel
+		            AddCorner(Tab, UDim.new(0, 5))
+		            local Icon: ImageLabel = Instance.new("ImageLabel")
+		            Icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		            Icon.BackgroundTransparency = 1
+		            Icon.Image = GetVapeAsset(Asset)
+		            Icon.ImageColor3 = Toggle.Enabled and AccentTextColor() or Color3.fromRGB(171, 171, 171)
+		            Icon.Name = "Icon"
+		            Icon.Position = UDim2.fromScale(0.5, 0.5)
+		            Icon.Size = Size
+		            Icon.ZIndex = 11
+		            Icon.Parent = Tab
+		
+		            Tab.MouseButton1Click:Connect(function()
+		                Toggle:Toggle()
+		                vape:QueueSave()
+		                RefreshSettings()
+		            end)
+		        end
+		
+		        AddTargetTab("Players", Option.Players, "kingvape/assets/new/targetplayers1.png", UDim2.fromOffset(15, 16), 12)
+		        AddTargetTab("NPCs", Option.NPCs, "kingvape/assets/new/targetnpc1.png", UDim2.fromOffset(12, 16), 79)
+		
+		        local function AddTargetToggle(Name: string, Toggle, Y: number)
+		            local Label: TextLabel = Instance.new("TextLabel")
+		            Label.BackgroundTransparency = 1
+		            Label.FontFace = UIPallet.Font
+		            Label.Name = Name
+		            Label.Position = UDim2.fromOffset(14, Y)
+		            Label.Size = UDim2.new(1, -70, 0, 22)
+		            Label.Text = Name
+		            Label.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		            Label.TextSize = 13
+		            Label.TextXAlignment = Enum.TextXAlignment.Left
+		            Label.ZIndex = 10
+		            Label.Parent = TargetsPanel
+		
+		            local Pill, Knob = AddTogglePill(TargetsPanel, 181, Y + 4, Toggle.Enabled)
+		            Pill.ZIndex = 10
+		            Knob.ZIndex = 11
+		            Pill.MouseButton1Click:Connect(function()
+		                Toggle:Toggle()
+		                vape:QueueSave()
+		                RefreshSettings()
+		            end)
+		        end
+		
+		        AddTargetToggle("Ignore invisible", Option.Invisible, 52)
+		        AddTargetToggle("Ignore behind walls", Option.Walls, 84)
+		
+		        TargetsPanel.Position = UDim2.fromOffset(332, 134 + RowY - SettingsList.CanvasPosition.Y)
+		        TargetsPanel.Visible = true
+		        TargetsScrim.Visible = true
+		    end
+		
+		    local function AddTargetsRow(Entry, Order: number, RowY: number, Expanded: boolean)
+		        local Option = Entry.Option
+		        local Row: Frame = Instance.new("Frame")
+		        Row.BackgroundTransparency = 1
+		        Row.LayoutOrder = Order
+		        Row.Name = Entry.Name
+		        Row.Size = UDim2.new(1, 0, 0, 50)
+		        Row.Parent = SettingsList
+		
+		        local Background: Frame = Instance.new("Frame")
+		        Background.BackgroundColor3 = Color.Light(UIPallet.Main, 0.06)
+		        Background.BorderSizePixel = 0
+		        Background.Name = "BKG"
+		        Background.Position = UDim2.fromOffset(0, 9)
+		        Background.Size = UDim2.fromOffset(357, 32)
+		        Background.Parent = Row
+		        AddCorner(Background, UDim.new(0, 6))
+		        local Inner: Frame = Instance.new("Frame")
+		        Inner.BackgroundColor3 = UIPallet.Main
+		        Inner.BorderSizePixel = 0
+		        Inner.Name = "Inner"
+		        Inner.Position = UDim2.fromOffset(1, 1)
+		        Inner.Size = UDim2.new(1, -2, 1, -2)
+		        Inner.Parent = Background
+		        AddCorner(Inner, UDim.new(0, 6))
+		
+		        local Tag: Frame = Instance.new("Frame")
+		        Tag.BackgroundColor3 = Color.Light(UIPallet.Main, 0.055)
+		        Tag.BorderSizePixel = 0
+		        Tag.Name = "Tag"
+		        Tag.Size = UDim2.fromOffset(81, 30)
+		        Tag.Parent = Inner
+		        AddCorner(Tag, UDim.new(0, 6))
+		        local TagIcon: ImageLabel = Instance.new("ImageLabel")
+		        TagIcon.BackgroundTransparency = 1
+		        TagIcon.Image = GetVapeAsset("kingvape/assets/new/targetstab.png")
+		        TagIcon.ImageColor3 = Color3.fromRGB(171, 171, 171)
+		        TagIcon.Name = "Icon"
+		        TagIcon.Position = UDim2.fromOffset(14, 9)
+		        TagIcon.Size = UDim2.fromOffset(15, 12)
+		        TagIcon.Parent = Tag
+		        local TagText: TextLabel = Instance.new("TextLabel")
+		        TagText.BackgroundTransparency = 1
+		        TagText.FontFace = UIPallet.Font
+		        TagText.Name = "Text"
+		        TagText.Position = UDim2.fromOffset(36, 0)
+		        TagText.Size = UDim2.new(1, -36, 1, 0)
+		        TagText.Text = Entry.Name
+		        TagText.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        TagText.TextSize = 13
+		        TagText.TextXAlignment = Enum.TextXAlignment.Left
+		        TagText.Parent = Tag
+		
+		        local Targets: {string} = {}
+		        if Option.Players.Enabled then table.insert(Targets, "Players") end
+		        if Option.NPCs.Enabled then table.insert(Targets, "NPCs") end
+		        local ValueText: TextLabel = Instance.new("TextLabel")
+		        ValueText.BackgroundTransparency = 1
+		        ValueText.FontFace = UIPallet.Font
+		        ValueText.Name = "Value"
+		        ValueText.Position = UDim2.fromOffset(95, 0)
+		        ValueText.Size = UDim2.new(1, -150, 1, 0)
+		        ValueText.Text = #Targets > 0 and table.concat(Targets, ", ") or "None"
+		        ValueText.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        ValueText.TextSize = 13
+		        ValueText.TextTruncate = Enum.TextTruncate.AtEnd
+		        ValueText.TextXAlignment = Enum.TextXAlignment.Left
+		        ValueText.Parent = Inner
+		
+		        local Edit: TextButton = Instance.new("TextButton")
+		        Edit.AutoButtonColor = false
+		        Edit.BackgroundTransparency = 1
+		        Edit.FontFace = UIPallet.Font
+		        Edit.Name = "Edit"
+		        Edit.Position = UDim2.new(1, -50, 0, 0)
+		        Edit.Size = UDim2.fromOffset(40, 32)
+		        Edit.Text = "edit"
+		        Edit.TextColor3 = Color3.fromRGB(171, 171, 171)
+		        Edit.TextSize = 12
+		        Edit.TextXAlignment = Enum.TextXAlignment.Right
+		        Edit.Parent = Inner
+		
+		        if not IsDefault(Option) then
+		            AddResetButton(Row, 16, function()
+		                ResetOption(Option)
+		                RefreshSettings()
+		            end)
+		        end
+		
+		        Edit.MouseButton1Click:Connect(function()
+		            ExpandedOption = not Expanded and Entry.Name or nil
+		            RefreshSettings()
+		        end)
+		
+		        if Expanded then
+		            ShowTargets(Option, RowY)
+		        end
+		    end
+		
+		    local function AddTextListRow(Entry, Order: number)
+		        local Option = Entry.Option
+		        local Row: Frame = Instance.new("Frame")
+		        Row.BackgroundTransparency = 1
+		        Row.LayoutOrder = Order
+		        Row.Name = Entry.Name
+		        Row.Size = UDim2.new(1, 0, 0, 48)
+		        Row.Parent = SettingsList
+		
+		        local Card: Frame = Instance.new("Frame")
+		        Card.BackgroundColor3 = Color.Light(UIPallet.Main, 0.045)
+		        Card.BorderSizePixel = 0
+		        Card.Name = "Card"
+		        Card.Position = UDim2.fromOffset(26, 2)
+		        Card.Size = UDim2.fromOffset(331, 40)
+		        Card.Parent = Row
+		        AddCorner(Card, UDim.new(0, 6))
+		        local Icon: ImageLabel = Instance.new("ImageLabel")
+		        Icon.BackgroundTransparency = 1
+		        Icon.Name = "Icon"
+		        Icon.Position = UDim2.fromOffset(14, 14)
+		        Icon.Size = UDim2.fromOffset(14, 12)
+		        Icon.Image = Option.Icon or GetVapeAsset("kingvape/assets/new/allowedicon.png")
+		        Icon.Parent = Card
+		        local Title: TextLabel = Instance.new("TextLabel")
+		        Title.BackgroundTransparency = 1
+		        Title.FontFace = UIPallet.Font
+		        Title.Name = "Title"
+		        Title.Position = UDim2.fromOffset(38, 6)
+		        Title.Size = UDim2.new(1, -80, 0, 16)
+		        Title.Text = Entry.Name
+		        Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        Title.TextSize = 13
+		        Title.TextTruncate = Enum.TextTruncate.AtEnd
+		        Title.TextXAlignment = Enum.TextXAlignment.Left
+		        Title.Parent = Card
+		        local Items: TextLabel = Instance.new("TextLabel")
+		        Items.BackgroundTransparency = 1
+		        Items.FontFace = UIPallet.Font
+		        Items.Name = "Items"
+		        Items.Position = UDim2.fromOffset(38, 21)
+		        Items.Size = UDim2.new(1, -80, 0, 14)
+		        Items.Text = #Option.ListEnabled > 0 and table.concat(Option.ListEnabled, ", ") or "None"
+		        Items.TextColor3 = Color.Dark(UIPallet.Text, 0.43)
+		        Items.TextSize = 11
+		        Items.TextTruncate = Enum.TextTruncate.AtEnd
+		        Items.TextXAlignment = Enum.TextXAlignment.Left
+		        Items.Parent = Card
+		        local Amount: TextLabel = Instance.new("TextLabel")
+		        Amount.BackgroundTransparency = 1
+		        Amount.FontFace = UIPallet.Font
+		        Amount.Name = "Amount"
+		        Amount.Size = UDim2.new(1, -20, 1, 0)
+		        Amount.Text = #Option.List
+		        Amount.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        Amount.TextSize = 13
+		        Amount.TextXAlignment = Enum.TextXAlignment.Right
+		        Amount.Parent = Card
+		
+		        if not IsDefault(Option) then
+		            AddResetButton(Row, 13, function()
+		                ResetOption(Option)
+		                RefreshSettings()
+		            end)
+		        end
+		    end
+		
+		    local function AddColorRow(Entry, Order: number)
+		        local Option = Entry.Option
+		        local Row: Frame = Instance.new("Frame")
+		        Row.BackgroundTransparency = 1
+		        Row.LayoutOrder = Order
+		        Row.Name = Entry.Name
+		        Row.Size = UDim2.new(1, 0, 0, 30)
+		        Row.Parent = SettingsList
+		        AddRowLabel(Row, Entry.Name, 13, 0, 30)
+		
+		        local Swatch: Frame = Instance.new("Frame")
+		        Swatch.BackgroundColor3 = Color3.fromHSV(Option.Hue, Option.Sat, Option.Value)
+		        Swatch.BorderSizePixel = 0
+		        Swatch.Name = "Color"
+		        Swatch.Position = UDim2.fromOffset(332, 9)
+		        Swatch.Size = UDim2.fromOffset(26, 14)
+		        Swatch.Parent = Row
+		        AddCorner(Swatch, UDim.new(0, 4))
+		    end
+		
+		    local function AddValueRow(Entry, Order: number, Text: string)
+		        local Row: Frame = Instance.new("Frame")
+		        Row.BackgroundTransparency = 1
+		        Row.LayoutOrder = Order
+		        Row.Name = Entry.Name
+		        Row.Size = UDim2.new(1, 0, 0, 30)
+		        Row.Parent = SettingsList
+		        AddRowLabel(Row, Entry.Name, 13, 0, 30)
+		        local ValueLabel: TextLabel = AddValueLabel(Row, Text, 4)
+		        ValueLabel.TextColor3 = Color.Dark(UIPallet.Text, 0.43)
+		    end
+		
+		    function RefreshSettings()
+		        for _, v: Instance in SettingsList:GetChildren() do
+		            if not v:IsA("UIListLayout") then
+		                v:Destroy()
+		            end
+		        end
+		        TargetsScrim.Visible = false
+		        TargetsPanel.Visible = false
+		
+		        local Module = SelectedModule
+		        SettingsCaption.Visible = Module ~= nil
+		        ResetModule.Visible = Module ~= nil
+		        ModuleTitle.Text = Module and SelectedName or ""
+		        StateChip.Visible = Module ~= nil
+		        BindChip.Visible = Module ~= nil and Module.Bind.Keys[1] ~= nil
+		
+		        if not Module then
+		            SettingsList.CanvasSize = UDim2.new()
+		            return
+		        end
+		
+		        local NameWidth: number = GetFontBounds(SelectedName, 17, UIPallet.FontSemiBold).X
+		        StateText.Text = Module.Enabled and "ON" or "OFF"
+		        StateChip.BackgroundColor3 = Module.Enabled and AccentColor() or Color.Light(UIPallet.Main, 0.09)
+		        StateChip.Position = UDim2.fromOffset(272 + NameWidth, 32)
+		        StateChip.Size = UDim2.fromOffset(ChipWidth(StateText.Text), 18)
+		        StateText.TextColor3 = Module.Enabled and AccentTextColor() or Color3.fromRGB(171, 171, 171)
+		
+		        BindText.Text = Module.Bind.Keys[1] and tostring(Module.Bind.Keys[1]):upper() or ""
+		        BindChip.Position = UDim2.fromOffset(278 + NameWidth + StateChip.Size.X.Offset, 32)
+		        BindChip.Size = UDim2.fromOffset(ChipWidth(BindText.Text), 18)
+		
+		        local Options = GetOptions(Module)
+		        local Y: number = 0
+		        for i: number, v: {Name: string, Option: any, Order: number} in Options do
+		            local Following = Options[i + 1]
+		            local Option = v.Option
+		            if Option.Type == "Toggle" then
+		                local SubList = Following and Following.Option.Type == "TextList"
+		                AddToggleRow(v, i, SubList and (Following.Option.Icon or GetVapeAsset("kingvape/assets/new/allowedicon.png")) or nil)
+		                Y += 30
+		            elseif Option.Type == "Slider" then
+		                AddSliderRow(v, i)
+		                Y += 50
+		            elseif Option.Type == "TwoSlider" then
+		                AddTwoSliderRow(v, i)
+		                Y += 50
+		            elseif Option.Type == "Dropdown" then
+		                local Expanded: boolean = ExpandedOption == v.Name
+		                AddDropdownRow(v, i, Expanded)
+		                Y += Expanded and 40 + (#(Option.List or {}) * 26) or 40
+		            elseif Option.Type == "Targets" then
+		                AddTargetsRow(v, i, Y, ExpandedOption == v.Name)
+		                Y += 50
+		            elseif Option.Type == "TextList" then
+		                AddTextListRow(v, i)
+		                Y += 48
+		            elseif Option.Type == "ColorSlider" then
+		                AddColorRow(v, i)
+		                Y += 30
+		            elseif Option.Type == "TextBox" then
+		                AddValueRow(v, i, tostring(Option.Value))
+		                Y += 30
+		            end
+		        end
+		
+		        SettingsList.CanvasSize = UDim2.fromOffset(0, Y)
+		    end
+		
+		    local function AddEditorRow(Entry, Order: number, Selected: boolean)
+		        local Row: TextButton = Instance.new("TextButton")
+		        Row.AutoButtonColor = false
+		        Row.BackgroundColor3 = Color.Light(UIPallet.Main, 0.06)
+		        Row.BackgroundTransparency = Selected and 0 or 1
+		        Row.LayoutOrder = Order
+		        Row.Name = Entry.Name
+		        Row.Size = UDim2.new(1, -4, 0, 34)
+		        Row.Text = ""
+		        Row.Parent = EditorList
+		        AddCorner(Row)
+		        local Stroke: UIStroke = Instance.new("UIStroke")
+		        Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		        Stroke.Color = Color.Light(UIPallet.Main, 0.13)
+		        Stroke.Enabled = Selected
+		        Stroke.Parent = Row
+		        local Label: TextLabel = Instance.new("TextLabel")
+		        Label.BackgroundTransparency = 1
+		        Label.FontFace = UIPallet.Font
+		        Label.Name = "Label"
+		        Label.Position = UDim2.fromOffset(10, 0)
+		        Label.Size = UDim2.new(1, -58, 1, 0)
+		        Label.Text = Entry.Name
+		        Label.TextColor3 = Selected and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
+		        Label.TextSize = 13
+		        Label.TextTruncate = Enum.TextTruncate.AtEnd
+		        Label.TextXAlignment = Enum.TextXAlignment.Left
+		        Label.Parent = Row
+		        local Chevron: ImageLabel = Instance.new("ImageLabel")
+		        Chevron.AnchorPoint = Vector2.new(1, 0.5)
+		        Chevron.BackgroundTransparency = 1
+		        Chevron.Image = GetVapeAsset("kingvape/assets/new/expandright.png")
+		        Chevron.ImageColor3 = Color3.fromRGB(122, 122, 122)
+		        Chevron.Name = "Chevron"
+		        Chevron.Position = UDim2.new(1, -12, 0.5, 0)
+		        Chevron.Size = UDim2.fromOffset(5, 9)
+		        Chevron.Parent = Row
+		
+		        local BindName: string = Entry.Module.Bind.Keys[1] and tostring(Entry.Module.Bind.Keys[1]):upper() or ""
+		        if Entry.Module.Enabled or BindName ~= "" then
+		            local Chip, ChipText = AddChip(Row, "Chip", 22)
+		            ChipText.Text = Entry.Module.Enabled and "ON" or BindName
+		            Chip.AnchorPoint = Vector2.new(1, 0.5)
+		            Chip.Position = UDim2.new(1, -28, 0.5, 0)
+		            Chip.Size = UDim2.fromOffset(ChipWidth(ChipText.Text), 18)
+		            Chip.Visible = true
+		            if Entry.Module.Enabled then
+		                Chip.BackgroundColor3 = AccentColor()
+		                ChipText.TextColor3 = AccentTextColor()
+		            end
+		        end
+		
+		        Row.MouseEnter:Connect(function()
+		            if not Selected then
+		                Tween:Tween(Row, UIPallet.Tween, {
+		                    BackgroundTransparency = 0.55
+		                })
+		            end
+		        end)
+		        Row.MouseLeave:Connect(function()
+		            if not Selected then
+		                Tween:Tween(Row, UIPallet.Tween, {
+		                    BackgroundTransparency = 1
+		                })
+		            end
+		        end)
+		        Row.MouseButton1Click:Connect(function()
+		            SelectedName = Entry.Name
+		            SelectedModule = Entry.Module
+		            ExpandedOption = nil
+		            RefreshEditor()
+		        end)
+		    end
+		
+		    local AffectedOnly: boolean = false
+		
+		    local function GetModules()
+		        return ListModules(SearchBox.Text:lower(), AffectedOnly)
+		    end
+		
+		    function RefreshEditor()
+		        for _, v: Instance in EditorList:GetChildren() do
+		            if v:IsA("TextButton") then
+		                v:Destroy()
+		            end
+		        end
+		
+		        local Active = GetModules()
+		        EditorCount.Text = `<font color="rgb(209,209,209)">{#ListModules("", true)}</font> AFFECTED MODULES`
+		
+		        if SelectedName and not vape.Modules[SelectedName] then
+		            SelectedName = nil
+		            SelectedModule = nil
+		        end
+		
+		        for i: number, v: {Name: string, Module: any, Rank: number} in Active do
+		            AddEditorRow(v, i, v.Name == SelectedName)
+		        end
+		
+		        EditorList.CanvasSize = UDim2.fromOffset(0, (#Active * 36) + 4)
+		        RefreshSettings()
+		    end
+		
+		    function OpenEditor(Target)
+		        EditorTitle.Text = vape.Profile or "Profile"
+		        SearchBox.Text = ""
+		        ExpandedOption = nil
+		
+		        local Active = GetModules()
+		        SelectedName = typeof(Target) == "string" and Target or (Active[1] and Active[1].Name)
+		        SelectedModule = SelectedName and vape.Modules[SelectedName]
+		
+		        RefreshEditor()
+		        Editor.Position = UDim2.new(0.5, -336, 0.5, -190)
+		        Editor.Visible = true
+		    end
+		
+		    SearchBox:GetPropertyChangedSignal("Text"):Connect(RefreshEditor)
+		
+		    TargetsScrim.MouseButton1Click:Connect(function()
+		        ExpandedOption = nil
+		        RefreshSettings()
+		    end)
+		
+		    FilterButton.MouseButton1Click:Connect(function()
+		        AffectedOnly = not AffectedOnly
+		        for _, v: Frame in FilterBars do
+		            v.BackgroundColor3 = AffectedOnly and AccentColor() or Color3.fromRGB(171, 171, 171)
+		        end
+		        RefreshEditor()
+		    end)
+		
+		    ResetModule.MouseEnter:Connect(function()
+		        Tween:Tween(ResetModule, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.075)
+		        })
+		    end)
+		    ResetModule.MouseLeave:Connect(function()
+		        Tween:Tween(ResetModule, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		        })
+		    end)
+		    ResetModule.MouseButton1Click:Connect(function()
+		        if SelectedModule then
+		            for _, v: {Name: string, Option: any, Order: number} in GetOptions(SelectedModule) do
+		                ResetOption(v.Option)
+		            end
+		            ExpandedOption = nil
+		            RefreshSettings()
+		        end
+		    end)
+		
+		    ResetAll.MouseEnter:Connect(function()
+		        ResetAll.TextColor3 = Color3.new(1, 1, 1)
+		    end)
+		    ResetAll.MouseLeave:Connect(function()
+		        ResetAll.TextColor3 = Color3.fromRGB(171, 171, 171)
+		    end)
+		    ResetAll.MouseButton1Click:Connect(function()
+		        for _, v: {Name: string, Module: any, Rank: number} in ListModules("", true) do
+		            for _, Entry: {Name: string, Option: any, Order: number} in GetOptions(v.Module) do
+		                ResetOption(Entry.Option)
+		            end
+		        end
+		        ExpandedOption = nil
+		        RefreshEditor()
+		    end)
+		
+		    EditAll.MouseButton1Click:Connect(function()
+		        OpenEditor()
+		    end)
+		    EditorClose.MouseButton1Click:Connect(function()
+		        Editor.Visible = false
+		    end)
+		
+		    CreateButton.MouseButton1Click:Connect(function()
+		        RefreshModules()
+		        NameBox.Text = ""
+		        NewProfile.Visible = true
+		        NameBox:CaptureFocus()
+		    end)
+		
+		    Back.MouseButton1Click:Connect(function()
+		        NewProfile.Visible = false
+		    end)
+		
+		    NameAdd.MouseButton1Click:Connect(function()
+		        if NameBox.Text == "" then return end
+		        Component:ChangeValue(NameBox.Text)
+		        NameBox.Text = ""
+		        NewProfile.Visible = false
+		    end)
+		
+		    local PublicButton: TextButton = AddRowButton("Public", "kingvape/assets/new/profileworld.png", "PUBLIC", false, "Browse public profiles", 1)
+		    PublicButton.Position = UDim2.new(1, -PublicButton.Size.X.Offset, 0, PublicButton.Position.Y.Offset)
+		
+		    PublicButton.MouseButton1Click:Connect(function()
+		        local Public = vape.PublicProfiles
+		        if not Public then return end
+		        Public.Window.Position = UDim2.new(0.5, -356, 0.5, -214)
+		        Public.Window.Visible = true
+		    end)
+		
+		    NewArrowButton.MouseButton1Click:Connect(function()
+		        Component:Expand()
+		        NewArrow.Rotation = Arrow.Rotation
+		    end)
 		end
 		
-		local cursedpadding = Instance.new('Frame')
-		cursedpadding.BackgroundTransparency = 1
-		cursedpadding.Size = UDim2.fromOffset()
-		cursedpadding.Parent = children
-		props.Function = props.Function or function() end
+		local CursedPadding: Frame = Instance.new("Frame")
+		CursedPadding.BackgroundTransparency = 1
+		CursedPadding.Size = UDim2.fromOffset()
+		CursedPadding.Parent = Children
+		Props.Function = Props.Function or function() end
 		
-		function component:CreateProfile(value, data)
-			local profile = {
-				Name = value
-			}
+		function Component:CreateProfile(Value: string, Data)
+		    local Profile = {
+		        Name = Value
+		    }
 		
-			profile.Bind = components.Bind({
-				Module = true,
-				Cover = true
-			}, nil, profile)
-			profile.Bind.Object.Position = UDim2.new(1, -30, 0, 7)
-			profile.Bind.Triggered:Connect(function(isPressed)
-				if isPressed and vape.Profile ~= value then
-					vape:Save(value)
-					vape:Load(true)
-					self:ChangeValue()
-				end
-			end)
+		    Profile.Bind = Components.Bind({
+		        Module = true,
+		        Cover = true
+		    }, nil, Profile)
+		    Profile.Bind.Object.Position = UDim2.new(1, -30, 0, 7)
+		    Profile.Bind.Triggered:Connect(function(IsPressed: boolean)
+		        if IsPressed and vape.Profile ~= Value then
+		            vape:Save(Value)
+		            vape:Load(true)
+		            self:ChangeValue()
+		        end
+		    end)
 		
-			if data then
-				profile.Bind:Load(data)
-			end
+		    if Data then
+		        Profile.Bind:Load(Data)
+		    end
 		
-			table.insert(self.List, profile)
+		    table.insert(self.List, Profile)
 		end
 		
-		function component:ChangeValue(value, skipGUI)
-			if value then
-				if props.Profiles then
-					local index, profile = self:GetValue(value)
-					if index then
-						if value ~= 'default' then
-							profile.Bind:Destroy()
-							table.remove(self.List, index)
+		function Component:ChangeValue(Value: string?, SkipGUI: boolean?)
+		    if Value then
+		        if Props.Profiles then
+		            local Index, Profile = self:GetValue(Value)
+		            if Index then
+		                if Value ~= "default" then
+		                    Profile.Bind:Destroy()
+		                    table.remove(self.List, Index)
 		
-							if isfile('kingvape/profiles/'..value..vape.Place..'.txt') and delfile then
-								delfile('kingvape/profiles/'..value..vape.Place..'.txt')
-							end
-						end
-					else
-						self:CreateProfile(value)
-					end
-				else
-					local index = table.find(self.List, value)
-					if index then
-						table.remove(self.List, index)
+		                    if isfile(`kingvape/profiles/{Value}{vape.Place}.txt`) and delfile then
+		                        delfile(`kingvape/profiles/{Value}{vape.Place}.txt`)
+		                    end
+		                end
+		            else
+		                self:CreateProfile(Value)
+		            end
+		        else
+		            local Index: number? = table.find(self.List, Value)
+		            if Index then
+		                table.remove(self.List, Index)
 		
-						index = table.find(self.ListEnabled, value)
-						if index then
-							table.remove(self.ListEnabled, index)
-						end
-					else
-						table.insert(self.List, value)
-						table.insert(self.ListEnabled, value)
-					end
-				end
-			end
+		                Index = table.find(self.ListEnabled, Value)
+		                if Index then
+		                    table.remove(self.ListEnabled, Index)
+		                end
+		            else
+		                table.insert(self.List, Value)
+		                table.insert(self.ListEnabled, Value)
+		            end
+		        end
+		    end
 		
-			props.Function()
-			for _, obj in self.Objects do
-				obj:Destroy()
-			end
-			table.clear(self.Objects)
-			self.Selected = nil
+		    Props.Function()
+		    for _, v: any in self.Objects do
+		        v:Destroy()
+		    end
+		    table.clear(self.Objects)
+		    self.Selected = nil
 		
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			for _, name in self.List do
-				if props.Profiles then
-					local obj = Instance.new('TextButton')
-					obj.Name = name.Name
-					obj.Size = UDim2.fromOffset(200, 32)
-					obj.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-					obj.AutoButtonColor = false
-					obj.Text = ''
-					obj.Parent = children
-					addCorner(obj)
-					local stroke = Instance.new('UIStroke')
-					stroke.Color = color.Light(uipallet.Main, 0.1)
-					stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-					stroke.Enabled = false
-					stroke.Parent = obj
-					local label = Instance.new('TextLabel')
-					label.Name = 'Title'
-					label.Size = UDim2.new(1, -10, 1, 0)
-					label.Position = UDim2.fromOffset(10, 0)
-					label.BackgroundTransparency = 1
-					label.Text = name.Name
-					label.TextXAlignment = Enum.TextXAlignment.Left
-					label.TextColor3 = color.Dark(uipallet.Text, 0.4)
-					label.TextSize = 15
-					label.FontFace = uipallet.Font
-					label.Parent = obj
-					local dotsbutton = Instance.new('TextButton')
-					dotsbutton.BackgroundTransparency = 1
-					dotsbutton.Name = 'Dots'
-					dotsbutton.Position = UDim2.new(1, -25, 0, 0)
-					dotsbutton.Size = UDim2.fromOffset(25, 32)
-					dotsbutton.Text = ''
-					dotsbutton.Parent = obj
-					local dots = Instance.new('ImageLabel')
-					dots.BackgroundTransparency = 1
-					dots.Image = getvapeasset('kingvape/assets/new/settingdots.png')
-					dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
-					dots.Name = 'Dots'
-					dots.Position = UDim2.fromOffset(11, 9)
-					dots.Size = UDim2.fromOffset(3, 16)
-					dots.Parent = dotsbutton
-					name.Bind:SetParent(obj)
-					name.Enabled = name.Name == vape.Profile
+		    for _, Entry: any in self.List do
+		        if Props.Profiles then
+		            local Object: TextButton = Instance.new("TextButton")
+		            Object.Name = Entry.Name
+		            Object.Size = UDim2.fromOffset(200, 32)
+		            Object.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		            Object.AutoButtonColor = false
+		            Object.Text = ""
+		            Object.Parent = Children
+		            AddCorner(Object)
+		            local Stroke: UIStroke = Instance.new("UIStroke")
+		            Stroke.Color = Color.Light(UIPallet.Main, 0.1)
+		            Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		            Stroke.Enabled = false
+		            Stroke.Parent = Object
+		            local Label: TextLabel = Instance.new("TextLabel")
+		            Label.Name = "Title"
+		            Label.Size = UDim2.new(1, -10, 1, 0)
+		            Label.Position = UDim2.fromOffset(10, 0)
+		            Label.BackgroundTransparency = 1
+		            Label.Text = Entry.Name
+		            Label.TextXAlignment = Enum.TextXAlignment.Left
+		            Label.TextColor3 = Color.Dark(UIPallet.Text, 0.4)
+		            Label.TextSize = 15
+		            Label.FontFace = UIPallet.Font
+		            Label.Parent = Object
+		            local DotsButton: TextButton = Instance.new("TextButton")
+		            DotsButton.BackgroundTransparency = 1
+		            DotsButton.Name = "Dots"
+		            DotsButton.Position = UDim2.new(1, -25, 0, 0)
+		            DotsButton.Size = UDim2.fromOffset(25, 32)
+		            DotsButton.Text = ""
+		            DotsButton.Parent = Object
+		            local Dots: ImageLabel = Instance.new("ImageLabel")
+		            Dots.BackgroundTransparency = 1
+		            Dots.Image = GetVapeAsset("kingvape/assets/new/settingdots.png")
+		            Dots.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		            Dots.Name = "Dots"
+		            Dots.Position = UDim2.fromOffset(11, 9)
+		            Dots.Size = UDim2.fromOffset(3, 16)
+		            Dots.Parent = DotsButton
+		            Entry.Bind:SetParent(Object)
+		            Entry.Enabled = Entry.Name == vape.Profile
 		
-					dotsbutton.MouseButton1Click:Connect(function()
-						if not name.Enabled then
-							component:ChangeValue(name.Name)
-						end
-					end)
+		            DotsButton.MouseButton1Click:Connect(function()
+		                if not Entry.Enabled then
+		                    Component:ChangeValue(Entry.Name)
+		                end
+		            end)
 		
-					dotsbutton.MouseEnter:Connect(function()
-						if not name.Enabled then
-							dots.ImageColor3 = uipallet.Text
-						end
-					end)
+		            DotsButton.MouseEnter:Connect(function()
+		                if not Entry.Enabled then
+		                    Dots.ImageColor3 = UIPallet.Text
+		                end
+		            end)
 		
-					dotsbutton.MouseLeave:Connect(function()
-						if not name.Enabled then
-							dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
-						end
-					end)
+		            DotsButton.MouseLeave:Connect(function()
+		                if not Entry.Enabled then
+		                    Dots.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		                end
+		            end)
 		
-					obj.MouseButton1Click:Connect(function()
-						vape:Save(name.Name)
-						vape:Load(true)
-						self:ChangeValue()
-					end)
+		            Object.MouseButton1Click:Connect(function()
+		                vape:Save(Entry.Name)
+		                vape:Load(true)
+		                self:ChangeValue()
+		            end)
 		
-					obj.MouseEnter:Connect(function()
-						name.Bind:SetVisible(true)
-					end)
+		            Object.MouseEnter:Connect(function()
+		                Entry.Bind:SetVisible(true)
+		            end)
 		
-					obj.MouseLeave:Connect(function()
-						name.Bind:SetVisible(false)
-					end)
+		            Object.MouseLeave:Connect(function()
+		                Entry.Bind:SetVisible(false)
+		            end)
 		
-					if name.Enabled then
-						self.Selected = obj
-					else
-						name.Bind:SetColor(color.Dark(uipallet.Text, 0.43))
-					end
+		            if Entry.Enabled then
+		                self.Selected = Object
+		            else
+		                Entry.Bind:SetColor(Color.Dark(UIPallet.Text, 0.43))
+		            end
 		
-					table.insert(self.Objects, {
-						Destroy = function()
-							name.Bind:SetParent(nil)
-							obj:Destroy()
-						end
-					})
-				else
-					local isEnabled = table.find(self.ListEnabled, name)
-					local obj = Instance.new('TextButton')
-					obj.Name = name
-					obj.Size = UDim2.fromOffset(200, 31)
-					obj.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-					obj.AutoButtonColor = false
-					obj.Text = ''
-					obj.Parent = children
-					addCorner(obj)
-					local bkg = Instance.new('Frame')
-					bkg.BackgroundColor3 = uipallet.Main
-					bkg.Position = UDim2.fromOffset(1, 1)
-					bkg.Size = UDim2.new(1, -2, 1, -2)
-					bkg.Visible = false
-					bkg.Parent = obj
-					addCorner(bkg)
-					local dot = Instance.new('Frame')
-					dot.BackgroundColor3 = isEnabled and props.Color or color.Light(uipallet.Main, 0.37)
-					dot.Position = UDim2.fromOffset(10, 12)
-					dot.Size = UDim2.fromOffset(10, 11)
-					dot.Parent = obj
-					addCorner(dot, UDim.new(1, 0))
-					local dotin = dot:Clone()
-					dotin.BackgroundColor3 = isEnabled and props.Color or color.Light(uipallet.Main, 0.02)
-					dotin.Position = UDim2.fromOffset(1, 1)
-					dotin.Size = UDim2.fromOffset(8, 9)
-					dotin.Parent = dot
-					local label = Instance.new('TextLabel')
-					label.BackgroundTransparency = 1
-					label.FontFace = uipallet.Font
-					label.Position = UDim2.fromOffset(30, 0)
-					label.Size = UDim2.new(1, -30, 1, 0)
-					label.Text = name
-					label.TextColor3 = color.Dark(uipallet.Text, 0.16)
-					label.TextSize = 15
-					label.TextXAlignment = Enum.TextXAlignment.Left
-					label.Parent = obj
-					local close = Instance.new('ImageButton')
-					close.AutoButtonColor = false
-					close.BackgroundColor3 = Color3.new(1, 1, 1)
-					close.BackgroundTransparency = 1
-					close.Image = getvapeasset('kingvape/assets/new/closetiny.png')
-					close.ImageColor3 = color.Light(uipallet.Text, 0.2)
-					close.ImageTransparency = 0.5
-					close.Position = UDim2.new(1, -27, 0, 8)
-					close.Size = UDim2.fromOffset(18, 17)
-					close.Parent = obj
-					addCorner(close, UDim.new(1, 0))
+		            table.insert(self.Objects, {
+		                Destroy = function()
+		                    Entry.Bind:SetParent(nil)
+		                    Object:Destroy()
+		                end
+		            })
+		        else
+		            local IsEnabled: number? = table.find(self.ListEnabled, Entry)
+		            local Object: TextButton = Instance.new("TextButton")
+		            Object.Name = Entry
+		            Object.Size = UDim2.fromOffset(200, 31)
+		            Object.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		            Object.AutoButtonColor = false
+		            Object.Text = ""
+		            Object.Parent = Children
+		            AddCorner(Object)
+		            local Background: Frame = Instance.new("Frame")
+		            Background.BackgroundColor3 = UIPallet.Main
+		            Background.Position = UDim2.fromOffset(1, 1)
+		            Background.Size = UDim2.new(1, -2, 1, -2)
+		            Background.Visible = false
+		            Background.Parent = Object
+		            AddCorner(Background)
+		            local Dot: Frame = Instance.new("Frame")
+		            Dot.BackgroundColor3 = IsEnabled and Props.Color or Color.Light(UIPallet.Main, 0.37)
+		            Dot.Position = UDim2.fromOffset(10, 12)
+		            Dot.Size = UDim2.fromOffset(10, 11)
+		            Dot.Parent = Object
+		            AddCorner(Dot, UDim.new(1, 0))
+		            local DotInner: Frame = Dot:Clone()
+		            DotInner.BackgroundColor3 = IsEnabled and Props.Color or Color.Light(UIPallet.Main, 0.02)
+		            DotInner.Position = UDim2.fromOffset(1, 1)
+		            DotInner.Size = UDim2.fromOffset(8, 9)
+		            DotInner.Parent = Dot
+		            local Label: TextLabel = Instance.new("TextLabel")
+		            Label.BackgroundTransparency = 1
+		            Label.FontFace = UIPallet.Font
+		            Label.Position = UDim2.fromOffset(30, 0)
+		            Label.Size = UDim2.new(1, -30, 1, 0)
+		            Label.Text = Entry
+		            Label.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		            Label.TextSize = 15
+		            Label.TextXAlignment = Enum.TextXAlignment.Left
+		            Label.Parent = Object
+		            local Close: ImageButton = Instance.new("ImageButton")
+		            Close.AutoButtonColor = false
+		            Close.BackgroundColor3 = Color3.new(1, 1, 1)
+		            Close.BackgroundTransparency = 1
+		            Close.Image = GetVapeAsset("kingvape/assets/new/closetiny.png")
+		            Close.ImageColor3 = Color.Light(UIPallet.Text, 0.2)
+		            Close.ImageTransparency = 0.5
+		            Close.Position = UDim2.new(1, -27, 0, 8)
+		            Close.Size = UDim2.fromOffset(18, 17)
+		            Close.Parent = Object
+		            AddCorner(Close, UDim.new(1, 0))
 		
-					close.MouseEnter:Connect(function()
-						close.ImageTransparency = 0.3
+		            Close.MouseEnter:Connect(function()
+		                Close.ImageTransparency = 0.3
 		
-						tween:Tween(close, uipallet.Tween, {
-							BackgroundTransparency = 0.6
-						})
-					end)
+		                Tween:Tween(Close, UIPallet.Tween, {
+		                    BackgroundTransparency = 0.6
+		                })
+		            end)
 		
-					close.MouseLeave:Connect(function()
-						close.ImageTransparency = 0.5
+		            Close.MouseLeave:Connect(function()
+		                Close.ImageTransparency = 0.5
 		
-						tween:Tween(close, uipallet.Tween, {
-							BackgroundTransparency = 1
-						})
-					end)
+		                Tween:Tween(Close, UIPallet.Tween, {
+		                    BackgroundTransparency = 1
+		                })
+		            end)
 		
-					close.MouseButton1Click:Connect(function()
-						component:ChangeValue(name)
-					end)
+		            Close.MouseButton1Click:Connect(function()
+		                Component:ChangeValue(Entry)
+		            end)
 		
-					obj.MouseEnter:Connect(function()
-						bkg.Visible = true
-					end)
+		            Object.MouseEnter:Connect(function()
+		                Background.Visible = true
+		            end)
 		
-					obj.MouseLeave:Connect(function()
-						bkg.Visible = false
-					end)
+		            Object.MouseLeave:Connect(function()
+		                Background.Visible = false
+		            end)
 		
-					obj.MouseButton1Click:Connect(function()
-						local index = table.find(self.ListEnabled, name)
-						if index then
-							table.remove(self.ListEnabled, index)
-							dot.BackgroundColor3 = color.Light(uipallet.Main, 0.37)
-							dotin.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-						else
-							table.insert(self.ListEnabled, name)
-							dot.BackgroundColor3 = props.Color
-							dotin.BackgroundColor3 = props.Color
-						end
+		            Object.MouseButton1Click:Connect(function()
+		                local Index: number? = table.find(self.ListEnabled, Entry)
+		                if Index then
+		                    table.remove(self.ListEnabled, Index)
+		                    Dot.BackgroundColor3 = Color.Light(UIPallet.Main, 0.37)
+		                    DotInner.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		                else
+		                    table.insert(self.ListEnabled, Entry)
+		                    Dot.BackgroundColor3 = Props.Color
+		                    DotInner.BackgroundColor3 = Props.Color
+		                end
 		
-						props.Function()
-					end)
+		                Props.Function()
+		            end)
 		
-					table.insert(self.Objects, obj)
-				end
-			end
+		            table.insert(self.Objects, Object)
+		        end
+		    end
 		
-			if not skipGUI then
-				vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-			end
+		    if not SkipGUI then
+		        vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		    end
 		end
 		
-		function component:Color(hue, sat, val, isRainbow)
-			for _, component in self.Options do
-				if component.Color then
-					component:Color(hue, sat, val, isRainbow)
-				end
-			end
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    for _, Option: any in self.Options do
+		        if Option.Color then
+		            Option:Color(Hue, Sat, Val, IsRainbow)
+		        end
+		    end
 		
-			addbutton.ImageColor3 = isRainbow and Color3.fromHSV(vape:Color(hue % 1)) or Color3.fromHSV(hue, sat, val)
+		    AddButton.ImageColor3 = IsRainbow and Color3.fromHSV(vape:Color(Hue % 1)) or Color3.fromHSV(Hue, Sat, Val)
 		
-			for _, v in rowpaints do
-				v(addbutton.ImageColor3, vape.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or vape:TextColor(hue, sat, val))
-			end
+		    for _, v: (Color3?, Color3?) -> () in RowPaints do
+		        v(AddButton.ImageColor3, vape.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or vape:TextColor(Hue, Sat, Val))
+		    end
 		
-			if self.Selected then
-				self.Selected.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color(hue % 1)) or Color3.fromHSV(hue, sat, val)
-				self.Selected.Title.TextColor3 = vape.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or vape:TextColor(hue, sat, val)
-				self.Selected.Dots.Dots.ImageColor3 = self.Selected.Title.TextColor3
-				self.Selected.Bind.Icon.ImageColor3 = self.Selected.Title.TextColor3
-				self.Selected.Bind.TextLabel.TextColor3 = self.Selected.Title.TextColor3
-			end
+		    if self.Selected then
+		        self.Selected.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color(Hue % 1)) or Color3.fromHSV(Hue, Sat, Val)
+		        self.Selected.Title.TextColor3 = vape.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or vape:TextColor(Hue, Sat, Val)
+		        self.Selected.Dots.Dots.ImageColor3 = self.Selected.Title.TextColor3
+		        self.Selected.Bind.Icon.ImageColor3 = self.Selected.Title.TextColor3
+		        self.Selected.Bind.TextLabel.TextColor3 = self.Selected.Title.TextColor3
+		    end
 		end
 		
-		function component:Expand()
-			self.Expanded = not self.Expanded
-			children.Visible = self.Expanded
-			arrow.Rotation = self.Expanded and 0 or 180
-			window.Size = UDim2.fromOffset(220, self.Expanded and math.min(51 + windowlist.AbsoluteContentSize.Y / scale.Scale, 611) or 45)
-			divider.Visible = children.CanvasPosition.Y > 10 and children.Visible
-			vape:QueueSave()
+		function Component:Expand()
+		    self.Expanded = not self.Expanded
+		    Children.Visible = self.Expanded
+		    Arrow.Rotation = self.Expanded and 0 or 180
+		    Window.Size = UDim2.fromOffset(220, self.Expanded and math.min(51 + WindowList.AbsoluteContentSize.Y / Scale.Scale, 611) or 45)
+		    Divider.Visible = Children.CanvasPosition.Y > 10 and Children.Visible
+		    vape:QueueSave()
 		end
 		
-		function component:GetValue(name)
-			for index, profile in self.List do
-				if profile.Name == name then
-					return index, profile
-				end
-			end
+		function Component:GetValue(Name: string)
+		    for i: number, Profile: any in self.List do
+		        if Profile.Name == Name then
+		            return i, Profile
+		        end
+		    end
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			vape:LoadOptions(self, data.Options)
+		    vape:LoadOptions(self, Data.Options)
 		
-			if data.Enabled then
-				self.Button:Toggle()
-			end
+		    if Data.Enabled then
+		        self.Button:Toggle()
+		    end
 		
-			if data.Expanded then
-				self:Expand()
-			end
+		    if Data.Expanded then
+		        self:Expand()
+		    end
 		
-			if props.Profiles then
-				for _, v in data.List or {} do
-					if not self:GetValue(v.Name) then
-						self:CreateProfile(v.Name, v.Bind)
-					end
-				end
+		    if Props.Profiles then
+		        for _, v: any in Data.List or {} do
+		            if not self:GetValue(v.Name) then
+		                self:CreateProfile(v.Name, v.Bind)
+		            end
+		        end
 		
-				self:ChangeValue(nil, true)
-			else
-				if data.List and (#self.List > 0 or #data.List > 0) then
-					self.List = data.List or {}
-					self.ListEnabled = data.ListEnabled or {}
-					self:ChangeValue(nil, true)
-				end
-			end
+		        self:ChangeValue(nil, true)
+		    else
+		        if Data.List and (#self.List > 0 or #Data.List > 0) then
+		            self.List = Data.List or {}
+		            self.ListEnabled = Data.ListEnabled or {}
+		            self:ChangeValue(nil, true)
+		        end
+		    end
 		
-			if data.Position then
-				window.Position = UDim2.fromOffset(data.Position.X, data.Position.Y)
-			end
+		    if Data.Position then
+		        Window.Position = UDim2.fromOffset(Data.Position.X, Data.Position.Y)
+		    end
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Enabled = self.Button.Enabled,
-				Expanded = self.Expanded,
-				List = self.List,
-				ListEnabled = self.ListEnabled,
-				Options = vape:SaveOptions(self),
-				Position = {
-					X = window.Position.X.Offset,
-					Y = window.Position.Y.Offset
-				}
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Enabled = self.Button.Enabled,
+		        Expanded = self.Expanded,
+		        List = self.List,
+		        ListEnabled = self.ListEnabled,
+		        Options = vape:SaveOptions(self),
+		        Position = {
+		            X = Window.Position.X.Offset,
+		            Y = Window.Position.Y.Offset
+		        }
+		    }
 		
-			if props.Profiles then
-				local newList = {}
+		    if Props.Profiles then
+		        local NewList: {any} = {}
 		
-				for _, profile in self.List do
-					local entry = {
-						Name = profile.Name
-					}
+		        for _, Profile: any in self.List do
+		            local Entry = {
+		                Name = Profile.Name
+		            }
 		
-					profile.Bind:Save(entry)
-					table.insert(newList, entry)
-				end
+		            Profile.Bind:Save(Entry)
+		            table.insert(NewList, Entry)
+		        end
 		
-				data[props.Name].List = newList
-			end
+		        Data[Props.Name].List = NewList
+		    end
 		end
 		
-		for index, comp in components do
-			component['Create'..index] = function(_, props)
-				return comp(props, childrentwo, component)
-			end
+		for ComponentName: string, Constructor: (...any) -> ...any in Components do
+		    Component[`Create{ComponentName}`] = function(_, Properties)
+		        return Constructor(Properties, ChildrenTwo, Component)
+		    end
 		end
 		
-		addbutton.MouseEnter:Connect(function()
-			addbutton.ImageTransparency = 0
+		AddButton.MouseEnter:Connect(function()
+		    AddButton.ImageTransparency = 0
 		end)
 		
-		addbutton.MouseLeave:Connect(function()
-			addbutton.ImageTransparency = 0.3
+		AddButton.MouseLeave:Connect(function()
+		    AddButton.ImageTransparency = 0.3
 		end)
 		
-		addbutton.MouseButton1Click:Connect(function()
-			if not table.find(component.List, addvalue.Text) then
-				component:ChangeValue(addvalue.Text)
-				addvalue.Text = ''
-			end
+		AddButton.MouseButton1Click:Connect(function()
+		    if not table.find(Component.List, AddValue.Text) then
+		        Component:ChangeValue(AddValue.Text)
+		        AddValue.Text = ""
+		    end
 		end)
 		
-		arrowbutton.MouseEnter:Connect(function()
-			arrow.ImageColor3 = Color3.fromRGB(220, 220, 220)
+		ArrowButton.MouseEnter:Connect(function()
+		    Arrow.ImageColor3 = Color3.fromRGB(220, 220, 220)
 		end)
 		
-		arrowbutton.MouseLeave:Connect(function()
-			arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
+		ArrowButton.MouseLeave:Connect(function()
+		    Arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
 		end)
 		
-		arrowbutton.MouseButton1Click:Connect(function()
-			component:Expand()
+		ArrowButton.MouseButton1Click:Connect(function()
+		    Component:Expand()
 		end)
 		
-		arrowbutton.MouseButton2Click:Connect(function()
-			component:Expand()
+		ArrowButton.MouseButton2Click:Connect(function()
+		    Component:Expand()
 		end)
 		
-		addvalue.FocusLost:Connect(function(enter)
-			if enter and not table.find(component.List, addvalue.Text) then
-				component:ChangeValue(addvalue.Text)
-				addvalue.Text = ''
-			end
+		AddValue.FocusLost:Connect(function(Enter: boolean)
+		    if Enter and not table.find(Component.List, AddValue.Text) then
+		        Component:ChangeValue(AddValue.Text)
+		        AddValue.Text = ""
+		    end
 		end)
 		
-		addvalue.MouseEnter:Connect(function()
-			tween:Tween(addbkg, uipallet.Tween, {
-				BackgroundColor3 = color.Light(uipallet.Main, 0.14)
-			})
+		AddValue.MouseEnter:Connect(function()
+		    Tween:Tween(AddBackground, UIPallet.Tween, {
+		        BackgroundColor3 = Color.Light(UIPallet.Main, 0.14)
+		    })
 		end)
 		
-		addvalue.MouseLeave:Connect(function()
-			tween:Tween(addbkg, uipallet.Tween, {
-				BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-			})
+		AddValue.MouseLeave:Connect(function()
+		    Tween:Tween(AddBackground, UIPallet.Tween, {
+		        BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		    })
 		end)
 		
-		children:GetPropertyChangedSignal('CanvasPosition'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		Children:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			divider.Visible = children.CanvasPosition.Y > 10 and children.Visible
+		    Divider.Visible = Children.CanvasPosition.Y > 10 and Children.Visible
 		end)
 		
-		settings.MouseEnter:Connect(function()
-			settings.ImageColor3 = uipallet.Text
+		Settings.MouseEnter:Connect(function()
+		    Settings.ImageColor3 = UIPallet.Text
 		end)
 		
-		settings.MouseLeave:Connect(function()
-			settings.ImageColor3 = color.Light(uipallet.Main, 0.37)
+		Settings.MouseLeave:Connect(function()
+		    Settings.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
 		end)
 		
-		settings.MouseButton1Click:Connect(function()
-			childrentwo.Visible = not childrentwo.Visible
+		Settings.MouseButton1Click:Connect(function()
+		    ChildrenTwo.Visible = not ChildrenTwo.Visible
 		end)
 		
-		window.InputBegan:Connect(function(input)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		Window.InputBegan:Connect(function(Input: InputObject)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if input.Position.Y < window.AbsolutePosition.Y + 41 and input.UserInputType == Enum.UserInputType.MouseButton2 then
-				component:Expand()
-			end
+		    if Input.Position.Y < Window.AbsolutePosition.Y + 41 and Input.UserInputType == Enum.UserInputType.MouseButton2 then
+		        Component:Expand()
+		    end
 		end)
 		
-		windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		WindowList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			children.CanvasSize = UDim2.fromOffset(0, windowlist.AbsoluteContentSize.Y / scale.Scale)
-			if component.Expanded then
-				window.Size = UDim2.fromOffset(220, math.min(51 + windowlist.AbsoluteContentSize.Y / scale.Scale, 611))
-			end
+		    Children.CanvasSize = UDim2.fromOffset(0, WindowList.AbsoluteContentSize.Y / Scale.Scale)
+		    if Component.Expanded then
+		        Window.Size = UDim2.fromOffset(220, math.min(51 + WindowList.AbsoluteContentSize.Y / Scale.Scale, 611))
+		    end
 		end)
 		
-		windowlisttwo:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		WindowListTwo:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			childrentwo.Size = UDim2.fromOffset(220, windowlisttwo.AbsoluteContentSize.Y / scale.Scale)
+		    ChildrenTwo.Size = UDim2.fromOffset(220, WindowListTwo.AbsoluteContentSize.Y / Scale.Scale)
 		end)
 		
-		component.Button = vape.Categories.Main:CreateGUIButton({
-			Name = props.Name,
-			Icon = props.CategoryIcon,
-			Size = props.CategorySize,
-			Window = window
+		Component.Button = vape.Categories.Main:CreateGUIButton({
+		    Name = Props.Name,
+		    Icon = Props.CategoryIcon,
+		    Size = Props.CategorySize,
+		    Window = Window
 		})
 		
-		component.Object = window
-		vape.Categories[props.Name] = component
+		Component.Object = Window
+		vape.Categories[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	ColorSlider = function(props, children, api)
-		local component = {
-			Type = 'ColorSlider',
-			Hue = props.DefaultHue or 0.44,
-			Sat = props.DefaultSat or 1,
-			Value = props.DefaultValue or 1,
-			Opacity = props.DefaultOpacity or 1,
-			Rainbow = false,
-			Index = 0
+	ColorSlider = function(Props, Children, API)
+		local Component = {
+		    Type = "ColorSlider",
+		    Hue = Props.DefaultHue or 0.44,
+		    Sat = Props.DefaultSat or 1,
+		    Value = Props.DefaultValue or 1,
+		    Opacity = Props.DefaultOpacity or 1,
+		    Rainbow = false,
+		    Index = 0
 		}
 		
-		local function createExtraSlider(name, gradientColor)
-			local colorslidercustom = Instance.new('TextButton')
-			colorslidercustom.AutoButtonColor = false
-			colorslidercustom.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-			colorslidercustom.BorderSizePixel = 0
-			colorslidercustom.Size = UDim2.new(1, 0, 0, 50)
-			colorslidercustom.Text = ''
-			colorslidercustom.Visible = false
-			colorslidercustom.Parent = children
-			local title = Instance.new('TextLabel')
-			title.BackgroundTransparency = 1
-			title.FontFace = uipallet.Font
-			title.Position = UDim2.fromOffset(10, 2)
-			title.Size = UDim2.fromOffset(60, 30)
-			title.Text = name
-			title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-			title.TextSize = 11
-			title.TextXAlignment = Enum.TextXAlignment.Left
-			title.Parent = colorslidercustom
-			local holder = Instance.new('Frame')
-			holder.BackgroundColor3 = Color3.new(1, 1, 1)
-			holder.BorderSizePixel = 0
-			holder.Name = 'Holder'
-			holder.Position = UDim2.fromOffset(10, 37)
-			holder.Size = UDim2.new(1, -20, 0, 2)
-			holder.Parent = colorslidercustom
-			local uigradient = Instance.new('UIGradient')
-			uigradient.Color = gradientColor
-			uigradient.Parent = holder
-			local fill = Instance.new('Frame')
-			fill.BackgroundTransparency = 1
-			fill.Name = 'Fill'
-			fill.Size = UDim2.fromScale(math.clamp(name == 'Saturation' and component.Sat or name == 'Vibrance' and component.Value or component.Opacity, 0.04, 0.96), 1)
-			fill.Parent = holder
-			local knobholder = Instance.new('Frame')
-			knobholder.AnchorPoint = Vector2.new(0.5, 0.5)
-			knobholder.BackgroundColor3 = colorslidercustom.BackgroundColor3
-			knobholder.BorderSizePixel = 0
-			knobholder.Position = UDim2.fromScale(1, 0.5)
-			knobholder.Size = UDim2.fromOffset(24, 4)
-			knobholder.Parent = fill
-			local knob = Instance.new('Frame')
-			knob.AnchorPoint = Vector2.new(0.5, 0.5)
-			knob.BackgroundColor3 = uipallet.Text
-			knob.Position = UDim2.fromScale(0.5, 0.5)
-			knob.Size = UDim2.fromOffset(14, 14)
-			knob.Parent = knobholder
-			addCorner(knob, UDim.new(1, 0))
+		local function CreateExtraSlider(Name: string, GradientColor: ColorSequence)
+		    local ColorSliderCustom: TextButton = Instance.new("TextButton")
+		    ColorSliderCustom.AutoButtonColor = false
+		    ColorSliderCustom.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		    ColorSliderCustom.BorderSizePixel = 0
+		    ColorSliderCustom.Size = UDim2.new(1, 0, 0, 50)
+		    ColorSliderCustom.Text = ""
+		    ColorSliderCustom.Visible = false
+		    ColorSliderCustom.Parent = Children
+		    local Title: TextLabel = Instance.new("TextLabel")
+		    Title.BackgroundTransparency = 1
+		    Title.FontFace = UIPallet.Font
+		    Title.Position = UDim2.fromOffset(10, 2)
+		    Title.Size = UDim2.fromOffset(60, 30)
+		    Title.Text = Name
+		    Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		    Title.TextSize = 11
+		    Title.TextXAlignment = Enum.TextXAlignment.Left
+		    Title.Parent = ColorSliderCustom
+		    local Holder: Frame = Instance.new("Frame")
+		    Holder.BackgroundColor3 = Color3.new(1, 1, 1)
+		    Holder.BorderSizePixel = 0
+		    Holder.Name = "Holder"
+		    Holder.Position = UDim2.fromOffset(10, 37)
+		    Holder.Size = UDim2.new(1, -20, 0, 2)
+		    Holder.Parent = ColorSliderCustom
+		    local Gradient: UIGradient = Instance.new("UIGradient")
+		    Gradient.Color = GradientColor
+		    Gradient.Parent = Holder
+		    local Fill: Frame = Instance.new("Frame")
+		    Fill.BackgroundTransparency = 1
+		    Fill.Name = "Fill"
+		    Fill.Size = UDim2.fromScale(math.clamp(Name == "Saturation" and Component.Sat or Name == "Vibrance" and Component.Value or Component.Opacity, 0.04, 0.96), 1)
+		    Fill.Parent = Holder
+		    local KnobHolder: Frame = Instance.new("Frame")
+		    KnobHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+		    KnobHolder.BackgroundColor3 = ColorSliderCustom.BackgroundColor3
+		    KnobHolder.BorderSizePixel = 0
+		    KnobHolder.Position = UDim2.fromScale(1, 0.5)
+		    KnobHolder.Size = UDim2.fromOffset(24, 4)
+		    KnobHolder.Parent = Fill
+		    local Knob: Frame = Instance.new("Frame")
+		    Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+		    Knob.BackgroundColor3 = UIPallet.Text
+		    Knob.Position = UDim2.fromScale(0.5, 0.5)
+		    Knob.Size = UDim2.fromOffset(14, 14)
+		    Knob.Parent = KnobHolder
+		    AddCorner(Knob, UDim.new(1, 0))
 		
-			colorslidercustom.InputBegan:Connect(function(input)
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+		    ColorSliderCustom.InputBegan:Connect(function(Input: InputObject)
+		        if vape.ThreadFix then
+		            setthreadidentity(8)
+		        end
 		
-				if
-					(input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch)
-					and (input.Position.Y - colorslidercustom.AbsolutePosition.Y) > (20 * scale.Scale)
-				then
-					local releaseConnection
-					local moveConnection = inputService.InputChanged:Connect(function(newInput)
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
+		        if
+		            (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
+		            and (Input.Position.Y - ColorSliderCustom.AbsolutePosition.Y) > (20 * Scale.Scale)
+		        then
+		            local ReleaseConnection
+		            local MoveConnection: RBXScriptConnection = UserInputService.InputChanged:Connect(function(NewInput: InputObject)
+		                if vape.ThreadFix then
+		                    setthreadidentity(8)
+		                end
 		
-						if newInput.UserInputType == (input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
-							local newValue = math.clamp((newInput.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1)
-							component:SetValue(nil, name == 'Saturation' and newValue or nil, name == 'Vibrance' and newValue or nil, name == 'Opacity' and newValue or nil)
-						end
-					end)
+		                if NewInput.UserInputType == (Input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
+		                    local NewValue: number = math.clamp((NewInput.Position.X - Holder.AbsolutePosition.X) / Holder.AbsoluteSize.X, 0, 1)
+		                    Component:SetValue(nil, Name == "Saturation" and NewValue or nil, Name == "Vibrance" and NewValue or nil, Name == "Opacity" and NewValue or nil)
+		                end
+		            end)
 		
-					releaseConnection = input.Changed:Connect(function()
-						if input.UserInputState == Enum.UserInputState.End then
-							moveConnection:Disconnect()
-							releaseConnection:Disconnect()
-						end
-					end)
-				end
-			end)
+		            ReleaseConnection = Input.Changed:Connect(function()
+		                if Input.UserInputState == Enum.UserInputState.End then
+		                    MoveConnection:Disconnect()
+		                    ReleaseConnection:Disconnect()
+		                end
+		            end)
+		        end
+		    end)
 		
-			colorslidercustom.MouseEnter:Connect(function()
-				tween:Tween(knob, uipallet.Tween, {
-					Size = UDim2.fromOffset(16, 16)
-				})
-			end)
+		    ColorSliderCustom.MouseEnter:Connect(function()
+		        Tween:Tween(Knob, UIPallet.Tween, {
+		            Size = UDim2.fromOffset(16, 16)
+		        })
+		    end)
 		
-			colorslidercustom.MouseLeave:Connect(function()
-				tween:Tween(knob, uipallet.Tween, {
-					Size = UDim2.fromOffset(14, 14)
-				})
-			end)
+		    ColorSliderCustom.MouseLeave:Connect(function()
+		        Tween:Tween(Knob, UIPallet.Tween, {
+		            Size = UDim2.fromOffset(14, 14)
+		        })
+		    end)
 		
-			return colorslidercustom
+		    return ColorSliderCustom
 		end
 		
-		local colorslider = Instance.new('TextButton')
-		colorslider.AutoButtonColor = false
-		colorslider.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-		colorslider.BorderSizePixel = 0
-		colorslider.Size = UDim2.new(1, 0, 0, 50)
-		colorslider.Text = ''
-		colorslider.Visible = props.Visible == nil or props.Visible
-		colorslider.Parent = children
-		component.Object = colorslider
-		addTooltip(colorslider, props.Tooltip)
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(10, 2)
-		title.Size = UDim2.fromOffset(60, 30)
-		title.Text = props.Name
-		title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		title.TextSize = 11
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = colorslider
-		local custombox = Instance.new('TextBox')
-		custombox.BackgroundTransparency = 1
-		custombox.FontFace = uipallet.Font
-		custombox.Position = UDim2.new(1, -69, 0, 9)
-		custombox.Size = UDim2.fromOffset(60, 15)
-		custombox.Text = ''
-		custombox.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		custombox.TextSize = 11
-		custombox.TextXAlignment = Enum.TextXAlignment.Right
-		custombox.Visible = false
-		custombox.Parent = colorslider
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = Color3.new(1, 1, 1)
-		holder.BorderSizePixel = 0
-		holder.Position = UDim2.fromOffset(10, 39)
-		holder.Size = UDim2.new(1, -20, 0, 2)
-		holder.Parent = colorslider
-		local rainbowTable = {}
-		for i = 0, 1, 0.1 do
-			table.insert(rainbowTable, ColorSequenceKeypoint.new(i, Color3.fromHSV(i, 1, 1)))
+		local ColorSlider: TextButton = Instance.new("TextButton")
+		ColorSlider.AutoButtonColor = false
+		ColorSlider.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		ColorSlider.BorderSizePixel = 0
+		ColorSlider.Size = UDim2.new(1, 0, 0, 50)
+		ColorSlider.Text = ""
+		ColorSlider.Visible = Props.Visible == nil or Props.Visible
+		ColorSlider.Parent = Children
+		Component.Object = ColorSlider
+		AddTooltip(ColorSlider, Props.Tooltip)
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Position = UDim2.fromOffset(10, 2)
+		Title.Size = UDim2.fromOffset(60, 30)
+		Title.Text = Props.Name
+		Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Title.TextSize = 11
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = ColorSlider
+		local CustomBox: TextBox = Instance.new("TextBox")
+		CustomBox.BackgroundTransparency = 1
+		CustomBox.FontFace = UIPallet.Font
+		CustomBox.Position = UDim2.new(1, -69, 0, 9)
+		CustomBox.Size = UDim2.fromOffset(60, 15)
+		CustomBox.Text = ""
+		CustomBox.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		CustomBox.TextSize = 11
+		CustomBox.TextXAlignment = Enum.TextXAlignment.Right
+		CustomBox.Visible = false
+		CustomBox.Parent = ColorSlider
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color3.new(1, 1, 1)
+		Holder.BorderSizePixel = 0
+		Holder.Position = UDim2.fromOffset(10, 39)
+		Holder.Size = UDim2.new(1, -20, 0, 2)
+		Holder.Parent = ColorSlider
+		local RainbowTable: {ColorSequenceKeypoint} = {}
+		for Hue: number = 0, 1, 0.1 do
+		    table.insert(RainbowTable, ColorSequenceKeypoint.new(Hue, Color3.fromHSV(Hue, 1, 1)))
 		end
-		local uigradient = Instance.new('UIGradient')
-		uigradient.Color = ColorSequence.new(rainbowTable)
-		uigradient.Parent = holder
-		local fill = Instance.new('Frame')
-		fill.BackgroundTransparency = 1
-		fill.Size = UDim2.fromScale(math.clamp(component.Hue, 0.04, 0.96), 1)
-		fill.Parent = holder
-		local knobholder = Instance.new('Frame')
-		knobholder.AnchorPoint = Vector2.new(0.5, 0.5)
-		knobholder.BackgroundColor3 = colorslider.BackgroundColor3
-		knobholder.BorderSizePixel = 0
-		knobholder.Position = UDim2.fromScale(1, 0.5)
-		knobholder.Size = UDim2.fromOffset(24, 4)
-		knobholder.Parent = fill
-		local knob = Instance.new('Frame')
-		knob.AnchorPoint = Vector2.new(0.5, 0.5)
-		knob.BackgroundColor3 = uipallet.Text
-		knob.Position = UDim2.fromScale(0.5, 0.5)
-		knob.Size = UDim2.fromOffset(14, 14)
-		knob.Parent = knobholder
-		addCorner(knob, UDim.new(1, 0))
-		local preview = Instance.new('ImageButton')
-		preview.BackgroundTransparency = 1
-		preview.Image = getvapeasset('kingvape/assets/new/colorpreview.png')
-		preview.ImageColor3 = Color3.fromHSV(component.Hue, component.Sat, component.Value)
-		preview.ImageTransparency = 1 - component.Opacity
-		preview.Position = UDim2.new(1, -22, 0, 10)
-		preview.Size = UDim2.fromOffset(12, 12)
-		preview.Parent = colorslider
-		local expand = Instance.new('TextButton')
-		expand.BackgroundTransparency = 1
-		expand.Position = UDim2.fromOffset(getfontbounds(title.Text, title.TextSize, title.FontFace).X + 11, 7)
-		expand.Size = UDim2.fromOffset(17, 13)
-		expand.Text = ''
-		expand.Parent = colorslider
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('kingvape/assets/new/downexpandslider.png')
-		icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
-		icon.Position = UDim2.fromOffset(4, 4)
-		icon.Size = UDim2.fromOffset(10, 5)
-		icon.Parent = expand
-		local rainbow = Instance.new('TextButton')
-		rainbow.BackgroundTransparency = 1
-		rainbow.Position = UDim2.new(1, -42, 0, 10)
-		rainbow.Size = UDim2.fromOffset(12, 12)
-		rainbow.Text = ''
-		rainbow.Parent = colorslider
-		local ring1 = Instance.new('ImageLabel')
-		ring1.BackgroundTransparency = 1
-		ring1.Image = getvapeasset('kingvape/assets/new/rainbow_1.png')
-		ring1.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		ring1.Size = UDim2.fromOffset(12, 12)
-		ring1.Parent = rainbow
-		local ring2 = Instance.fromExisting(ring1)
-		ring2.Image = getvapeasset('kingvape/assets/new/rainbow_2.png')
-		ring2.Parent = rainbow
-		local ring3 = Instance.fromExisting(ring1)
-		ring3.Image = getvapeasset('kingvape/assets/new/rainbow_3.png')
-		ring3.Parent = rainbow
-		local ring4 = Instance.fromExisting(ring1)
-		ring4.Image = getvapeasset('kingvape/assets/new/rainbow_4.png')
-		ring4.Parent = rainbow
-		props.Function = props.Function or function() end
+		local Gradient: UIGradient = Instance.new("UIGradient")
+		Gradient.Color = ColorSequence.new(RainbowTable)
+		Gradient.Parent = Holder
+		local Fill: Frame = Instance.new("Frame")
+		Fill.BackgroundTransparency = 1
+		Fill.Size = UDim2.fromScale(math.clamp(Component.Hue, 0.04, 0.96), 1)
+		Fill.Parent = Holder
+		local KnobHolder: Frame = Instance.new("Frame")
+		KnobHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+		KnobHolder.BackgroundColor3 = ColorSlider.BackgroundColor3
+		KnobHolder.BorderSizePixel = 0
+		KnobHolder.Position = UDim2.fromScale(1, 0.5)
+		KnobHolder.Size = UDim2.fromOffset(24, 4)
+		KnobHolder.Parent = Fill
+		local Knob: Frame = Instance.new("Frame")
+		Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+		Knob.BackgroundColor3 = UIPallet.Text
+		Knob.Position = UDim2.fromScale(0.5, 0.5)
+		Knob.Size = UDim2.fromOffset(14, 14)
+		Knob.Parent = KnobHolder
+		AddCorner(Knob, UDim.new(1, 0))
+		local Preview: ImageButton = Instance.new("ImageButton")
+		Preview.BackgroundTransparency = 1
+		Preview.Image = GetVapeAsset("kingvape/assets/new/colorpreview.png")
+		Preview.ImageColor3 = Color3.fromHSV(Component.Hue, Component.Sat, Component.Value)
+		Preview.ImageTransparency = 1 - Component.Opacity
+		Preview.Position = UDim2.new(1, -22, 0, 10)
+		Preview.Size = UDim2.fromOffset(12, 12)
+		Preview.Parent = ColorSlider
+		local Expand: TextButton = Instance.new("TextButton")
+		Expand.BackgroundTransparency = 1
+		Expand.Position = UDim2.fromOffset(GetFontBounds(Title.Text, Title.TextSize, Title.FontFace).X + 11, 7)
+		Expand.Size = UDim2.fromOffset(17, 13)
+		Expand.Text = ""
+		Expand.Parent = ColorSlider
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = GetVapeAsset("kingvape/assets/new/downexpandslider.png")
+		Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.43)
+		Icon.Position = UDim2.fromOffset(4, 4)
+		Icon.Size = UDim2.fromOffset(10, 5)
+		Icon.Parent = Expand
+		local Rainbow: TextButton = Instance.new("TextButton")
+		Rainbow.BackgroundTransparency = 1
+		Rainbow.Position = UDim2.new(1, -42, 0, 10)
+		Rainbow.Size = UDim2.fromOffset(12, 12)
+		Rainbow.Text = ""
+		Rainbow.Parent = ColorSlider
+		local Ring1: ImageLabel = Instance.new("ImageLabel")
+		Ring1.BackgroundTransparency = 1
+		Ring1.Image = GetVapeAsset("kingvape/assets/new/rainbow_1.png")
+		Ring1.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Ring1.Size = UDim2.fromOffset(12, 12)
+		Ring1.Parent = Rainbow
+		local Ring2: ImageLabel = Instance.fromExisting(Ring1)
+		Ring2.Image = GetVapeAsset("kingvape/assets/new/rainbow_2.png")
+		Ring2.Parent = Rainbow
+		local Ring3: ImageLabel = Instance.fromExisting(Ring1)
+		Ring3.Image = GetVapeAsset("kingvape/assets/new/rainbow_3.png")
+		Ring3.Parent = Rainbow
+		local Ring4: ImageLabel = Instance.fromExisting(Ring1)
+		Ring4.Image = GetVapeAsset("kingvape/assets/new/rainbow_4.png")
+		Ring4.Parent = Rainbow
+		Props.Function = Props.Function or function() end
 		
-		local satSlider = createExtraSlider('Saturation', ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, component.Value)),
-			ColorSequenceKeypoint.new(1, Color3.fromHSV(component.Hue, 1, component.Value))
+		local SaturationSlider: TextButton = CreateExtraSlider("Saturation", ColorSequence.new({
+		    ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, Component.Value)),
+		    ColorSequenceKeypoint.new(1, Color3.fromHSV(Component.Hue, 1, Component.Value))
 		}))
 		
-		local vibSlider = createExtraSlider('Vibrance', ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)),
-			ColorSequenceKeypoint.new(1, Color3.fromHSV(component.Hue, component.Sat, 1))
+		local VibranceSlider: TextButton = CreateExtraSlider("Vibrance", ColorSequence.new({
+		    ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)),
+		    ColorSequenceKeypoint.new(1, Color3.fromHSV(Component.Hue, Component.Sat, 1))
 		}))
 		
-		local opSlider = createExtraSlider('Opacity', ColorSequence.new({
-			ColorSequenceKeypoint.new(0, color.Dark(uipallet.Main, 0.02)),
-			ColorSequenceKeypoint.new(1, Color3.fromHSV(component.Hue, component.Sat, component.Value))
+		local OpacitySlider: TextButton = CreateExtraSlider("Opacity", ColorSequence.new({
+		    ColorSequenceKeypoint.new(0, Color.Dark(UIPallet.Main, 0.02)),
+		    ColorSequenceKeypoint.new(1, Color3.fromHSV(Component.Hue, Component.Sat, Component.Value))
 		}))
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			local hue = data.Hue or self.Hue
-			local sat = data.Sat or self.Sat
-			local value = data.Value or self.Value
-			local opacity = data.Opacity or self.Opacity
+		    local Hue: number = Data.Hue or self.Hue
+		    local Sat: number = Data.Sat or self.Sat
+		    local Value: number = Data.Value or self.Value
+		    local Opacity: number = Data.Opacity or self.Opacity
 		
-			if (data.Rainbow or false) ~= self.Rainbow then
-				self:Toggle()
-			end
+		    if (Data.Rainbow or false) ~= self.Rainbow then
+		        self:Toggle()
+		    end
 		
-			if self.Hue ~= hue or self.Sat ~= sat or self.Value ~= value or self.Opacity ~= opacity then
-				self:SetValue(hue, sat, value, opacity)
-			end
+		    if self.Hue ~= Hue or self.Sat ~= Sat or self.Value ~= Value or self.Opacity ~= Opacity then
+		        self:SetValue(Hue, Sat, Value, Opacity)
+		    end
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Hue = self.Hue,
-				Sat = self.Sat,
-				Value = self.Value,
-				Opacity = self.Opacity,
-				Rainbow = self.Rainbow
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Hue = self.Hue,
+		        Sat = self.Sat,
+		        Value = self.Value,
+		        Opacity = self.Opacity,
+		        Rainbow = self.Rainbow
+		    }
 		end
 		
-		function component:SetValue(h, s, v, o)
-			self.Hue = h or self.Hue
-			self.Sat = s or self.Sat
-			self.Value = v or self.Value
-			self.Opacity = o or self.Opacity
-			preview.ImageColor3 = Color3.fromHSV(self.Hue, self.Sat, self.Value)
-			preview.ImageTransparency = 1 - self.Opacity
+		function Component:SetValue(Hue: number?, Sat: number?, Val: number?, Opacity: number?)
+		    self.Hue = Hue or self.Hue
+		    self.Sat = Sat or self.Sat
+		    self.Value = Val or self.Value
+		    self.Opacity = Opacity or self.Opacity
+		    Preview.ImageColor3 = Color3.fromHSV(self.Hue, self.Sat, self.Value)
+		    Preview.ImageTransparency = 1 - self.Opacity
 		
-			satSlider.Holder.UIGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, self.Value)),
-				ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, 1, self.Value))
-			})
+		    SaturationSlider.Holder.UIGradient.Color = ColorSequence.new({
+		        ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, self.Value)),
+		        ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, 1, self.Value))
+		    })
 		
-			vibSlider.Holder.UIGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)),
-				ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, self.Sat, 1))
-			})
+		    VibranceSlider.Holder.UIGradient.Color = ColorSequence.new({
+		        ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)),
+		        ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, self.Sat, 1))
+		    })
 		
-			opSlider.Holder.UIGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, color.Dark(uipallet.Main, 0.02)),
-				ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, self.Sat, self.Value))
-			})
+		    OpacitySlider.Holder.UIGradient.Color = ColorSequence.new({
+		        ColorSequenceKeypoint.new(0, Color.Dark(UIPallet.Main, 0.02)),
+		        ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, self.Sat, self.Value))
+		    })
 		
-			if self.Rainbow then
-				fill.Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
-			else
-				tween:Tween(fill, uipallet.Tween, {
-					Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
-				})
-			end
+		    if self.Rainbow then
+		        Fill.Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
+		    else
+		        Tween:Tween(Fill, UIPallet.Tween, {
+		            Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
+		        })
+		    end
 		
-			if s then
-				tween:Tween(satSlider.Holder.Fill, uipallet.Tween, {
-					Size = UDim2.fromScale(math.clamp(self.Sat, 0.04, 0.96), 1)
-				})
-			end
+		    if Sat then
+		        Tween:Tween(SaturationSlider.Holder.Fill, UIPallet.Tween, {
+		            Size = UDim2.fromScale(math.clamp(self.Sat, 0.04, 0.96), 1)
+		        })
+		    end
 		
-			if v then
-				tween:Tween(vibSlider.Holder.Fill, uipallet.Tween, {
-					Size = UDim2.fromScale(math.clamp(self.Value, 0.04, 0.96), 1)
-				})
-			end
+		    if Val then
+		        Tween:Tween(VibranceSlider.Holder.Fill, UIPallet.Tween, {
+		            Size = UDim2.fromScale(math.clamp(self.Value, 0.04, 0.96), 1)
+		        })
+		    end
 		
-			if o then
-				tween:Tween(opSlider.Holder.Fill, uipallet.Tween, {
-					Size = UDim2.fromScale(math.clamp(self.Opacity, 0.04, 0.96), 1)
-				})
-			end
+		    if Opacity then
+		        Tween:Tween(OpacitySlider.Holder.Fill, UIPallet.Tween, {
+		            Size = UDim2.fromScale(math.clamp(self.Opacity, 0.04, 0.96), 1)
+		        })
+		    end
 		
-			if not self.Rainbow then
-				vape:QueueSave()
-			end
+		    if not self.Rainbow then
+		        vape:QueueSave()
+		    end
 		
-			props.Function(self.Hue, self.Sat, self.Value, self.Opacity)
+		    Props.Function(self.Hue, self.Sat, self.Value, self.Opacity)
 		end
 		
-		function component:Toggle()
-			self.Rainbow = not self.Rainbow
+		function Component:Toggle()
+		    self.Rainbow = not self.Rainbow
 		
-			if self.Rainbow then
-				table.insert(vape.RainbowSliders, self)
+		    if self.Rainbow then
+		        table.insert(vape.RainbowSliders, self)
 		
-				ring1.ImageColor3 = Color3.fromRGB(5, 127, 100)
-				task.delay(0.1, function()
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		        Ring1.ImageColor3 = Color3.fromRGB(5, 127, 100)
+		        task.delay(0.1, function()
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					if not self.Rainbow then return end
-					ring2.ImageColor3 = Color3.fromRGB(228, 125, 43)
-					task.delay(0.1, function()
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
+		            if not self.Rainbow then return end
+		            Ring2.ImageColor3 = Color3.fromRGB(228, 125, 43)
+		            task.delay(0.1, function()
+		                if vape.ThreadFix then
+		                    setthreadidentity(8)
+		                end
 		
-						if not self.Rainbow then return end
-						ring3.ImageColor3 = Color3.fromRGB(225, 46, 52)
-					end)
-				end)
-			else
-				local index = table.find(vape.RainbowSliders, self)
-				if index then
-					table.remove(vape.RainbowSliders, index)
-				end
+		                if not self.Rainbow then return end
+		                Ring3.ImageColor3 = Color3.fromRGB(225, 46, 52)
+		            end)
+		        end)
+		    else
+		        local Index: number? = table.find(vape.RainbowSliders, self)
+		        if Index then
+		            table.remove(vape.RainbowSliders, Index)
+		        end
 		
-				ring3.ImageColor3 = color.Light(uipallet.Main, 0.37)
-				task.delay(0.1, function()
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		        Ring3.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		        task.delay(0.1, function()
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					if self.Rainbow then return end
-					ring2.ImageColor3 = color.Light(uipallet.Main, 0.37)
-					task.delay(0.1, function()
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
+		            if self.Rainbow then return end
+		            Ring2.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		            task.delay(0.1, function()
+		                if vape.ThreadFix then
+		                    setthreadidentity(8)
+		                end
 		
-						if self.Rainbow then return end
-						ring1.ImageColor3 = color.Light(uipallet.Main, 0.37)
-					end)
-				end)
-			end
+		                if self.Rainbow then return end
+		                Ring1.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		            end)
+		        end)
+		    end
 		
-			vape:QueueSave()
+		    vape:QueueSave()
 		end
 		
-		preview.MouseButton1Click:Connect(function()
-			preview.Visible = false
-			custombox.Visible = true
-			custombox:CaptureFocus()
+		Preview.MouseButton1Click:Connect(function()
+		    Preview.Visible = false
+		    CustomBox.Visible = true
+		    CustomBox:CaptureFocus()
 		
-			local text = Color3.fromHSV(component.Hue, component.Sat, component.Value)
-			custombox.Text = math.round(text.R * 255)..', '..math.round(text.G * 255)..', '..math.round(text.B * 255)
+		    local CurrentColor: Color3 = Color3.fromHSV(Component.Hue, Component.Sat, Component.Value)
+		    CustomBox.Text = `{math.round(CurrentColor.R * 255)}, {math.round(CurrentColor.G * 255)}, {math.round(CurrentColor.B * 255)}`
 		end)
 		
-		local doubleClick = os.clock()
-		colorslider.InputBegan:Connect(function(input)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		local DoubleClick: number = os.clock()
+		ColorSlider.InputBegan:Connect(function(Input: InputObject)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if
-				(input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch)
-				and (input.Position.Y - colorslider.AbsolutePosition.Y) > (20 * scale.Scale)
-			then
-				local releaseConnection
-				local moveConnection = inputService.InputChanged:Connect(function(newInput)
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		    if
+		        (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
+		        and (Input.Position.Y - ColorSlider.AbsolutePosition.Y) > (20 * Scale.Scale)
+		    then
+		        local ReleaseConnection
+		        local MoveConnection: RBXScriptConnection = UserInputService.InputChanged:Connect(function(NewInput: InputObject)
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					if newInput.UserInputType == (input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
-						component:SetValue(math.clamp((newInput.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1))
-					end
-				end)
+		            if NewInput.UserInputType == (Input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
+		                Component:SetValue(math.clamp((NewInput.Position.X - Holder.AbsolutePosition.X) / Holder.AbsoluteSize.X, 0, 1))
+		            end
+		        end)
 		
-				releaseConnection = input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						moveConnection:Disconnect()
-						releaseConnection:Disconnect()
-					end
-				end)
+		        ReleaseConnection = Input.Changed:Connect(function()
+		            if Input.UserInputState == Enum.UserInputState.End then
+		                MoveConnection:Disconnect()
+		                ReleaseConnection:Disconnect()
+		            end
+		        end)
 		
-				if doubleClick > os.clock() then
-					component:Toggle()
-				else
-					component:SetValue(math.clamp((input.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1))
-				end
+		        if DoubleClick > os.clock() then
+		            Component:Toggle()
+		        else
+		            Component:SetValue(math.clamp((Input.Position.X - Holder.AbsolutePosition.X) / Holder.AbsoluteSize.X, 0, 1))
+		        end
 		
-				doubleClick = os.clock() + 0.3
-			end
+		        DoubleClick = os.clock() + 0.3
+		    end
 		end)
 		
-		colorslider.MouseEnter:Connect(function()
-			tween:Tween(knob, uipallet.Tween, {
-				Size = UDim2.fromOffset(16, 16)
-			})
+		ColorSlider.MouseEnter:Connect(function()
+		    Tween:Tween(Knob, UIPallet.Tween, {
+		        Size = UDim2.fromOffset(16, 16)
+		    })
 		end)
 		
-		colorslider.MouseLeave:Connect(function()
-			tween:Tween(knob, uipallet.Tween, {
-				Size = UDim2.fromOffset(14, 14)
-			})
+		ColorSlider.MouseLeave:Connect(function()
+		    Tween:Tween(Knob, UIPallet.Tween, {
+		        Size = UDim2.fromOffset(14, 14)
+		    })
 		end)
 		
-		colorslider:GetPropertyChangedSignal('Visible'):Connect(function()
-			satSlider.Visible = icon.Rotation == 180 and colorslider.Visible
-			vibSlider.Visible = satSlider.Visible
-			opSlider.Visible = satSlider.Visible
+		ColorSlider:GetPropertyChangedSignal("Visible"):Connect(function()
+		    SaturationSlider.Visible = Icon.Rotation == 180 and ColorSlider.Visible
+		    VibranceSlider.Visible = SaturationSlider.Visible
+		    OpacitySlider.Visible = SaturationSlider.Visible
 		end)
 		
-		expand.MouseEnter:Connect(function()
-			icon.ImageColor3 = color.Dark(uipallet.Text, 0.16)
+		Expand.MouseEnter:Connect(function()
+		    Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.16)
 		end)
 		
-		expand.MouseLeave:Connect(function()
-			icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
+		Expand.MouseLeave:Connect(function()
+		    Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.43)
 		end)
 		
-		expand.MouseButton1Click:Connect(function()
-			satSlider.Visible = not satSlider.Visible
-			vibSlider.Visible = satSlider.Visible
-			opSlider.Visible = satSlider.Visible
-			icon.Rotation = satSlider.Visible and 180 or 0
+		Expand.MouseButton1Click:Connect(function()
+		    SaturationSlider.Visible = not SaturationSlider.Visible
+		    VibranceSlider.Visible = SaturationSlider.Visible
+		    OpacitySlider.Visible = SaturationSlider.Visible
+		    Icon.Rotation = SaturationSlider.Visible and 180 or 0
 		end)
 		
-		rainbow.MouseButton1Click:Connect(function()
-			component:Toggle()
+		Rainbow.MouseButton1Click:Connect(function()
+		    Component:Toggle()
 		end)
 		
-		custombox.FocusLost:Connect(function(enter)
-			preview.Visible = true
-			custombox.Visible = false
+		CustomBox.FocusLost:Connect(function(Enter: boolean)
+		    Preview.Visible = true
+		    CustomBox.Visible = false
 		
-			if enter then
-				local success, parsed = pcall(function()
-					local commas = custombox.Text:split(',')
-					return tonumber(commas[1]) and Color3.fromRGB(tonumber(commas[1]), tonumber(commas[2]), tonumber(commas[3])) or Color3.fromHex(valuebox.Text)
-				end)
+		    if Enter then
+		        local Success, Parsed = pcall(function()
+		            local Commas: {string} = CustomBox.Text:split(",")
+		            return tonumber(Commas[1]) and Color3.fromRGB(tonumber(Commas[1]), tonumber(Commas[2]), tonumber(Commas[3])) or Color3.fromHex(CustomBox.Text)
+		        end)
 		
-				if success then
-					if component.Rainbow then
-						component:Toggle()
-					end
+		        if Success then
+		            if Component.Rainbow then
+		                Component:Toggle()
+		            end
 		
-					component:SetValue(parsed:ToHSV())
-				end
-			end
+		            Component:SetValue(Parsed:ToHSV())
+		        end
+		    end
 		end)
 		
-		api.Options[props.Name] = component
+		API.Options[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	Divider = function(props, children, api)
-		local divider = Instance.new('Frame')
-		divider.Size = UDim2.new(1, 0, 0, 1)
-		divider.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-		divider.BorderSizePixel = 0
-		divider.Parent = children
+	Divider = function(Props, Children, API)
+		local Divider: Frame = Instance.new("Frame")
+		Divider.Size = UDim2.new(1, 0, 0, 1)
+		Divider.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		Divider.BorderSizePixel = 0
+		Divider.Parent = Children
 		
-		if props and props.Text then
-			local label = Instance.new('TextLabel')
-			label.Size = UDim2.fromOffset(218, 27)
-			label.BackgroundTransparency = 1
-			label.Text = '            '..props.Text:upper()
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.TextColor3 = color.Dark(uipallet.Text, 0.43)
-			label.TextSize = 9
-			label.FontFace = uipallet.Font
-			label.Parent = children
-			divider.BackgroundTransparency = 1
-			--divider.Position = UDim2.fromOffset(0, 26)
-			divider.Parent = label
+		if Props and Props.Text then
+		    local Label: TextLabel = Instance.new("TextLabel")
+		    Label.Size = UDim2.fromOffset(218, 27)
+		    Label.BackgroundTransparency = 1
+		    Label.Text = `            {Props.Text:upper()}`
+		    Label.TextXAlignment = Enum.TextXAlignment.Left
+		    Label.TextColor3 = Color.Dark(UIPallet.Text, 0.43)
+		    Label.TextSize = 9
+		    Label.FontFace = UIPallet.Font
+		    Label.Parent = Children
+		    Divider.BackgroundTransparency = 1
+		    Divider.Parent = Label
 		end
 	end,
-	Dropdown = function(props, children, api)
-		local component = {
-			Default = props.Default or props.List[1] or 'None',
-			Index = 0,
-			List = props.List,
-			Type = 'Dropdown',
-			Value = props.List[1] or 'None'
+	Dropdown = function(Props, Children, API)
+		local Component = {
+		    Default = Props.Default or Props.List[1] or "None",
+		    Index = 0,
+		    List = Props.List,
+		    Type = "Dropdown",
+		    Value = Props.List[1] or "None"
 		}
 		
-		local dropdown = Instance.new('TextButton')
-		dropdown.AutoButtonColor = false
-		dropdown.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-		dropdown.BorderSizePixel = 0
-		dropdown.Size = UDim2.new(1, 0, 0, 40)
-		dropdown.Text = ''
-		dropdown.Visible = props.Visible == nil or props.Visible
-		dropdown.Parent = children
-		component.Object = dropdown
-		addTooltip(dropdown, props.Tooltip or props.Name)
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-		holder.Position = UDim2.fromOffset(10, 4)
-		holder.Size = UDim2.new(1, -20, 1, -11)
-		holder.Parent = dropdown
-		addCorner(holder, UDim.new(0, 6))
-		local button = Instance.new('TextButton')
-		button.AutoButtonColor = false
-		button.BackgroundColor3 = uipallet.Main
-		button.Position = UDim2.fromOffset(1, 1)
-		button.Size = UDim2.new(1, -2, 1, -2)
-		button.Text = ''
-		button.Parent = holder
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Size = UDim2.new(1, 0, 0, 29)
-		title.Text = '         '..props.Name..' - '..component.Value
-		title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		title.TextSize = 13
-		title.TextTruncate = Enum.TextTruncate.AtEnd
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = button
-		addCorner(button, UDim.new(0, 6))
-		local arrow = Instance.new('ImageLabel')
-		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('kingvape/assets/new/expandarrow.png')
-		arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
-		arrow.Position = UDim2.new(1, -17, 0, 11)
-		arrow.Rotation = 90
-		arrow.Size = UDim2.fromOffset(4, 8)
-		arrow.Parent = button
-		props.Function = props.Function or function() end
-		local dropdownchildren
+		local Dropdown: TextButton = Instance.new("TextButton")
+		Dropdown.AutoButtonColor = false
+		Dropdown.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		Dropdown.BorderSizePixel = 0
+		Dropdown.Size = UDim2.new(1, 0, 0, 40)
+		Dropdown.Text = ""
+		Dropdown.Visible = Props.Visible == nil or Props.Visible
+		Dropdown.Parent = Children
+		Component.Object = Dropdown
+		AddTooltip(Dropdown, Props.Tooltip or Props.Name)
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		Holder.Position = UDim2.fromOffset(10, 4)
+		Holder.Size = UDim2.new(1, -20, 1, -11)
+		Holder.Parent = Dropdown
+		AddCorner(Holder, UDim.new(0, 6))
+		local Button: TextButton = Instance.new("TextButton")
+		Button.AutoButtonColor = false
+		Button.BackgroundColor3 = UIPallet.Main
+		Button.Position = UDim2.fromOffset(1, 1)
+		Button.Size = UDim2.new(1, -2, 1, -2)
+		Button.Text = ""
+		Button.Parent = Holder
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Size = UDim2.new(1, 0, 0, 29)
+		Title.Text = `         {Props.Name} - {Component.Value}`
+		Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Title.TextSize = 13
+		Title.TextTruncate = Enum.TextTruncate.AtEnd
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Button
+		AddCorner(Button, UDim.new(0, 6))
+		local Arrow: ImageLabel = Instance.new("ImageLabel")
+		Arrow.BackgroundTransparency = 1
+		Arrow.Image = GetVapeAsset("kingvape/assets/new/expandarrow.png")
+		Arrow.ImageColor3 = Color3.fromRGB(140, 140, 140)
+		Arrow.Position = UDim2.new(1, -17, 0, 11)
+		Arrow.Rotation = 90
+		Arrow.Size = UDim2.fromOffset(4, 8)
+		Arrow.Parent = Button
+		Props.Function = Props.Function or function() end
+		local DropdownChildren: Frame?
 		
-		function component:Change(list)
-			props.List = list or {}
-			if not table.find(props.List, self.Value) then
-				self:SetValue(self.Value)
-			end
+		function Component:Change(List: {string}?)
+		    Props.List = List or {}
+		    if not table.find(Props.List, self.Value) then
+		        self:SetValue(self.Value)
+		    end
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if data.Value and self.Value ~= data.Value then
-				self:SetValue(data.Value)
-			end
+		    if Data.Value and self.Value ~= Data.Value then
+		        self:SetValue(Data.Value)
+		    end
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Value = self.Value
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Value = self.Value
+		    }
 		end
 		
-		function component:SetValue(value, isClick)
-			self.Value = table.find(props.List, value) and value or props.List[1] or 'None'
-			title.Text = '         '..props.Name..' - '..self.Value
+		function Component:SetValue(Value, IsClick: boolean?)
+		    self.Value = table.find(Props.List, Value) and Value or Props.List[1] or "None"
+		    Title.Text = `         {Props.Name} - {self.Value}`
 		
-			if dropdownchildren then
-				arrow.Rotation = 90
-				dropdownchildren:Destroy()
-				dropdownchildren = nil
-				dropdown.Size = UDim2.new(1, 0, 0, 40)
-			end
+		    if DropdownChildren then
+		        Arrow.Rotation = 90
+		        DropdownChildren:Destroy()
+		        DropdownChildren = nil
+		        Dropdown.Size = UDim2.new(1, 0, 0, 40)
+		    end
 		
-			vape:QueueSave()
-			props.Function(self.Value, isClick)
+		    vape:QueueSave()
+		    Props.Function(self.Value, IsClick)
 		end
 		
-		button.MouseButton1Click:Connect(function()
-			if not dropdownchildren then
-				arrow.Rotation = 270
-				dropdown.Size = UDim2.new(1, 0, 0, 43 + (#props.List - 1) * 26)
-				dropdownchildren = Instance.new('Frame')
-				dropdownchildren.BackgroundTransparency = 1
-				dropdownchildren.Position = UDim2.fromOffset(0, 27)
-				dropdownchildren.Size = UDim2.new(1, 0, 0, (#props.List - 1) * 26)
-				dropdownchildren.Parent = button
+		Button.MouseButton1Click:Connect(function()
+		    if not DropdownChildren then
+		        Arrow.Rotation = 270
+		        Dropdown.Size = UDim2.new(1, 0, 0, 43 + (#Props.List - 1) * 26)
+		        DropdownChildren = Instance.new("Frame")
+		        DropdownChildren.BackgroundTransparency = 1
+		        DropdownChildren.Position = UDim2.fromOffset(0, 27)
+		        DropdownChildren.Size = UDim2.new(1, 0, 0, (#Props.List - 1) * 26)
+		        DropdownChildren.Parent = Button
 		
-				local index = 0
-				for _, v in props.List do
-					if v == component.Value then continue end
-					local entry = Instance.new('TextButton')
-					entry.AutoButtonColor = false
-					entry.BackgroundColor3 = uipallet.Main
-					entry.BorderSizePixel = 0
-					entry.FontFace = uipallet.Font
-					entry.Position = UDim2.fromOffset(0, index * 26)
-					entry.Size = UDim2.new(1, 0, 0, 26)
-					entry.Text = '         '..v
-					entry.TextColor3 = color.Dark(uipallet.Text, 0.16)
-					entry.TextSize = 13
-					entry.TextTruncate = Enum.TextTruncate.AtEnd
-					entry.TextXAlignment = Enum.TextXAlignment.Left
-					entry.Parent = dropdownchildren
+		        local Index: number = 0
+		        for _, v: string in Props.List do
+		            if v == Component.Value then continue end
+		            local Entry: TextButton = Instance.new("TextButton")
+		            Entry.AutoButtonColor = false
+		            Entry.BackgroundColor3 = UIPallet.Main
+		            Entry.BorderSizePixel = 0
+		            Entry.FontFace = UIPallet.Font
+		            Entry.Position = UDim2.fromOffset(0, Index * 26)
+		            Entry.Size = UDim2.new(1, 0, 0, 26)
+		            Entry.Text = `         {v}`
+		            Entry.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		            Entry.TextSize = 13
+		            Entry.TextTruncate = Enum.TextTruncate.AtEnd
+		            Entry.TextXAlignment = Enum.TextXAlignment.Left
+		            Entry.Parent = DropdownChildren
 		
-					entry.MouseEnter:Connect(function()
-						entry.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-						entry.TextColor3 = uipallet.Text
-					end)
+		            Entry.MouseEnter:Connect(function()
+		                Entry.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		                Entry.TextColor3 = UIPallet.Text
+		            end)
 		
-					entry.MouseLeave:Connect(function()
-						entry.BackgroundColor3 = uipallet.Main
-						entry.TextColor3 = color.Dark(uipallet.Text, 0.16)
-					end)
+		            Entry.MouseLeave:Connect(function()
+		                Entry.BackgroundColor3 = UIPallet.Main
+		                Entry.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		            end)
 		
-					entry.MouseButton1Click:Connect(function()
-						component:SetValue(v, true)
-					end)
+		            Entry.MouseButton1Click:Connect(function()
+		                Component:SetValue(v, true)
+		            end)
 		
-					index += 1
-				end
-			else
-				component:SetValue(component.Value, true)
-			end
+		            Index += 1
+		        end
+		    else
+		        Component:SetValue(Component.Value, true)
+		    end
 		end)
 		
-		dropdown.MouseEnter:Connect(function()
-			tween:Tween(holder, uipallet.Tween, {
-				BackgroundColor3 = color.Light(uipallet.Main, 0.0875)
-			})
+		Dropdown.MouseEnter:Connect(function()
+		    Tween:Tween(Holder, UIPallet.Tween, {
+		        BackgroundColor3 = Color.Light(UIPallet.Main, 0.0875)
+		    })
 		end)
 		
-		dropdown.MouseLeave:Connect(function()
-			tween:Tween(holder, uipallet.Tween, {
-				BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-			})
+		Dropdown.MouseLeave:Connect(function()
+		    Tween:Tween(Holder, UIPallet.Tween, {
+		        BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		    })
 		end)
 		
-		api.Options[props.Name] = component
+		API.Options[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	Font = function(props, children, api)
-		local fonts = {
-			props.Default or 'Vape',
-			'Custom'
+	Font = function(Props, Children, API)
+		local Fonts: {string} = {
+		    Props.Default or "Vape",
+		    "Custom"
 		}
 		
-		for _, v in Enum.Font:GetEnumItems() do
-			if not table.find(fonts, v.Name) then
-				table.insert(fonts, v.Name)
-			end
+		for _, v: EnumItem in Enum.Font:GetEnumItems() do
+		    if not table.find(Fonts, v.Name) then
+		        table.insert(Fonts, v.Name)
+		    end
 		end
 		
-		local component = {
-			Value = fonts[1] == 'Vape' and uipallet.Font or Font.fromEnum(Enum.Font[fonts[1]])
+		local Component = {
+		    Value = Fonts[1] == "Vape" and UIPallet.Font or Font.fromEnum(Enum.Font[Fonts[1]])
 		}
-		local fontdropdown
-		local fontbox
-		props.Function = props.Function or function() end
+		local FontDropdown
+		local FontBox
+		Props.Function = Props.Function or function() end
 		
-		fontdropdown = components.Dropdown({
-			Name = props.Name,
-			List = fonts,
-			Function = function(val)
-				fontbox.Object.Visible = val == 'Custom' and fontdropdown.Object.Visible
-				if val == 'Vape' then
-					component.Value = uipallet.Font
-					props.Function(component.Value)
-				elseif val ~= 'Custom' then
-					component.Value = Font.fromEnum(Enum.Font[val])
-					props.Function(component.Value)
-				else
-					pcall(function()
-						component.Value = Font.fromId(tonumber(fontbox.Value))
-					end)
+		FontDropdown = Components.Dropdown({
+		    Name = Props.Name,
+		    List = Fonts,
+		    Function = function(Val: string)
+		        FontBox.Object.Visible = Val == "Custom" and FontDropdown.Object.Visible
+		        if Val == "Vape" then
+		            Component.Value = UIPallet.Font
+		            Props.Function(Component.Value)
+		        elseif Val ~= "Custom" then
+		            Component.Value = Font.fromEnum(Enum.Font[Val])
+		            Props.Function(Component.Value)
+		        else
+		            pcall(function()
+		                Component.Value = Font.fromId(tonumber(FontBox.Value))
+		            end)
 		
-					props.Function(component.Value)
-				end
-			end,
-			Darker = props.Darker,
-			Visible = props.Visible
-		}, children, api)
-		component.Object = fontdropdown.Object
+		            Props.Function(Component.Value)
+		        end
+		    end,
+		    Darker = Props.Darker,
+		    Visible = Props.Visible
+		}, Children, API)
+		Component.Object = FontDropdown.Object
 		
-		fontbox = components.TextBox({
-			Name = props.Name..' Asset',
-			Placeholder = 'font (rbxasset)',
-			Function = function()
-				if fontdropdown.Value == 'Custom' then
-					pcall(function()
-						component.Value = Font.fromId(tonumber(fontbox.Value))
-					end)
+		FontBox = Components.TextBox({
+		    Name = `{Props.Name} Asset`,
+		    Placeholder = "font (rbxasset)",
+		    Function = function()
+		        if FontDropdown.Value == "Custom" then
+		            pcall(function()
+		                Component.Value = Font.fromId(tonumber(FontBox.Value))
+		            end)
 		
-					props.Function(component.Value)
-				end
-			end,
-			Visible = false,
-			Darker = true
-		}, children, api)
+		            Props.Function(Component.Value)
+		        end
+		    end,
+		    Visible = false,
+		    Darker = true
+		}, Children, API)
 		
-		fontdropdown.Object:GetPropertyChangedSignal('Visible'):Connect(function()
-			fontbox.Object.Visible = fontdropdown.Object.Visible and fontdropdown.Value == 'Custom'
+		FontDropdown.Object:GetPropertyChangedSignal("Visible"):Connect(function()
+		    FontBox.Object.Visible = FontDropdown.Object.Visible and FontDropdown.Value == "Custom"
 		end)
 		
-		return component
+		return Component
 	end,
-	GUI = function(props, children, api)
-		local component = {
-			Buttons = {},
-			Type = 'MainWindow'
+	GUI = function(Props, Children, API)
+		local Component = {
+		    Buttons = {},
+		    Type = "MainWindow"
 		}
 		
-		local window = Instance.new('TextButton')
-		window.AutoButtonColor = false
-		window.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		window.Name = 'GUICategory'
-		window.Position = UDim2.fromOffset(6, 60)
-		window.Text = ''
-		window.Parent = clickgui
-		component.Object = window
-		addBlur(window)
-		addCorner(window)
-		addDragHandler(window)
-		local logo = Instance.new('TextLabel')
-		logo.BackgroundTransparency = 1
-		logo.Font = Enum.Font.FredokaOne
-		logo.RichText = true
-		logo.Text = '<font color="#FF3366">K</font><font color="#FF6633">I</font><font color="#FFCC00">N</font><font color="#34C759">G</font><font color="#00C7BE">V</font><font color="#30B0C7">A</font><font color="#5856D6">P</font><font color="#AF52DE">E</font>'
-		logo.TextSize = 25
-		logo.TextXAlignment = Enum.TextXAlignment.Left
-		logo.Name = 'VapeLogo'
-		logo.Position = UDim2.fromOffset(12, 4)
-		logo.Size = UDim2.fromOffset(200, 30)
-		logo.Parent = window
-		local v4logo = Instance.new('ImageLabel')
-		v4logo.BackgroundTransparency = 1
-		v4logo.ImageTransparency = 1
-		v4logo.Visible = false
-		v4logo.Name = 'V4Logo'
-		v4logo.Position = UDim2.new(1, -1, 0, 0)
-		v4logo.Size = UDim2.fromOffset(0, 0)
-		v4logo.Parent = logo
-		local children = Instance.new('Frame')
-		children.BackgroundTransparency = 1
-		children.Position = UDim2.fromOffset(0, 37)
-		children.Size = UDim2.new(1, 0, 1, -33)
-		children.Parent = window
-		local windowlist = Instance.new('UIListLayout')
-		windowlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		windowlist.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlist.Parent = children
-		local settingsbutton = Instance.new('TextButton')
-		settingsbutton.BackgroundTransparency = 1
-		settingsbutton.Position = UDim2.new(1, -40, 0, 0)
-		settingsbutton.Size = UDim2.fromOffset(40, 40)
-		settingsbutton.Text = ''
-		settingsbutton.Parent = window
-		addTooltip(settingsbutton, 'Open settings')
-		local settingsicon = Instance.new('ImageLabel')
-		settingsicon.BackgroundTransparency = 1
-		settingsicon.Image = getvapeasset('kingvape/assets/new/settings.png')
-		settingsicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		settingsicon.Position = UDim2.fromOffset(15, 12)
-		settingsicon.Size = UDim2.fromOffset(14, 14)
-		settingsicon.Parent = settingsbutton
-		local discord = Instance.new('ImageButton')
-		discord.BackgroundTransparency = 1
-		discord.Image = getvapeasset('kingvape/assets/new/discord.png')
-		discord.Position = UDim2.new(1, -56, 0, 11)
-		discord.Size = UDim2.fromOffset(16, 16)
-		discord.Parent = window
-		addTooltip(discord, 'Join discord')
-		local stroke = Instance.new('UIStroke')
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Color = Color3.fromRGB(85, 85, 85)
-		stroke.Transparency = 0.8
-		stroke.Parent = window
-		local settingspane = components.SettingsPane({
-			Name = 'Settings',
-			Main = true
-		}, window, component)
-		component.Settings = settingspane
+		local Window: TextButton = Instance.new("TextButton")
+		Window.AutoButtonColor = false
+		Window.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		Window.Name = "GUICategory"
+		Window.Position = UDim2.fromOffset(6, 60)
+		Window.Text = ""
+		Window.Parent = ClickGUI
+		Component.Object = Window
+		AddBlur(Window)
+		AddCorner(Window)
+		AddDragHandler(Window)
+		local Logo: ImageLabel = Instance.new("ImageLabel")
+		Logo.BackgroundTransparency = 1
+		Logo.Image = GetVapeAsset("kingvape/assets/new/vapelogomini.png")
+		Logo.ImageColor3 = select(3, UIPallet.Main:ToHSV()) > 0.5 and UIPallet.Text or Color3.new(1, 1, 1)
+		Logo.Name = "VapeLogo"
+		Logo.Position = UDim2.fromOffset(12, 11)
+		Logo.Size = UDim2.fromOffset(55, 16)
+		Logo.Parent = Window
+		local V4Logo: ImageLabel = Instance.new("ImageLabel")
+		V4Logo.BackgroundTransparency = 1
+		V4Logo.Image = GetVapeAsset("kingvape/assets/new/v4mini.png")
+		V4Logo.Name = "V4Logo"
+		V4Logo.Position = UDim2.new(1, -1, 0, 0)
+		V4Logo.Size = UDim2.fromOffset(23, 16)
+		V4Logo.Parent = Logo
+		local Children: Frame = Instance.new("Frame")
+		Children.BackgroundTransparency = 1
+		Children.Position = UDim2.fromOffset(0, 37)
+		Children.Size = UDim2.new(1, 0, 1, -33)
+		Children.Parent = Window
+		local WindowList: UIListLayout = Instance.new("UIListLayout")
+		WindowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		WindowList.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowList.Parent = Children
+		local SettingsButton: TextButton = Instance.new("TextButton")
+		SettingsButton.BackgroundTransparency = 1
+		SettingsButton.Position = UDim2.new(1, -40, 0, 0)
+		SettingsButton.Size = UDim2.fromOffset(40, 40)
+		SettingsButton.Text = ""
+		SettingsButton.Parent = Window
+		AddTooltip(SettingsButton, "Open settings")
+		local SettingsIcon: ImageLabel = Instance.new("ImageLabel")
+		SettingsIcon.BackgroundTransparency = 1
+		SettingsIcon.Image = GetVapeAsset("kingvape/assets/new/settings.png")
+		SettingsIcon.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		SettingsIcon.Position = UDim2.fromOffset(15, 12)
+		SettingsIcon.Size = UDim2.fromOffset(14, 14)
+		SettingsIcon.Parent = SettingsButton
+		local Discord: ImageButton = Instance.new("ImageButton")
+		Discord.BackgroundTransparency = 1
+		Discord.Image = GetVapeAsset("kingvape/assets/new/discord.png")
+		Discord.Position = UDim2.new(1, -56, 0, 11)
+		Discord.Size = UDim2.fromOffset(16, 16)
+		Discord.Parent = Window
+		AddTooltip(Discord, "Join discord")
+		local Stroke: UIStroke = Instance.new("UIStroke")
+		Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		Stroke.Color = Color3.fromRGB(85, 85, 85)
+		Stroke.Transparency = 0.8
+		Stroke.Parent = Window
+		local SettingsPane = Components.SettingsPane({
+		    Name = "Settings",
+		    Main = true
+		}, Window, Component)
+		Component.Settings = SettingsPane
 		
-		function component:Color(hue, sat, val, isRainbow)
-			v4logo.ImageColor3 = Color3.fromHSV(hue, sat, val)
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    V4Logo.ImageColor3 = Color3.fromHSV(Hue, Sat, Val)
 		
-			for _, button in self.Buttons do
-				if button.Enabled then
-					button.Object.TextColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (button.Index * 0.025)) % 1)) or Color3.fromHSV(hue, sat, val)
+		    for _, Button: any in self.Buttons do
+		        if Button.Enabled then
+		            Button.Object.TextColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (Button.Index * 0.025)) % 1)) or Color3.fromHSV(Hue, Sat, Val)
 		
-					if button.Icon then
-						button.Icon.ImageColor3 = button.Object.TextColor3
-					end
-				end
-			end
+		            if Button.Icon then
+		                Button.Icon.ImageColor3 = Button.Object.TextColor3
+		            end
+		        end
+		    end
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			for name, paneData in data.Settings do
-				local pane = vape.Settings[name]
-				if pane then
-					pane:Load(paneData)
-				end
-			end
+		    for Name: string, PaneData: any in Data.Settings do
+		        local Pane = vape.Settings[Name]
+		        if Pane then
+		            Pane:Load(PaneData)
+		        end
+		    end
 		
-			if data.Position then
-				window.Position = UDim2.fromOffset(data.Position.X, data.Position.Y)
-			end
+		    if Data.Position then
+		        Window.Position = UDim2.fromOffset(Data.Position.X, Data.Position.Y)
+		    end
 		end
 		
-		function component:Save(data)
-			data.Main = {
-				Position = {
-					X = window.Position.X.Offset,
-					Y = window.Position.Y.Offset
-				},
-				Settings = {}
-			}
+		function Component:Save(Data)
+		    Data.Main = {
+		        Position = {
+		            X = Window.Position.X.Offset,
+		            Y = Window.Position.Y.Offset
+		        },
+		        Settings = {}
+		    }
 		
-			for name, pane in vape.Settings do
-				pane:Save(data.Main.Settings)
-			end
+		    for Name: string, Pane: any in vape.Settings do
+		        Pane:Save(Data.Main.Settings)
+		    end
 		end
 		
-		for index, comp in components do
-			component['Create'..index] = function(_, props)
-				return comp(props, children, component)
-			end
+		for ComponentName: string, Constructor: (...any) -> ...any in Components do
+		    Component[`Create{ComponentName}`] = function(_, Properties)
+		        return Constructor(Properties, Children, Component)
+		    end
 		end
 		
-		discord.MouseButton1Click:Connect(function()
-			task.spawn(function()
-				local body = httpService:JSONEncode({
-					nonce = httpService:GenerateGUID(false),
-					args = {
-						invite = {code = 'mypvp'},
-						code = 'mypvp'
-					},
-					cmd = 'INVITE_BROWSER'
-				})
+		Discord.MouseButton1Click:Connect(function()
+		    task.spawn(function()
+		        local Body: string = HttpService:JSONEncode({
+		            nonce = HttpService:GenerateGUID(false),
+		            args = {
+		                invite = {code = "VZEQJxMSnG"},
+		                code = "VZEQJxMSnG"
+		            },
+		            cmd = "INVITE_BROWSER"
+		        })
 		
-				for i = 1, 14 do
-					task.spawn(function()
-						pcall(function()
-							request({
-								Method = 'POST',
-								Url = 'http://127.0.0.1:64'..(53 + i)..'/rpc?v=1',
-								Headers = {
-									['Content-Type'] = 'application/json',
-									Origin = 'https://discord.com'
-								},
-								Body = body
-							})
-						end)
-					end)
-				end
-			end)
+		        for i: number = 1, 14 do
+		            task.spawn(function()
+		                pcall(function()
+		                    request({
+		                        Method = "POST",
+		                        Url = `http://127.0.0.1:64{53 + i}/rpc?v=1`,
+		                        Headers = {
+		                            ["Content-Type"] = "application/json",
+		                            Origin = "https://discord.com"
+		                        },
+		                        Body = Body
+		                    })
+		                end)
+		            end)
+		        end
+		    end)
 		
-			task.spawn(function()
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+		    task.spawn(function()
+		        if vape.ThreadFix then
+		            setthreadidentity(8)
+		        end
 		
-				tooltip.Text = 'Copied!'
-				setclipboard('https://discord.gg/mypvp')
-			end)
+		        Tooltip.Text = "Copied!"
+		        setclipboard("https://discord.gg/VZEQJxMSnG")
+		    end)
 		end)
 		
-		settingsbutton.MouseEnter:Connect(function()
-			settingsicon.ImageColor3 = uipallet.Text
+		SettingsButton.MouseEnter:Connect(function()
+		    SettingsIcon.ImageColor3 = UIPallet.Text
 		end)
 		
-		settingsbutton.MouseLeave:Connect(function()
-			settingsicon.ImageColor3 = color.Light(uipallet.Main, 0.37)
+		SettingsButton.MouseLeave:Connect(function()
+		    SettingsIcon.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
 		end)
 		
-		settingsbutton.MouseButton1Click:Connect(function()
-			settingspane.Object.Visible = true
+		SettingsButton.MouseButton1Click:Connect(function()
+		    SettingsPane.Object.Visible = true
 		end)
 		
-		windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		WindowList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			window.Size = UDim2.fromOffset(220, 42 + windowlist.AbsoluteContentSize.Y / scale.Scale)
-			for _, button in component.Buttons do
-				if button.Icon then
-					button.Object.Text = string.rep(' ', 39 * scale.Scale)..button.Name
-				end
-			end
+		    Window.Size = UDim2.fromOffset(220, 42 + WindowList.AbsoluteContentSize.Y / Scale.Scale)
+		    for _, Button: any in Component.Buttons do
+		        if Button.Icon then
+		            Button.Object.Text = `{string.rep(" ", 39 * Scale.Scale)}{Button.Name}`
+		        end
+		    end
 		end)
 		
-		vape.Categories.Main = component
+		vape.Categories.Main = Component
 		
-		return component
+		return Component
 	end,
-	GUIButton = function(props, children, api)
-		local component = {
-			Enabled = false,
-			Index = getTableSize(api.Buttons),
-			Name = props.Name
+	GUIButton = function(Props, Children, API)
+		local Component = {
+		    Enabled = false,
+		    Index = GetTableSize(API.Buttons),
+		    Name = Props.Name
 		}
 		
-		local button = Instance.new('TextButton')
-		button.AutoButtonColor = false
-		button.BackgroundColor3 = uipallet.Main
-		button.BorderSizePixel = 0
-		button.FontFace = uipallet.Font
-		button.Name = props.Name
-		button.Size = UDim2.fromOffset(220, 40)
-		button.Text = (props.Icon and string.rep(' ', 39) or props.Window and string.rep(' ', 17) or string.rep(' ', 10))..props.Name
-		button.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		button.TextSize = 14
-		button.TextXAlignment = Enum.TextXAlignment.Left
-		button.Parent = children
-		component.Object = button
+		local Button: TextButton = Instance.new("TextButton")
+		Button.AutoButtonColor = false
+		Button.BackgroundColor3 = UIPallet.Main
+		Button.BorderSizePixel = 0
+		Button.FontFace = UIPallet.Font
+		Button.Name = Props.Name
+		Button.Size = UDim2.fromOffset(220, 40)
+		Button.Text = `{Props.Icon and string.rep(" ", 39) or Props.Window and string.rep(" ", 17) or string.rep(" ", 10)}{Props.Name}`
+		Button.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Button.TextSize = 14
+		Button.TextXAlignment = Enum.TextXAlignment.Left
+		Button.Parent = Children
+		Component.Object = Button
 		
-		local icon
-		if props.Icon then
-			icon = Instance.new('ImageLabel')
-			icon.BackgroundTransparency = 1
-			icon.Image = props.Icon
-			icon.ImageColor3 = color.Dark(uipallet.Text, 0.16)
-			icon.Position = UDim2.fromOffset(16, 13)
-			icon.Size = props.Size
-			icon.Parent = button
-			component.Icon = icon
+		local Icon: ImageLabel?
+		if Props.Icon then
+		    Icon = Instance.new("ImageLabel")
+		    Icon.BackgroundTransparency = 1
+		    Icon.Image = Props.Icon
+		    Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.16)
+		    Icon.Position = UDim2.fromOffset(16, 13)
+		    Icon.Size = Props.Size
+		    Icon.Parent = Button
+		    Component.Icon = Icon
 		end
 		
-		if props.Name == 'Profiles' then
-			local label = Instance.new('TextLabel')
-			label.AnchorPoint = Vector2.new(1, 0)
-			label.BackgroundColor3 = color.Light(uipallet.Main, 0.04)
-			label.FontFace = uipallet.Font
-			label.Position = UDim2.new(1, -36, 0, 8)
-			label.Size = UDim2.fromOffset(53, 24)
-			label.Text = 'default'
-			label.TextColor3 = color.Dark(uipallet.Text, 0.29)
-			label.TextSize = 12
-			label.Parent = button
-			addCorner(label)
-			vape.ProfileLabel = label
+		if Props.Name == "Profiles" then
+		    local Label: TextLabel = Instance.new("TextLabel")
+		    Label.AnchorPoint = Vector2.new(1, 0)
+		    Label.BackgroundColor3 = Color.Light(UIPallet.Main, 0.04)
+		    Label.FontFace = UIPallet.Font
+		    Label.Position = UDim2.new(1, -36, 0, 8)
+		    Label.Size = UDim2.fromOffset(53, 24)
+		    Label.Text = "default"
+		    Label.TextColor3 = Color.Dark(UIPallet.Text, 0.29)
+		    Label.TextSize = 12
+		    Label.Parent = Button
+		    AddCorner(Label)
+		    vape.ProfileLabel = Label
 		end
 		
-		local arrow = Instance.new('ImageLabel')
-		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('kingvape/assets/new/expandarrow.png')
-		arrow.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		arrow.Name = 'Arrow'
-		arrow.Position = UDim2.new(1, -20, 0, 16)
-		arrow.Size = UDim2.fromOffset(4, 8)
-		arrow.Parent = button
+		local Arrow: ImageLabel = Instance.new("ImageLabel")
+		Arrow.BackgroundTransparency = 1
+		Arrow.Image = GetVapeAsset("kingvape/assets/new/expandarrow.png")
+		Arrow.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Arrow.Name = "Arrow"
+		Arrow.Position = UDim2.new(1, -20, 0, 16)
+		Arrow.Size = UDim2.fromOffset(4, 8)
+		Arrow.Parent = Button
 		
-		function component:Destroy()
-			button:Destroy()
-			button:ClearAllChildren()
+		function Component:Destroy()
+		    Button:Destroy()
+		    Button:ClearAllChildren()
 		end
 		
-		function component:Toggle()
-			if props.Window then
-				self.Enabled = not self.Enabled
-				tween:Tween(arrow, uipallet.Tween, {
-					Position = UDim2.new(1, self.Enabled and -14 or -20, 0, 16)
-				})
+		function Component:Toggle()
+		    if Props.Window then
+		        self.Enabled = not self.Enabled
+		        Tween:Tween(Arrow, UIPallet.Tween, {
+		            Position = UDim2.new(1, self.Enabled and -14 or -20, 0, 16)
+		        })
 		
-				button.TextColor3 = self.Enabled and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or uipallet.Text
-				if icon then
-					icon.ImageColor3 = button.TextColor3
-				end
+		        Button.TextColor3 = self.Enabled and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or UIPallet.Text
+		        if Icon then
+		            Icon.ImageColor3 = Button.TextColor3
+		        end
 		
-				button.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-				props.Window.Visible = self.Enabled
-				vape:QueueSave()
-			else
-				props.Function()
-			end
+		        Button.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		        Props.Window.Visible = self.Enabled
+		        vape:QueueSave()
+		    else
+		        Props.Function()
+		    end
 		end
 		
-		button.MouseEnter:Connect(function()
-			if not component.Enabled then
-				button.TextColor3 = uipallet.Text
-				if buttonicon then
-					buttonicon.ImageColor3 = uipallet.Text
-				end
+		Button.MouseEnter:Connect(function()
+		    if not Component.Enabled then
+		        Button.TextColor3 = UIPallet.Text
+		        if Icon then
+		            Icon.ImageColor3 = UIPallet.Text
+		        end
 		
-				button.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-			end
+		        Button.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		    end
 		end)
 		
-		button.MouseLeave:Connect(function()
-			if not component.Enabled then
-				button.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				if buttonicon then
-					buttonicon.ImageColor3 = color.Dark(uipallet.Text, 0.16)
-				end
+		Button.MouseLeave:Connect(function()
+		    if not Component.Enabled then
+		        Button.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        if Icon then
+		            Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        end
 		
-				button.BackgroundColor3 = uipallet.Main
-			end
+		        Button.BackgroundColor3 = UIPallet.Main
+		    end
 		end)
 		
-		button.MouseButton1Click:Connect(function()
-			component:Toggle()
+		Button.MouseButton1Click:Connect(function()
+		    Component:Toggle()
 		end)
 		
-		api.Buttons[props.Name] = component
+		API.Buttons[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	GUISlider = function(props, children, api)
-		local component = {
-			CustomColor = false,
-			Hue = 0.46,
-			Notch = 4,
-			Rainbow = false,
-			Sat = 0.96,
-			Type = 'GUISlider',
-			Value = 0.52
+	GUISlider = function(Props, Children, API)
+		local Component = {
+		    CustomColor = false,
+		    Hue = 0.46,
+		    Notch = 4,
+		    Rainbow = false,
+		    Sat = 0.96,
+		    Type = "GUISlider",
+		    Value = 0.52
 		}
-		local colors = {
-			Color3.fromRGB(250, 50, 56),
-			Color3.fromRGB(242, 99, 33),
-			Color3.fromRGB(252, 179, 22),
-			Color3.fromRGB(5, 133, 104),
-			Color3.fromRGB(47, 122, 229),
-			Color3.fromRGB(126, 84, 217),
-			Color3.fromRGB(232, 96, 152)
+		local Colors: {Color3} = {
+		    Color3.fromRGB(250, 50, 56),
+		    Color3.fromRGB(242, 99, 33),
+		    Color3.fromRGB(252, 179, 22),
+		    Color3.fromRGB(5, 133, 104),
+		    Color3.fromRGB(47, 122, 229),
+		    Color3.fromRGB(126, 84, 217),
+		    Color3.fromRGB(232, 96, 152)
 		}
-		local colorPositions = {
-			4,
-			33,
-			62,
-			90,
-			119,
-			148,
-			177
+		local ColorPositions: {number} = {
+		    4,
+		    33,
+		    62,
+		    90,
+		    119,
+		    148,
+		    177
 		}
 		
-		local function createSlider(name, gradientColor)
-			local slider = Instance.new('TextButton')
-			slider.Name = props.Name..'Slider'..name
-			slider.Size = UDim2.fromOffset(220, 50)
-			slider.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-			slider.BorderSizePixel = 0
-			slider.AutoButtonColor = false
-			slider.Visible = false
-			slider.Text = ''
-			slider.Parent = children
-			local title = Instance.new('TextLabel')
-			title.BackgroundTransparency = 1
-			title.FontFace = uipallet.Font
-			title.Position = UDim2.fromOffset(10, 2)
-			title.Size = UDim2.fromOffset(60, 30)
-			title.Text = name
-			title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-			title.TextSize = 11
-			title.TextXAlignment = Enum.TextXAlignment.Left
-			title.Parent = slider
-			local holder = Instance.new('Frame')
-			holder.BackgroundColor3 = Color3.new(1, 1, 1)
-			holder.BorderSizePixel = 0
-			holder.Name = 'Holder'
-			holder.Position = UDim2.fromOffset(10, 37)
-			holder.Size = UDim2.new(1, -20, 0, 2)
-			holder.Parent = slider
-			local uigradient = Instance.new('UIGradient')
-			uigradient.Color = gradientColor
-			uigradient.Parent = holder
-			local fill = Instance.new('Frame')
-			fill.BackgroundTransparency = 1
-			fill.Name = 'Fill'
-			fill.Size = UDim2.fromScale(math.clamp(1, 0.04, 0.96), 1)
-			fill.Parent = holder
-			local knobholder = Instance.new('Frame')
-			knobholder.AnchorPoint = Vector2.new(0.5, 0.5)
-			knobholder.BackgroundColor3 = slider.BackgroundColor3
-			knobholder.BorderSizePixel = 0
-			knobholder.Position = UDim2.fromScale(1, 0.5)
-			knobholder.Size = UDim2.fromOffset(24, 4)
-			knobholder.Parent = fill
-			local knob = Instance.new('Frame')
-			knob.AnchorPoint = Vector2.new(0.5, 0.5)
-			knob.BackgroundColor3 = uipallet.Text
-			knob.Position = UDim2.fromScale(0.5, 0.5)
-			knob.Size = UDim2.fromOffset(14, 14)
-			knob.Parent = knobholder
-			addCorner(knob, UDim.new(1, 0))
+		local function CreateSlider(Name: string, GradientColor: ColorSequence)
+		    local Slider: TextButton = Instance.new("TextButton")
+		    Slider.Name = `{Props.Name}Slider{Name}`
+		    Slider.Size = UDim2.fromOffset(220, 50)
+		    Slider.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		    Slider.BorderSizePixel = 0
+		    Slider.AutoButtonColor = false
+		    Slider.Visible = false
+		    Slider.Text = ""
+		    Slider.Parent = Children
+		    local Title: TextLabel = Instance.new("TextLabel")
+		    Title.BackgroundTransparency = 1
+		    Title.FontFace = UIPallet.Font
+		    Title.Position = UDim2.fromOffset(10, 2)
+		    Title.Size = UDim2.fromOffset(60, 30)
+		    Title.Text = Name
+		    Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		    Title.TextSize = 11
+		    Title.TextXAlignment = Enum.TextXAlignment.Left
+		    Title.Parent = Slider
+		    local Holder: Frame = Instance.new("Frame")
+		    Holder.BackgroundColor3 = Color3.new(1, 1, 1)
+		    Holder.BorderSizePixel = 0
+		    Holder.Name = "Holder"
+		    Holder.Position = UDim2.fromOffset(10, 37)
+		    Holder.Size = UDim2.new(1, -20, 0, 2)
+		    Holder.Parent = Slider
+		    local Gradient: UIGradient = Instance.new("UIGradient")
+		    Gradient.Color = GradientColor
+		    Gradient.Parent = Holder
+		    local Fill: Frame = Instance.new("Frame")
+		    Fill.BackgroundTransparency = 1
+		    Fill.Name = "Fill"
+		    Fill.Size = UDim2.fromScale(math.clamp(1, 0.04, 0.96), 1)
+		    Fill.Parent = Holder
+		    local KnobHolder: Frame = Instance.new("Frame")
+		    KnobHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+		    KnobHolder.BackgroundColor3 = Slider.BackgroundColor3
+		    KnobHolder.BorderSizePixel = 0
+		    KnobHolder.Position = UDim2.fromScale(1, 0.5)
+		    KnobHolder.Size = UDim2.fromOffset(24, 4)
+		    KnobHolder.Parent = Fill
+		    local Knob: Frame = Instance.new("Frame")
+		    Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+		    Knob.BackgroundColor3 = UIPallet.Text
+		    Knob.Position = UDim2.fromScale(0.5, 0.5)
+		    Knob.Size = UDim2.fromOffset(14, 14)
+		    Knob.Parent = KnobHolder
+		    AddCorner(Knob, UDim.new(1, 0))
 		
-			if name == 'Custom color' then
-				local reset = Instance.new('TextButton')
-				reset.BackgroundTransparency = 1
-				reset.FontFace = uipallet.Font
-				reset.Position = UDim2.new(1, -52, 0, 5)
-				reset.Size = UDim2.fromOffset(45, 20)
-				reset.Text = 'RESET'
-				reset.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				reset.TextSize = 11
-				reset.Parent = slider
+		    if Name == "Custom color" then
+		        local Reset: TextButton = Instance.new("TextButton")
+		        Reset.BackgroundTransparency = 1
+		        Reset.FontFace = UIPallet.Font
+		        Reset.Position = UDim2.new(1, -52, 0, 5)
+		        Reset.Size = UDim2.fromOffset(45, 20)
+		        Reset.Text = "RESET"
+		        Reset.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        Reset.TextSize = 11
+		        Reset.Parent = Slider
 		
-				reset.MouseButton1Click:Connect(function()
-					component:SetValue(nil, nil, nil, 4)
-				end)
-			end
+		        Reset.MouseButton1Click:Connect(function()
+		            Component:SetValue(nil, nil, nil, 4)
+		        end)
+		    end
 		
-			slider.InputBegan:Connect(function(input)
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+		    Slider.InputBegan:Connect(function(Input: InputObject)
+		        if vape.ThreadFix then
+		            setthreadidentity(8)
+		        end
 		
-				if
-					(input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch)
-					and (input.Position.Y - slider.AbsolutePosition.Y) > (20 * scale.Scale)
-				then
-					local releaseConnection
-					local moveConnection = inputService.InputChanged:Connect(function(newInput)
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
+		        if
+		            (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
+		            and (Input.Position.Y - Slider.AbsolutePosition.Y) > (20 * Scale.Scale)
+		        then
+		            local ReleaseConnection
+		            local MoveConnection: RBXScriptConnection = UserInputService.InputChanged:Connect(function(NewInput: InputObject)
+		                if vape.ThreadFix then
+		                    setthreadidentity(8)
+		                end
 		
-						if newInput.UserInputType == (input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
-							local value = math.clamp((newInput.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1)
-							component:SetValue(
-								name == 'Custom color' and value or nil,
-								name == 'Saturation' and value or nil,
-								name == 'Vibrance' and value or nil,
-								name == 'Opacity' and value or nil
-							)
-						end
-					end)
+		                if NewInput.UserInputType == (Input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
+		                    local Value: number = math.clamp((NewInput.Position.X - Holder.AbsolutePosition.X) / Holder.AbsoluteSize.X, 0, 1)
+		                    Component:SetValue(
+		                        Name == "Custom color" and Value or nil,
+		                        Name == "Saturation" and Value or nil,
+		                        Name == "Vibrance" and Value or nil,
+		                        Name == "Opacity" and Value or nil
+		                    )
+		                end
+		            end)
 		
-					releaseConnection = input.Changed:Connect(function()
-						if input.UserInputState == Enum.UserInputState.End then
-							moveConnection:Disconnect()
-							releaseConnection:Disconnect()
-						end
-					end)
-				end
-			end)
+		            ReleaseConnection = Input.Changed:Connect(function()
+		                if Input.UserInputState == Enum.UserInputState.End then
+		                    MoveConnection:Disconnect()
+		                    ReleaseConnection:Disconnect()
+		                end
+		            end)
+		        end
+		    end)
 		
-			slider.MouseEnter:Connect(function()
-				tween:Tween(knob, uipallet.Tween, {
-					Size = UDim2.fromOffset(16, 16)
-				})
-			end)
+		    Slider.MouseEnter:Connect(function()
+		        Tween:Tween(Knob, UIPallet.Tween, {
+		            Size = UDim2.fromOffset(16, 16)
+		        })
+		    end)
 		
-			slider.MouseLeave:Connect(function()
-				tween:Tween(knob, uipallet.Tween, {
-					Size = UDim2.fromOffset(14, 14)
-				})
-			end)
+		    Slider.MouseLeave:Connect(function()
+		        Tween:Tween(Knob, UIPallet.Tween, {
+		            Size = UDim2.fromOffset(14, 14)
+		        })
+		    end)
 		
-			return slider
+		    return Slider
 		end
 		
-		local slider = Instance.new('TextButton')
-		slider.AutoButtonColor = false
-		slider.BackgroundTransparency = 1
-		slider.Name = props.Name..'Slider'
-		slider.Size = UDim2.fromOffset(220, 50)
-		slider.Text = ''
-		slider.Parent = children
-		component.Object = slider
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Name = 'Title'
-		title.Position = UDim2.fromOffset(10, 2)
-		title.Size = UDim2.fromOffset(60, 30)
-		title.Text = props.Name
-		title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		title.TextSize = 11
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = slider
-		local holder = Instance.new('Frame')
-		holder.BackgroundTransparency = 1
-		holder.BorderSizePixel = 0
-		holder.Name = 'Slider'
-		holder.Position = UDim2.fromOffset(10, 37)
-		holder.Size = UDim2.fromOffset(200, 2)
-		holder.Parent = slider
-		local colorXPos = 0
-		for index, colorValue in colors do
-			local colorframe = Instance.new('Frame')
-			colorframe.BackgroundColor3 = colorValue
-			colorframe.BorderSizePixel = 0
-			colorframe.Position = UDim2.fromOffset(colorXPos, 0)
-			colorframe.Size = UDim2.fromOffset(27 + (((index + 1) % 2) == 0 and 1 or 0), 2)
-			colorframe.Parent = holder
-			colorXPos += (colorframe.Size.X.Offset + 1)
+		local Slider: TextButton = Instance.new("TextButton")
+		Slider.AutoButtonColor = false
+		Slider.BackgroundTransparency = 1
+		Slider.Name = `{Props.Name}Slider`
+		Slider.Size = UDim2.fromOffset(220, 50)
+		Slider.Text = ""
+		Slider.Parent = Children
+		Component.Object = Slider
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Name = "Title"
+		Title.Position = UDim2.fromOffset(10, 2)
+		Title.Size = UDim2.fromOffset(60, 30)
+		Title.Text = Props.Name
+		Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Title.TextSize = 11
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Slider
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundTransparency = 1
+		Holder.BorderSizePixel = 0
+		Holder.Name = "Slider"
+		Holder.Position = UDim2.fromOffset(10, 37)
+		Holder.Size = UDim2.fromOffset(200, 2)
+		Holder.Parent = Slider
+		local ColorOffset: number = 0
+		for i: number, ColorValue: Color3 in Colors do
+		    local ColorFrame: Frame = Instance.new("Frame")
+		    ColorFrame.BackgroundColor3 = ColorValue
+		    ColorFrame.BorderSizePixel = 0
+		    ColorFrame.Position = UDim2.fromOffset(ColorOffset, 0)
+		    ColorFrame.Size = UDim2.fromOffset(27 + (((i + 1) % 2) == 0 and 1 or 0), 2)
+		    ColorFrame.Parent = Holder
+		    ColorOffset += (ColorFrame.Size.X.Offset + 1)
 		end
-		local preview = Instance.new('ImageButton')
-		preview.BackgroundTransparency = 1
-		preview.Image = getvapeasset('kingvape/assets/new/colorpreview.png')
-		preview.ImageColor3 = Color3.fromHSV(component.Hue, component.Sat, component.Value)
-		preview.Position = UDim2.new(1, -22, 0, 10)
-		preview.Size = UDim2.fromOffset(12, 12)
-		preview.Parent = slider
-		local custombox = Instance.new('TextBox')
-		custombox.BackgroundTransparency = 1
-		custombox.FontFace = uipallet.Font
-		custombox.Position = UDim2.new(1, -69, 0, 9)
-		custombox.Size = UDim2.fromOffset(60, 15)
-		custombox.Text = ''
-		custombox.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		custombox.TextSize = 11
-		custombox.TextXAlignment = Enum.TextXAlignment.Right
-		custombox.Visible = false
-		custombox.Parent = slider
-		local expand = Instance.new('TextButton')
-		expand.BackgroundTransparency = 1
-		expand.Position = UDim2.new(0, getfontbounds(title.Text, title.TextSize, title.Font).X + 11, 0, 7)
-		expand.Size = UDim2.fromOffset(17, 13)
-		expand.Text = ''
-		expand.Parent = slider
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('kingvape/assets/new/downexpandslider.png')
-		icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
-		icon.Position = UDim2.fromOffset(4, 4)
-		icon.Size = UDim2.fromOffset(10, 5)
-		icon.Parent = expand
-		local rainbow = Instance.new('TextButton')
-		rainbow.BackgroundTransparency = 1
-		rainbow.Position = UDim2.new(1, -42, 0, 10)
-		rainbow.Size = UDim2.fromOffset(12, 12)
-		rainbow.Text = ''
-		rainbow.Parent = slider
-		local ring1 = Instance.new('ImageLabel')
-		ring1.BackgroundTransparency = 1
-		ring1.Image = getvapeasset('kingvape/assets/new/rainbow_1.png')
-		ring1.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		ring1.Size = UDim2.fromOffset(12, 12)
-		ring1.Parent = rainbow
-		local ring2 = Instance.fromExisting(ring1)
-		ring2.Image = getvapeasset('kingvape/assets/new/rainbow_2.png')
-		ring2.Parent = rainbow
-		local ring3 = Instance.fromExisting(ring1)
-		ring3.Image = getvapeasset('kingvape/assets/new/rainbow_3.png')
-		ring3.Parent = rainbow
-		local ring4 = Instance.fromExisting(ring1)
-		ring4.Image = getvapeasset('kingvape/assets/new/rainbow_4.png')
-		ring4.Parent = rainbow
-		local knob = Instance.new('ImageLabel')
-		knob.BackgroundTransparency = 1
-		knob.Image = getvapeasset('kingvape/assets/new/theme.png')
-		knob.ImageColor3 = colors[4]
-		knob.Name = 'Knob'
-		knob.Position = UDim2.fromOffset(colorPositions[4] - 3, -5)
-		knob.Size = UDim2.fromOffset(26, 12)
-		knob.Parent = holder
-		props.Function = props.Function or function() end
-		local rainbowTable = {}
-		for i = 0, 1, 0.1 do
-			table.insert(rainbowTable, ColorSequenceKeypoint.new(i, Color3.fromHSV(i, 1, 1)))
+		local Preview: ImageButton = Instance.new("ImageButton")
+		Preview.BackgroundTransparency = 1
+		Preview.Image = GetVapeAsset("kingvape/assets/new/colorpreview.png")
+		Preview.ImageColor3 = Color3.fromHSV(Component.Hue, Component.Sat, Component.Value)
+		Preview.Position = UDim2.new(1, -22, 0, 10)
+		Preview.Size = UDim2.fromOffset(12, 12)
+		Preview.Parent = Slider
+		local CustomBox: TextBox = Instance.new("TextBox")
+		CustomBox.BackgroundTransparency = 1
+		CustomBox.FontFace = UIPallet.Font
+		CustomBox.Position = UDim2.new(1, -69, 0, 9)
+		CustomBox.Size = UDim2.fromOffset(60, 15)
+		CustomBox.Text = ""
+		CustomBox.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		CustomBox.TextSize = 11
+		CustomBox.TextXAlignment = Enum.TextXAlignment.Right
+		CustomBox.Visible = false
+		CustomBox.Parent = Slider
+		local Expand: TextButton = Instance.new("TextButton")
+		Expand.BackgroundTransparency = 1
+		Expand.Position = UDim2.new(0, GetFontBounds(Title.Text, Title.TextSize, Title.FontFace).X + 11, 0, 7)
+		Expand.Size = UDim2.fromOffset(17, 13)
+		Expand.Text = ""
+		Expand.Parent = Slider
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = GetVapeAsset("kingvape/assets/new/downexpandslider.png")
+		Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.43)
+		Icon.Position = UDim2.fromOffset(4, 4)
+		Icon.Size = UDim2.fromOffset(10, 5)
+		Icon.Parent = Expand
+		local Rainbow: TextButton = Instance.new("TextButton")
+		Rainbow.BackgroundTransparency = 1
+		Rainbow.Position = UDim2.new(1, -42, 0, 10)
+		Rainbow.Size = UDim2.fromOffset(12, 12)
+		Rainbow.Text = ""
+		Rainbow.Parent = Slider
+		local Ring1: ImageLabel = Instance.new("ImageLabel")
+		Ring1.BackgroundTransparency = 1
+		Ring1.Image = GetVapeAsset("kingvape/assets/new/rainbow_1.png")
+		Ring1.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Ring1.Size = UDim2.fromOffset(12, 12)
+		Ring1.Parent = Rainbow
+		local Ring2: ImageLabel = Instance.fromExisting(Ring1)
+		Ring2.Image = GetVapeAsset("kingvape/assets/new/rainbow_2.png")
+		Ring2.Parent = Rainbow
+		local Ring3: ImageLabel = Instance.fromExisting(Ring1)
+		Ring3.Image = GetVapeAsset("kingvape/assets/new/rainbow_3.png")
+		Ring3.Parent = Rainbow
+		local Ring4: ImageLabel = Instance.fromExisting(Ring1)
+		Ring4.Image = GetVapeAsset("kingvape/assets/new/rainbow_4.png")
+		Ring4.Parent = Rainbow
+		local Knob: ImageLabel = Instance.new("ImageLabel")
+		Knob.BackgroundTransparency = 1
+		Knob.Image = GetVapeAsset("kingvape/assets/new/theme.png")
+		Knob.ImageColor3 = Colors[4]
+		Knob.Name = "Knob"
+		Knob.Position = UDim2.fromOffset(ColorPositions[4] - 3, -5)
+		Knob.Size = UDim2.fromOffset(26, 12)
+		Knob.Parent = Holder
+		Props.Function = Props.Function or function() end
+		local RainbowTable: {ColorSequenceKeypoint} = {}
+		for Hue: number = 0, 1, 0.1 do
+		    table.insert(RainbowTable, ColorSequenceKeypoint.new(Hue, Color3.fromHSV(Hue, 1, 1)))
 		end
 		
-		local colorSlider = createSlider('Custom color', ColorSequence.new(rainbowTable))
-		local satSlider = createSlider('Saturation', ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, component.Value)),
-			ColorSequenceKeypoint.new(1, Color3.fromHSV(component.Hue, 1, component.Value))
+		local CustomColorSlider: TextButton = CreateSlider("Custom color", ColorSequence.new(RainbowTable))
+		local SaturationSlider: TextButton = CreateSlider("Saturation", ColorSequence.new({
+		    ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, Component.Value)),
+		    ColorSequenceKeypoint.new(1, Color3.fromHSV(Component.Hue, 1, Component.Value))
 		}))
 		
-		local vibSlider = createSlider('Vibrance', ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)),
-			ColorSequenceKeypoint.new(1, Color3.fromHSV(component.Hue, component.Sat, 1))
+		local VibranceSlider: TextButton = CreateSlider("Vibrance", ColorSequence.new({
+		    ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)),
+		    ColorSequenceKeypoint.new(1, Color3.fromHSV(Component.Hue, Component.Sat, 1))
 		}))
 		
-		local normalknob = getvapeasset('kingvape/assets/new/theme.png')
-		local rainbowknob = getvapeasset('kingvape/assets/new/customtheme.png')
-		local rainbowthread
-		local currentNotch
+		local NormalKnob: string = GetVapeAsset("kingvape/assets/new/theme.png")
+		local RainbowKnob: string = GetVapeAsset("kingvape/assets/new/customtheme.png")
+		local RainbowThread: thread?
+		local CurrentNotch: number?
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if data.Rainbow then
-				self:Toggle()
-			end
+		    if Data.Rainbow then
+		        self:Toggle()
+		    end
 		
-			if self.Rainbow or data.CustomColor then
-				self:SetValue(data.Hue, data.Sat, data.Value)
-			else
-				self:SetValue(nil, nil, nil, data.Notch)
-			end
+		    if self.Rainbow or Data.CustomColor then
+		        self:SetValue(Data.Hue, Data.Sat, Data.Value)
+		    else
+		        self:SetValue(nil, nil, nil, Data.Notch)
+		    end
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Hue = self.Hue,
-				Sat = self.Sat,
-				Value = self.Value,
-				Notch = self.Notch,
-				CustomColor = self.CustomColor,
-				Rainbow = self.Rainbow
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Hue = self.Hue,
+		        Sat = self.Sat,
+		        Value = self.Value,
+		        Notch = self.Notch,
+		        CustomColor = self.CustomColor,
+		        Rainbow = self.Rainbow
+		    }
 		end
 		
-		function component:SetValue(h, s, v, n)
-			if n then
-				if self.Rainbow then
-					self:Toggle()
-				end
+		function Component:SetValue(Hue: number?, Sat: number?, Val: number?, Notch: number?)
+		    if Notch then
+		        if self.Rainbow then
+		            self:Toggle()
+		        end
 		
-				self.CustomColor = false
-				h, s, v = colors[n]:ToHSV()
-			else
-				self.CustomColor = true
-			end
+		        self.CustomColor = false
+		        Hue, Sat, Val = Colors[Notch]:ToHSV()
+		    else
+		        self.CustomColor = true
+		    end
 		
-			self.Hue = h or self.Hue
-			self.Sat = s or self.Sat
-			self.Value = v or self.Value
-			self.Notch = n
-			preview.ImageColor3 = Color3.fromHSV(self.Hue, self.Sat, self.Value)
+		    self.Hue = Hue or self.Hue
+		    self.Sat = Sat or self.Sat
+		    self.Value = Val or self.Value
+		    self.Notch = Notch
+		    Preview.ImageColor3 = Color3.fromHSV(self.Hue, self.Sat, self.Value)
 		
-			satSlider.Holder.UIGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, self.Value)),
-				ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, 1, self.Value))
-			})
+		    SaturationSlider.Holder.UIGradient.Color = ColorSequence.new({
+		        ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, self.Value)),
+		        ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, 1, self.Value))
+		    })
 		
-			vibSlider.Holder.UIGradient.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)),
-				ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, self.Sat, 1))
-			})
+		    VibranceSlider.Holder.UIGradient.Color = ColorSequence.new({
+		        ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0, 0)),
+		        ColorSequenceKeypoint.new(1, Color3.fromHSV(self.Hue, self.Sat, 1))
+		    })
 		
-			local newNotch = (self.Rainbow or self.CustomColor) and 4 or n or currentNotch
-			if self.Rainbow or self.CustomColor then
-				knob.Image = rainbowknob
-				knob.ImageColor3 = Color3.new(1, 1, 1)
+		    local NewNotch: number? = (self.Rainbow or self.CustomColor) and 4 or Notch or CurrentNotch
+		    if self.Rainbow or self.CustomColor then
+		        Knob.Image = RainbowKnob
+		        Knob.ImageColor3 = Color3.new(1, 1, 1)
 		
-				if newNotch ~= currentNotch then
-					tween:Tween(knob, uipallet.Tween, {
-						Position = UDim2.fromOffset(colorPositions[4] - 3, -5)
-					})
-				end
-			else
-				knob.Image = normalknob
-				knob.ImageColor3 = Color3.fromHSV(self.Hue, self.Sat, self.Value)
+		        if NewNotch ~= CurrentNotch then
+		            Tween:Tween(Knob, UIPallet.Tween, {
+		                Position = UDim2.fromOffset(ColorPositions[4] - 3, -5)
+		            })
+		        end
+		    else
+		        Knob.Image = NormalKnob
+		        Knob.ImageColor3 = Color3.fromHSV(self.Hue, self.Sat, self.Value)
 		
-				if newNotch ~= currentNotch then
-					tween:Tween(knob, uipallet.Tween, {
-						Position = UDim2.fromOffset(colorPositions[n or 4] - 3, -5)
-					})
-				end
-			end
+		        if NewNotch ~= CurrentNotch then
+		            Tween:Tween(Knob, UIPallet.Tween, {
+		                Position = UDim2.fromOffset(ColorPositions[Notch or 4] - 3, -5)
+		            })
+		        end
+		    end
 		
-			currentNotch = newNotch
-			if self.Rainbow then
-				if h then
-					colorSlider.Holder.Fill.Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
-				end
+		    CurrentNotch = NewNotch
+		    if self.Rainbow then
+		        if Hue then
+		            CustomColorSlider.Holder.Fill.Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
+		        end
 		
-				if s then
-					satSlider.Holder.Fill.Size = UDim2.fromScale(math.clamp(self.Sat, 0.04, 0.96), 1)
-				end
+		        if Sat then
+		            SaturationSlider.Holder.Fill.Size = UDim2.fromScale(math.clamp(self.Sat, 0.04, 0.96), 1)
+		        end
 		
-				if v then
-					vibSlider.Holder.Fill.Size = UDim2.fromScale(math.clamp(self.Value, 0.04, 0.96), 1)
-				end
-			else
-				if h then
-					tween:Tween(colorSlider.Holder.Fill, uipallet.Tween, {
-						Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
-					})
-				end
+		        if Val then
+		            VibranceSlider.Holder.Fill.Size = UDim2.fromScale(math.clamp(self.Value, 0.04, 0.96), 1)
+		        end
+		    else
+		        if Hue then
+		            Tween:Tween(CustomColorSlider.Holder.Fill, UIPallet.Tween, {
+		                Size = UDim2.fromScale(math.clamp(self.Hue, 0.04, 0.96), 1)
+		            })
+		        end
 		
-				if s then
-					tween:Tween(satSlider.Holder.Fill, uipallet.Tween, {
-						Size = UDim2.fromScale(math.clamp(self.Sat, 0.04, 0.96), 1)
-					})
-				end
+		        if Sat then
+		            Tween:Tween(SaturationSlider.Holder.Fill, UIPallet.Tween, {
+		                Size = UDim2.fromScale(math.clamp(self.Sat, 0.04, 0.96), 1)
+		            })
+		        end
 		
-				if v then
-					tween:Tween(vibSlider.Holder.Fill, uipallet.Tween, {
-						Size = UDim2.fromScale(math.clamp(self.Value, 0.04, 0.96), 1)
-					})
-				end
-			end
+		        if Val then
+		            Tween:Tween(VibranceSlider.Holder.Fill, UIPallet.Tween, {
+		                Size = UDim2.fromScale(math.clamp(self.Value, 0.04, 0.96), 1)
+		            })
+		        end
+		    end
 		
-			if not self.Rainbow then
-				vape:QueueSave()
-			end
+		    if not self.Rainbow then
+		        vape:QueueSave()
+		    end
 		
-			props.Function(self.Hue, self.Sat, self.Value)
+		    Props.Function(self.Hue, self.Sat, self.Value)
 		end
 		
-		function component:Toggle()
-			self.Rainbow = not self.Rainbow
-			if rainbowthread then
-				task.cancel(rainbowthread)
-			end
+		function Component:Toggle()
+		    self.Rainbow = not self.Rainbow
+		    if RainbowThread then
+		        task.cancel(RainbowThread)
+		    end
 		
-			if self.Rainbow then
-				knob.Image = rainbowknob
-				table.insert(vape.RainbowSliders, self)
+		    if self.Rainbow then
+		        Knob.Image = RainbowKnob
+		        table.insert(vape.RainbowSliders, self)
 		
-				ring1.ImageColor3 = Color3.fromRGB(5, 127, 100)
-				rainbowthread = task.delay(0.1, function()
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		        Ring1.ImageColor3 = Color3.fromRGB(5, 127, 100)
+		        RainbowThread = task.delay(0.1, function()
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					ring2.ImageColor3 = Color3.fromRGB(228, 125, 43)
-					rainbowthread = task.delay(0.1, function()
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
+		            Ring2.ImageColor3 = Color3.fromRGB(228, 125, 43)
+		            RainbowThread = task.delay(0.1, function()
+		                if vape.ThreadFix then
+		                    setthreadidentity(8)
+		                end
 		
-						ring3.ImageColor3 = Color3.fromRGB(225, 46, 52)
-						rainbowthread = nil
-					end)
-				end)
-			else
-				self:SetValue(nil, nil, nil, 4)
-				knob.Image = normalknob
-				local index = table.find(vape.RainbowSliders, self)
-				if index then
-					table.remove(vape.RainbowSliders, index)
-				end
+		                Ring3.ImageColor3 = Color3.fromRGB(225, 46, 52)
+		                RainbowThread = nil
+		            end)
+		        end)
+		    else
+		        self:SetValue(nil, nil, nil, 4)
+		        Knob.Image = NormalKnob
+		        local Index: number? = table.find(vape.RainbowSliders, self)
+		        if Index then
+		            table.remove(vape.RainbowSliders, Index)
+		        end
 		
-				ring3.ImageColor3 = color.Light(uipallet.Main, 0.37)
-				rainbowthread = task.delay(0.1, function()
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		        Ring3.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		        RainbowThread = task.delay(0.1, function()
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					ring2.ImageColor3 = color.Light(uipallet.Main, 0.37)
-					rainbowthread = task.delay(0.1, function()
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
+		            Ring2.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		            RainbowThread = task.delay(0.1, function()
+		                if vape.ThreadFix then
+		                    setthreadidentity(8)
+		                end
 		
-						ring1.ImageColor3 = color.Light(uipallet.Main, 0.37)
-						rainbowthread = nil
-					end)
-				end)
-			end
+		                Ring1.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		                RainbowThread = nil
+		            end)
+		        end)
+		    end
 		
-			vape:QueueSave()
+		    vape:QueueSave()
 		end
 		
-		expand.MouseEnter:Connect(function()
-			icon.ImageColor3 = color.Dark(uipallet.Text, 0.16)
+		Expand.MouseEnter:Connect(function()
+		    Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.16)
 		end)
 		
-		expand.MouseLeave:Connect(function()
-			icon.ImageColor3 = color.Dark(uipallet.Text, 0.43)
+		Expand.MouseLeave:Connect(function()
+		    Icon.ImageColor3 = Color.Dark(UIPallet.Text, 0.43)
 		end)
 		
-		expand.MouseButton1Click:Connect(function()
-			colorSlider.Visible = not colorSlider.Visible
-			satSlider.Visible = colorSlider.Visible
-			vibSlider.Visible = satSlider.Visible
-			icon.Rotation = satSlider.Visible and 180 or 0
+		Expand.MouseButton1Click:Connect(function()
+		    CustomColorSlider.Visible = not CustomColorSlider.Visible
+		    SaturationSlider.Visible = CustomColorSlider.Visible
+		    VibranceSlider.Visible = SaturationSlider.Visible
+		    Icon.Rotation = SaturationSlider.Visible and 180 or 0
 		end)
 		
-		preview.MouseButton1Click:Connect(function()
-			preview.Visible = false
-			custombox.Visible = true
-			custombox:CaptureFocus()
-			local text = Color3.fromHSV(component.Hue, component.Sat, component.Value)
-			custombox.Text = math.round(text.R * 255)..', '..math.round(text.G * 255)..', '..math.round(text.B * 255)
+		Preview.MouseButton1Click:Connect(function()
+		    Preview.Visible = false
+		    CustomBox.Visible = true
+		    CustomBox:CaptureFocus()
+		    local CurrentColor: Color3 = Color3.fromHSV(Component.Hue, Component.Sat, Component.Value)
+		    CustomBox.Text = `{math.round(CurrentColor.R * 255)}, {math.round(CurrentColor.G * 255)}, {math.round(CurrentColor.B * 255)}`
 		end)
 		
-		slider.InputBegan:Connect(function(input)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		Slider.InputBegan:Connect(function(Input: InputObject)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if
-				(input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch)
-				and (input.Position.Y - slider.AbsolutePosition.Y) > (20 * scale.Scale)
-			then
-				local releaseConnection
-				local moveConnection = inputService.InputChanged:Connect(function(newInput)
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		    if
+		        (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
+		        and (Input.Position.Y - Slider.AbsolutePosition.Y) > (20 * Scale.Scale)
+		    then
+		        local ReleaseConnection
+		        local MoveConnection: RBXScriptConnection = UserInputService.InputChanged:Connect(function(NewInput: InputObject)
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					if newInput.UserInputType == (input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
-						component:SetValue(nil, nil, nil, math.clamp(math.round((newInput.Position.X - holder.AbsolutePosition.X) / scale.Scale / 27), 1, 7))
-					end
-				end)
+		            if NewInput.UserInputType == (Input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
+		                Component:SetValue(nil, nil, nil, math.clamp(math.round((NewInput.Position.X - Holder.AbsolutePosition.X) / Scale.Scale / 27), 1, 7))
+		            end
+		        end)
 		
-				releaseConnection = input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						moveConnection:Disconnect()
-						releaseConnection:Disconnect()
-					end
-				end)
+		        ReleaseConnection = Input.Changed:Connect(function()
+		            if Input.UserInputState == Enum.UserInputState.End then
+		                MoveConnection:Disconnect()
+		                ReleaseConnection:Disconnect()
+		            end
+		        end)
 		
-				component:SetValue(nil, nil, nil, math.clamp(math.round((input.Position.X - holder.AbsolutePosition.X) / scale.Scale / 27), 1, 7))
-			end
+		        Component:SetValue(nil, nil, nil, math.clamp(math.round((Input.Position.X - Holder.AbsolutePosition.X) / Scale.Scale / 27), 1, 7))
+		    end
 		end)
 		
-		rainbow.MouseButton1Click:Connect(function()
-			component:Toggle()
+		Rainbow.MouseButton1Click:Connect(function()
+		    Component:Toggle()
 		end)
 		
-		custombox.FocusLost:Connect(function(enter)
-			preview.Visible = true
-			custombox.Visible = false
+		CustomBox.FocusLost:Connect(function(Enter: boolean)
+		    Preview.Visible = true
+		    CustomBox.Visible = false
 		
-			if enter then
-				local success, parsed = pcall(function()
-					local commas = custombox.Text:split(',')
-					return tonumber(commas[1]) and Color3.fromRGB(tonumber(commas[1]), tonumber(commas[2]), tonumber(commas[3])) or Color3.fromHex(custombox.Text)
-				end)
+		    if Enter then
+		        local Success, Parsed = pcall(function()
+		            local Commas: {string} = CustomBox.Text:split(",")
+		            return tonumber(Commas[1]) and Color3.fromRGB(tonumber(Commas[1]), tonumber(Commas[2]), tonumber(Commas[3])) or Color3.fromHex(CustomBox.Text)
+		        end)
 		
-				if success then
-					if component.Rainbow then
-						component:Toggle()
-					end
+		        if Success then
+		            if Component.Rainbow then
+		                Component:Toggle()
+		            end
 		
-					component:SetValue(parsed:ToHSV())
-				end
-			end
+		            Component:SetValue(Parsed:ToHSV())
+		        end
+		    end
 		end)
 		
-		api.Options[props.Name] = component
+		API.Options[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	ImageToggle = function(props, children, api)
-		local component = {
-			Enabled = false,
-			Index = getTableSize(api.Options),
-			Type = 'ImageToggle'
+	ImageToggle = function(Props, Children, API)
+		local Component = {
+		    Enabled = false,
+		    Index = GetTableSize(API.Options),
+		    Type = "ImageToggle"
 		}
 		
-		local isHover = false
-		local toggle = Instance.new('TextButton')
-		toggle.AutoButtonColor = false
-		toggle.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-		toggle.BorderSizePixel = 0
-		toggle.FontFace = uipallet.Font
-		toggle.Size = UDim2.new(1, 0, 0, 40)
-		toggle.Text = string.rep(' ', 33 * scale.Scale)..props.Name
-		toggle.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		toggle.TextSize = 14
-		toggle.TextXAlignment = Enum.TextXAlignment.Left
-		toggle.Visible = props.Visible == nil or props.Visible
-		toggle.Parent = children
-		component.Object = toggle
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = props.Icon
-		icon.ImageColor3 = uipallet.Text
-		icon.Name = 'Icon'
-		icon.Position = props.Position
-		icon.Size = props.Size
-		icon.Parent = toggle
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.14)
-		holder.Name = 'Knob'
-		holder.Position = UDim2.new(1, -30, 0, 14)
-		holder.Size = UDim2.fromOffset(22, 12)
-		holder.Parent = toggle
-		addCorner(holder, UDim.new(1, 0))
-		local knob = Instance.new('Frame')
-		knob.BackgroundColor3 = uipallet.Main
-		knob.Position = UDim2.fromOffset(2, 2)
-		knob.Size = UDim2.fromOffset(8, 8)
-		knob.Parent = holder
-		addCorner(knob, UDim.new(1, 0))
-		props.Function = props.Function or function() end
+		local IsHover: boolean = false
+		local Toggle: TextButton = Instance.new("TextButton")
+		Toggle.AutoButtonColor = false
+		Toggle.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		Toggle.BorderSizePixel = 0
+		Toggle.FontFace = UIPallet.Font
+		Toggle.Size = UDim2.new(1, 0, 0, 40)
+		Toggle.Text = `{string.rep(" ", 33 * Scale.Scale)}{Props.Name}`
+		Toggle.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Toggle.TextSize = 14
+		Toggle.TextXAlignment = Enum.TextXAlignment.Left
+		Toggle.Visible = Props.Visible == nil or Props.Visible
+		Toggle.Parent = Children
+		Component.Object = Toggle
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = Props.Icon
+		Icon.ImageColor3 = UIPallet.Text
+		Icon.Name = "Icon"
+		Icon.Position = Props.Position
+		Icon.Size = Props.Size
+		Icon.Parent = Toggle
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.14)
+		Holder.Name = "Knob"
+		Holder.Position = UDim2.new(1, -30, 0, 14)
+		Holder.Size = UDim2.fromOffset(22, 12)
+		Holder.Parent = Toggle
+		AddCorner(Holder, UDim.new(1, 0))
+		local Knob: Frame = Instance.new("Frame")
+		Knob.BackgroundColor3 = UIPallet.Main
+		Knob.Position = UDim2.fromOffset(2, 2)
+		Knob.Size = UDim2.fromOffset(8, 8)
+		Knob.Parent = Holder
+		AddCorner(Knob, UDim.new(1, 0))
+		Props.Function = Props.Function or function() end
 		
-		function component:Color(hue, sat, val, isRainbow)
-			if self.Enabled then
-				tween:Cancel(holder)
-				holder.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
-			end
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    if self.Enabled then
+		        Tween:Cancel(Holder)
+		        Holder.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(Hue, Sat, Val)
+		    end
 		end
 		
-		function component:Toggle()
-			local isRainbow = vape.GUIColor.Rainbow and vape.RainbowMode.Value ~= 'Retro'
-			self.Enabled = not self.Enabled
+		function Component:Toggle()
+		    local IsRainbow: boolean = vape.GUIColor.Rainbow and vape.RainbowMode.Value ~= "Retro"
+		    self.Enabled = not self.Enabled
 		
-			tween:Tween(holder, uipallet.Tween, {
-				BackgroundColor3 = self.Enabled and (isRainbow and Color3.fromHSV(vape:Color((vape.GUIColor.Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)) or (isHover and color.Light(uipallet.Main, 0.37) or color.Light(uipallet.Main, 0.14))
-			})
+		    Tween:Tween(Holder, UIPallet.Tween, {
+		        BackgroundColor3 = self.Enabled and (IsRainbow and Color3.fromHSV(vape:Color((vape.GUIColor.Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)) or (IsHover and Color.Light(UIPallet.Main, 0.37) or Color.Light(UIPallet.Main, 0.14))
+		    })
 		
-			tween:Tween(knob, uipallet.Tween, {
-				Position = UDim2.fromOffset(self.Enabled and 12 or 2, 2)
-			})
+		    Tween:Tween(Knob, UIPallet.Tween, {
+		        Position = UDim2.fromOffset(self.Enabled and 12 or 2, 2)
+		    })
 		
-			vape:QueueSave()
-			props.Function(self.Enabled)
+		    vape:QueueSave()
+		    Props.Function(self.Enabled)
 		end
 		
-		scale:GetPropertyChangedSignal('Scale'):Connect(function()
-			toggle.Text = string.rep(' ', 33 * scale.Scale)..props.Name
+		Scale:GetPropertyChangedSignal("Scale"):Connect(function()
+		    Toggle.Text = `{string.rep(" ", 33 * Scale.Scale)}{Props.Name}`
 		end)
 		
-		toggle.MouseEnter:Connect(function()
-			isHover = true
+		Toggle.MouseEnter:Connect(function()
+		    IsHover = true
 		
-			if not component.Enabled then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.37)
-				})
-			end
+		    if not Component.Enabled then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.37)
+		        })
+		    end
 		end)
 		
-		toggle.MouseLeave:Connect(function()
-			isHover = false
+		Toggle.MouseLeave:Connect(function()
+		    IsHover = false
 		
-			if not component.Enabled then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.14)
-				})
-			end
+		    if not Component.Enabled then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.14)
+		        })
+		    end
 		end)
 		
-		toggle.MouseButton1Click:Connect(function()
-			component:Toggle()
+		Toggle.MouseButton1Click:Connect(function()
+		    Component:Toggle()
 		end)
 		
-		if props.Default then
-			component:Toggle()
+		if Props.Default then
+		    Component:Toggle()
 		end
 		
-		api.Options[props.Name] = component
+		API.Options[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	LegitModule = function(props, children, api)
-		vape:Remove(props.Name)
-		local component = {
-			Category = props.Category or 'Game',
-			ConfigName = props.ConfigName or props.Name,
-			Enabled = false,
-			Favorited = false,
-			Legit = true,
-			Name = props.Name,
-			Options = {},
-			Type = 'LegitModule'
+	LegitModule = function(Props, Children, API)
+		vape:Remove(Props.Name)
+		local Component = {
+		    Category = Props.Category or "Game",
+		    ConfigName = Props.ConfigName or Props.Name,
+		    Enabled = false,
+		    Favorited = false,
+		    Legit = true,
+		    Name = Props.Name,
+		    Options = {},
+		    Type = "LegitModule"
 		}
-		local dashes = {}
-		local dashholder
-		local editor
-		local editorpane
-		local connections = {}
-		local objectstroke
+		local Dashes: {Frame} = {}
+		local DashHolder: Frame?
+		local Editor: Frame?
+		local EditorPane: Frame?
+		local Connections: {RBXScriptConnection} = {}
+		local ObjectStroke: UIStroke?
 		
-		local function addDash(x, y, width, height)
-			local dash = table.remove(dashes)
-			if not dash then
-				dash = Instance.new('Frame')
-				dash.BackgroundColor3 = vapecolors.AccentHover
-				dash.BorderSizePixel = 0
-			end
+		local function AddDash(X: number, Y: number, Width: number, Height: number)
+		    local Dash: Frame? = table.remove(Dashes)
+		    if not Dash then
+		        Dash = Instance.new("Frame")
+		        Dash.BackgroundColor3 = VapeColors.AccentHover
+		        Dash.BorderSizePixel = 0
+		    end
 		
-			dash.Position = UDim2.fromOffset(x, y)
-			dash.Size = UDim2.fromOffset(width, height)
-			dash.Parent = dashholder
+		    Dash.Position = UDim2.fromOffset(X, Y)
+		    Dash.Size = UDim2.fromOffset(Width, Height)
+		    Dash.Parent = DashHolder
 		end
 		
-		local function refreshDashes()
-			local size = component.Children.Size
-			local right = size.X.Offset + 38
-			local bottom = math.max(52, size.Y.Offset) + 14
+		local function RefreshDashes()
+		    local Size: UDim2 = Component.Children.Size
+		    local Right: number = Size.X.Offset + 38
+		    local Bottom: number = math.max(52, Size.Y.Offset) + 14
 		
-			for _, v in dashholder:GetChildren() do
-				v.Parent = nil
-				table.insert(dashes, v)
-			end
+		    for _, v: Frame in DashHolder:GetChildren() do
+		        v.Parent = nil
+		        table.insert(Dashes, v)
+		    end
 		
-			for x = 0, right, 4 do
-				addDash(x, 0, 2, 2)
-				addDash(x, bottom, 2, 2)
-			end
+		    for X: number = 0, Right, 4 do
+		        AddDash(X, 0, 2, 2)
+		        AddDash(X, Bottom, 2, 2)
+		    end
 		
-			for y = 4, bottom - 4, 4 do
-				addDash(0, y, 2, 2)
-				addDash(right, y, 2, 2)
-			end
+		    for Y: number = 4, Bottom - 4, 4 do
+		        AddDash(0, Y, 2, 2)
+		        AddDash(Right, Y, 2, 2)
+		    end
 		end
 		
-		local button = Instance.new('TextButton')
-		button.AutoButtonColor = false
-		button.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-		button.Name = props.Name
-		button.Text = ''
-		button.Parent = children
-		component.Object = button
-		addTooltip(button, props.Tooltip, nil, function()
-			return vape.LegitVisible
+		local Button: TextButton = Instance.new("TextButton")
+		Button.AutoButtonColor = false
+		Button.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		Button.Name = Props.Name
+		Button.Text = ""
+		Button.Parent = Children
+		Component.Object = Button
+		AddTooltip(Button, Props.Tooltip, nil, function()
+		    return vape.LegitVisible
 		end)
-		addCorner(button)
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = props.Icon or ''
-		icon.ImageColor3 = vapecolors.Icon
-		icon.Name = 'Icon'
-		icon.Position = UDim2.fromOffset(18, 12)
-		icon.Size = UDim2.fromOffset(16, 16)
-		icon.Parent = button
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(16, 81)
-		title.Size = UDim2.new(1, -16, 0, 20)
-		title.Text = props.Name
-		title.TextColor3 = color.Dark(uipallet.Text, 0.31)
-		title.TextSize = 13
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = button
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.14)
-		holder.Position = UDim2.new(1, -57, 0, 15)
-		holder.Size = UDim2.fromOffset(22, 12)
-		holder.Parent = button
-		addCorner(holder, UDim.new(1, 0))
-		local knob = Instance.new('Frame')
-		knob.BackgroundColor3 = uipallet.Main
-		knob.Position = UDim2.fromOffset(2, 2)
-		knob.Size = UDim2.fromOffset(8, 8)
-		knob.Parent = holder
-		addCorner(knob, UDim.new(1, 0))
-		local dotsbutton = Instance.new('TextButton')
-		dotsbutton.BackgroundTransparency = 1
-		dotsbutton.Name = 'Dots'
-		dotsbutton.Position = UDim2.new(1, -27, 0, 9)
-		dotsbutton.Size = UDim2.fromOffset(14, 24)
-		dotsbutton.Text = ''
-		dotsbutton.Parent = button
-		local dots = Instance.new('ImageLabel')
-		dots.BackgroundTransparency = 1
-		dots.Image = getvapeasset('kingvape/assets/new/overlaydots.png')
-		dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		dots.Name = 'Dots'
-		dots.Position = UDim2.fromOffset(6, 6)
-		dots.Size = UDim2.fromOffset(2, 12)
-		dots.Parent = dotsbutton
-		local shadow = Instance.new('TextButton')
-		shadow.Name = 'Shadow'
-		shadow.Size = UDim2.new(1, 0, 1, -5)
-		shadow.BackgroundColor3 = Color3.new()
-		shadow.BackgroundTransparency = 1
-		shadow.AutoButtonColor = false
-		shadow.ClipsDescendants = true
-		shadow.Visible = false
-		shadow.Text = ''
-		shadow.Parent = (api and api.Window) or scaledgui or gui
-		addCorner(shadow)
-		local settingspane = Instance.new('TextButton')
-		settingspane.Size = UDim2.new(0, 220, 1, 0)
-		settingspane.Position = UDim2.fromScale(1, 0)
-		settingspane.BackgroundColor3 = uipallet.Main
-		settingspane.AutoButtonColor = false
-		settingspane.Text = ''
-		settingspane.Parent = shadow
-		local settingstitle = Instance.new('TextLabel')
-		settingstitle.Name = 'Title'
-		settingstitle.Size = UDim2.new(1, -36, 0, 20)
-		settingstitle.Position = UDim2.fromOffset(36, 12)
-		settingstitle.BackgroundTransparency = 1
-		settingstitle.Text = props.Name
-		settingstitle.TextXAlignment = Enum.TextXAlignment.Left
-		settingstitle.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		settingstitle.TextSize = 13
-		settingstitle.FontFace = uipallet.Font
-		settingstitle.Parent = settingspane
-		local back = Instance.new('ImageButton')
-		back.Name = 'Back'
-		back.Size = UDim2.fromOffset(16, 16)
-		back.Position = UDim2.fromOffset(11, 13)
-		back.BackgroundTransparency = 1
-		back.Image = getvapeasset('kingvape/assets/new/back.png')
-		back.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		back.Parent = settingspane
-		addCorner(settingspane)
-		local favorite = Instance.new('TextButton')
-		favorite.AutoButtonColor = false
-		favorite.BackgroundTransparency = 1
-		favorite.Name = 'Favorite'
-		favorite.Position = UDim2.fromOffset(186, 8)
-		favorite.Size = UDim2.fromOffset(22, 26)
-		favorite.Text = ''
-		favorite.Visible = false
-		favorite.Parent = settingspane
-		addTooltip(favorite, 'Add module to favorites')
-		local favoriteicon = Instance.new('ImageLabel')
-		favoriteicon.AnchorPoint = Vector2.new(0.5, 0.5)
-		favoriteicon.BackgroundTransparency = 1
-		favoriteicon.Image = getvapeasset('kingvape/assets/new/star.png')
-		favoriteicon.ImageColor3 = vapecolors.Icon
-		favoriteicon.Name = 'Icon'
-		favoriteicon.Position = UDim2.fromScale(0.5, 0.5)
-		favoriteicon.Size = UDim2.fromOffset(16, 15)
-		favoriteicon.Parent = favorite
-		local settingschildren = Instance.new('ScrollingFrame')
-		settingschildren.BackgroundColor3 = uipallet.Main
-		settingschildren.BorderSizePixel = 0
-		settingschildren.CanvasSize = UDim2.new()
-		settingschildren.Name = 'Children'
-		settingschildren.Position = UDim2.fromOffset(0, 41)
-		settingschildren.ScrollBarThickness = 2
-		settingschildren.ScrollBarImageTransparency = 0.75
-		settingschildren.Size = UDim2.new(1, 0, 1, -45)
-		settingschildren.Parent = settingspane
-		local windowlist = Instance.new('UIListLayout')
-		windowlist.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		windowlist.Parent = settingschildren
-		if props.Size then
-			local modulechildren = Instance.new('Frame')
-			modulechildren.BackgroundTransparency = 1
-			modulechildren.Name = props.Name
-			modulechildren.Size = props.Size
-			modulechildren.Visible = false
-			modulechildren.Parent = scaledgui
-			component.Children = modulechildren
-			addDragHandler(modulechildren, api and api.Window)
-			addGlass(modulechildren)
-			objectstroke = Instance.new('UIStroke')
-			objectstroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			objectstroke.Color = vapecolors.AccentHover
-			objectstroke.Thickness = 0
-			objectstroke.Transparency = 0.412
-			objectstroke.Parent = modulechildren
-			editor = Instance.new('Frame')
-			editor.BackgroundTransparency = 1
-			editor.Name = 'Editor'
-			editor.Size = UDim2.fromScale(1, 1)
-			editor.Visible = false
-			editor.Parent = modulechildren
-			dashholder = Instance.new('Frame')
-			dashholder.BackgroundTransparency = 1
-			dashholder.Name = 'Dashes'
-			dashholder.Position = UDim2.fromOffset(-4, -7)
-			dashholder.Parent = editor
-			local editorlabel = Instance.new('TextLabel')
-			editorlabel.BackgroundTransparency = 1
-			editorlabel.FontFace = uipallet.Font
-			editorlabel.Name = 'Label'
-			editorlabel.Position = UDim2.fromOffset(0, -24)
-			editorlabel.Size = UDim2.fromOffset(220, 20)
-			editorlabel.Text = props.Name
-			editorlabel.TextColor3 = Color3.new(1, 1, 1)
-			editorlabel.TextSize = 14
-			editorlabel.TextXAlignment = Enum.TextXAlignment.Left
-			editorlabel.Parent = editor
-			local editorshadow = editorlabel:Clone()
-			editorshadow.Name = 'Shadow'
-			editorshadow.Position = UDim2.fromOffset(1, -23)
-			editorshadow.TextColor3 = Color3.new()
-			editorshadow.TextTransparency = 0.608
-			editorshadow.ZIndex = 0
-			editorshadow.Parent = editor
-			local closebutton = Instance.new('TextButton')
-			closebutton.AutoButtonColor = false
-			closebutton.BackgroundColor3 = vapecolors.Panel
-			closebutton.BackgroundTransparency = 0.45
-			closebutton.Name = 'Close'
-			closebutton.Position = UDim2.new(1, 4, 0, -1)
-			closebutton.Size = UDim2.fromOffset(26, 26)
-			closebutton.Text = ''
-			closebutton.Parent = editor
-			addCorner(closebutton, UDim.new(0, 3))
-			addTooltip(closebutton, 'Disable '..props.Name, nil, function()
-				return editor.Visible
-			end)
-			local closestroke = Instance.new('UIStroke')
-			closestroke.Color = vapecolors.Outline
-			closestroke.Parent = closebutton
-			local closeicon = Instance.new('ImageLabel')
-			closeicon.AnchorPoint = Vector2.new(0.5, 0.5)
-			closeicon.BackgroundTransparency = 1
-			closeicon.Image = getvapeasset('kingvape/assets/new/closetiny.png')
-			closeicon.ImageColor3 = vapecolors.Secondary
-			closeicon.Name = 'Icon'
-			closeicon.Position = UDim2.fromScale(0.5, 0.5)
-			closeicon.Size = UDim2.fromOffset(16, 16)
-			closeicon.Parent = closebutton
-			local settingsbutton = closebutton:Clone()
-			settingsbutton.BackgroundColor3 = uipallet.Main
-			settingsbutton.Name = 'Settings'
-			settingsbutton.Position = UDim2.new(1, 4, 0, 30)
-			settingsbutton.Parent = editor
-			addTooltip(settingsbutton, 'Open '..props.Name..' settings', nil, function()
-				return editor.Visible or editorpane.Visible
-			end)
-			local settingsicon = settingsbutton.Icon
-			settingsicon.Image = getvapeasset('kingvape/assets/new/settingdots.png')
-			settingsicon.Size = UDim2.fromOffset(2, 11)
-			editorpane = Instance.new('Frame')
-			editorpane.BackgroundColor3 = uipallet.Main
-			editorpane.Name = 'Settings'
-			editorpane.Size = UDim2.fromOffset(220, 120)
-			editorpane.Visible = false
-			editorpane.Parent = modulechildren
-			addBlur(editorpane)
-			addCorner(editorpane)
-			local editordots = Instance.new('ImageLabel')
-			editordots.BackgroundTransparency = 1
-			editordots.Image = getvapeasset('kingvape/assets/new/settingdots.png')
-			editordots.AnchorPoint = Vector2.new(0.5, 0.5)
-			editordots.ImageColor3 = vapecolors.Secondary
-			editordots.Name = 'Dots'
-			editordots.Position = UDim2.fromOffset(17, 20)
-			editordots.Size = UDim2.fromOffset(2, 11)
-			editordots.Parent = editorpane
-			local editortitle = settingstitle:Clone()
-			editortitle.Parent = editorpane
-			local editorclose = Instance.new('ImageButton')
-			editorclose.BackgroundTransparency = 1
-			editorclose.Image = getvapeasset('kingvape/assets/new/closetiny.png')
-			editorclose.AnchorPoint = Vector2.new(0.5, 0.5)
-			editorclose.ImageColor3 = vapecolors.Secondary
-			editorclose.Name = 'Close'
-			editorclose.Position = UDim2.fromOffset(197, 20)
-			editorclose.Size = UDim2.fromOffset(24, 24)
-			editorclose.Parent = editorpane
+		AddCorner(Button)
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = Props.Icon or ""
+		Icon.ImageColor3 = VapeColors.Icon
+		Icon.Name = "Icon"
+		Icon.Position = UDim2.fromOffset(18, 12)
+		Icon.Size = UDim2.fromOffset(16, 16)
+		Icon.Parent = Button
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Position = UDim2.fromOffset(16, 81)
+		Title.Size = UDim2.new(1, -16, 0, 20)
+		Title.Text = Props.Name
+		Title.TextColor3 = Color.Dark(UIPallet.Text, 0.31)
+		Title.TextSize = 13
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Button
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.14)
+		Holder.Position = UDim2.new(1, -57, 0, 15)
+		Holder.Size = UDim2.fromOffset(22, 12)
+		Holder.Parent = Button
+		AddCorner(Holder, UDim.new(1, 0))
+		local Knob: Frame = Instance.new("Frame")
+		Knob.BackgroundColor3 = UIPallet.Main
+		Knob.Position = UDim2.fromOffset(2, 2)
+		Knob.Size = UDim2.fromOffset(8, 8)
+		Knob.Parent = Holder
+		AddCorner(Knob, UDim.new(1, 0))
+		local DotsButton: TextButton = Instance.new("TextButton")
+		DotsButton.BackgroundTransparency = 1
+		DotsButton.Name = "Dots"
+		DotsButton.Position = UDim2.new(1, -27, 0, 9)
+		DotsButton.Size = UDim2.fromOffset(14, 24)
+		DotsButton.Text = ""
+		DotsButton.Parent = Button
+		local Dots: ImageLabel = Instance.new("ImageLabel")
+		Dots.BackgroundTransparency = 1
+		Dots.Image = GetVapeAsset("kingvape/assets/new/overlaydots.png")
+		Dots.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Dots.Name = "Dots"
+		Dots.Position = UDim2.fromOffset(6, 6)
+		Dots.Size = UDim2.fromOffset(2, 12)
+		Dots.Parent = DotsButton
+		local Shadow: TextButton = Instance.new("TextButton")
+		Shadow.Name = "Shadow"
+		Shadow.Size = UDim2.new(1, 0, 1, -5)
+		Shadow.BackgroundColor3 = Color3.new()
+		Shadow.BackgroundTransparency = 1
+		Shadow.AutoButtonColor = false
+		Shadow.ClipsDescendants = true
+		Shadow.Visible = false
+		Shadow.Text = ""
+		Shadow.Parent = API.Window
+		AddCorner(Shadow)
+		local SettingsPane: TextButton = Instance.new("TextButton")
+		SettingsPane.Size = UDim2.new(0, 220, 1, 0)
+		SettingsPane.Position = UDim2.fromScale(1, 0)
+		SettingsPane.BackgroundColor3 = UIPallet.Main
+		SettingsPane.AutoButtonColor = false
+		SettingsPane.Text = ""
+		SettingsPane.Parent = Shadow
+		local SettingsTitle: TextLabel = Instance.new("TextLabel")
+		SettingsTitle.Name = "Title"
+		SettingsTitle.Size = UDim2.new(1, -36, 0, 20)
+		SettingsTitle.Position = UDim2.fromOffset(36, 12)
+		SettingsTitle.BackgroundTransparency = 1
+		SettingsTitle.Text = Props.Name
+		SettingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+		SettingsTitle.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		SettingsTitle.TextSize = 13
+		SettingsTitle.FontFace = UIPallet.Font
+		SettingsTitle.Parent = SettingsPane
+		local Back: ImageButton = Instance.new("ImageButton")
+		Back.Name = "Back"
+		Back.Size = UDim2.fromOffset(16, 16)
+		Back.Position = UDim2.fromOffset(11, 13)
+		Back.BackgroundTransparency = 1
+		Back.Image = GetVapeAsset("kingvape/assets/new/back.png")
+		Back.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Back.Parent = SettingsPane
+		AddCorner(SettingsPane)
+		local Favorite: TextButton = Instance.new("TextButton")
+		Favorite.AutoButtonColor = false
+		Favorite.BackgroundTransparency = 1
+		Favorite.Name = "Favorite"
+		Favorite.Position = UDim2.fromOffset(186, 8)
+		Favorite.Size = UDim2.fromOffset(22, 26)
+		Favorite.Text = ""
+		Favorite.Parent = SettingsPane
+		AddTooltip(Favorite, "Add module to favorites")
+		local FavoriteIcon: ImageLabel = Instance.new("ImageLabel")
+		FavoriteIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		FavoriteIcon.BackgroundTransparency = 1
+		FavoriteIcon.Image = GetVapeAsset("kingvape/assets/new/star.png")
+		FavoriteIcon.ImageColor3 = VapeColors.Icon
+		FavoriteIcon.Name = "Icon"
+		FavoriteIcon.Position = UDim2.fromScale(0.5, 0.5)
+		FavoriteIcon.Size = UDim2.fromOffset(16, 15)
+		FavoriteIcon.Parent = Favorite
+		local SettingsChildren: ScrollingFrame = Instance.new("ScrollingFrame")
+		SettingsChildren.BackgroundColor3 = UIPallet.Main
+		SettingsChildren.BorderSizePixel = 0
+		SettingsChildren.CanvasSize = UDim2.new()
+		SettingsChildren.Name = "Children"
+		SettingsChildren.Position = UDim2.fromOffset(0, 41)
+		SettingsChildren.ScrollBarThickness = 2
+		SettingsChildren.ScrollBarImageTransparency = 0.75
+		SettingsChildren.Size = UDim2.new(1, 0, 1, -45)
+		SettingsChildren.Parent = SettingsPane
+		local WindowList: UIListLayout = Instance.new("UIListLayout")
+		WindowList.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		WindowList.Parent = SettingsChildren
+		if Props.Size then
+		    local ModuleChildren: Frame = Instance.new("Frame")
+		    ModuleChildren.BackgroundTransparency = 1
+		    ModuleChildren.Name = Props.Name
+		    ModuleChildren.Size = Props.Size
+		    ModuleChildren.Visible = false
+		    ModuleChildren.Parent = ScaledGUI
+		    Component.Children = ModuleChildren
+		    AddDragHandler(ModuleChildren, API.Window)
+		    AddGlass(ModuleChildren)
+		    ObjectStroke = Instance.new("UIStroke")
+		    ObjectStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		    ObjectStroke.Color = VapeColors.AccentHover
+		    ObjectStroke.Thickness = 0
+		    ObjectStroke.Transparency = 0.412
+		    ObjectStroke.Parent = ModuleChildren
+		    Editor = Instance.new("Frame")
+		    Editor.BackgroundTransparency = 1
+		    Editor.Name = "Editor"
+		    Editor.Size = UDim2.fromScale(1, 1)
+		    Editor.Visible = false
+		    Editor.Parent = ModuleChildren
+		    DashHolder = Instance.new("Frame")
+		    DashHolder.BackgroundTransparency = 1
+		    DashHolder.Name = "Dashes"
+		    DashHolder.Position = UDim2.fromOffset(-4, -7)
+		    DashHolder.Parent = Editor
+		    local EditorLabel: TextLabel = Instance.new("TextLabel")
+		    EditorLabel.BackgroundTransparency = 1
+		    EditorLabel.FontFace = UIPallet.Font
+		    EditorLabel.Name = "Label"
+		    EditorLabel.Position = UDim2.fromOffset(0, -24)
+		    EditorLabel.Size = UDim2.fromOffset(220, 20)
+		    EditorLabel.Text = Props.Name
+		    EditorLabel.TextColor3 = Color3.new(1, 1, 1)
+		    EditorLabel.TextSize = 14
+		    EditorLabel.TextXAlignment = Enum.TextXAlignment.Left
+		    EditorLabel.Parent = Editor
+		    local EditorShadow: TextLabel = EditorLabel:Clone()
+		    EditorShadow.Name = "Shadow"
+		    EditorShadow.Position = UDim2.fromOffset(1, -23)
+		    EditorShadow.TextColor3 = Color3.new()
+		    EditorShadow.TextTransparency = 0.608
+		    EditorShadow.ZIndex = 0
+		    EditorShadow.Parent = Editor
+		    local CloseButton: TextButton = Instance.new("TextButton")
+		    CloseButton.AutoButtonColor = false
+		    CloseButton.BackgroundColor3 = VapeColors.Panel
+		    CloseButton.BackgroundTransparency = 0.45
+		    CloseButton.Name = "Close"
+		    CloseButton.Position = UDim2.new(1, 4, 0, -1)
+		    CloseButton.Size = UDim2.fromOffset(26, 26)
+		    CloseButton.Text = ""
+		    CloseButton.Parent = Editor
+		    AddCorner(CloseButton, UDim.new(0, 3))
+		    AddTooltip(CloseButton, `Disable {Props.Name}`, nil, function()
+		        return Editor.Visible
+		    end)
+		    local CloseStroke: UIStroke = Instance.new("UIStroke")
+		    CloseStroke.Color = VapeColors.Outline
+		    CloseStroke.Parent = CloseButton
+		    local CloseIcon: ImageLabel = Instance.new("ImageLabel")
+		    CloseIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		    CloseIcon.BackgroundTransparency = 1
+		    CloseIcon.Image = GetVapeAsset("kingvape/assets/new/closetiny.png")
+		    CloseIcon.ImageColor3 = VapeColors.Secondary
+		    CloseIcon.Name = "Icon"
+		    CloseIcon.Position = UDim2.fromScale(0.5, 0.5)
+		    CloseIcon.Size = UDim2.fromOffset(16, 16)
+		    CloseIcon.Parent = CloseButton
+		    local SettingsButton: TextButton = CloseButton:Clone()
+		    SettingsButton.BackgroundColor3 = UIPallet.Main
+		    SettingsButton.Name = "Settings"
+		    SettingsButton.Position = UDim2.new(1, 4, 0, 30)
+		    SettingsButton.Parent = Editor
+		    AddTooltip(SettingsButton, `Open {Props.Name} settings`, nil, function()
+		        return Editor.Visible or EditorPane.Visible
+		    end)
+		    local SettingsIcon: ImageLabel = SettingsButton.Icon
+		    SettingsIcon.Image = GetVapeAsset("kingvape/assets/new/settingdots.png")
+		    SettingsIcon.Size = UDim2.fromOffset(2, 11)
+		    EditorPane = Instance.new("Frame")
+		    EditorPane.BackgroundColor3 = UIPallet.Main
+		    EditorPane.Name = "Settings"
+		    EditorPane.Size = UDim2.fromOffset(220, 120)
+		    EditorPane.Visible = false
+		    EditorPane.Parent = ModuleChildren
+		    AddBlur(EditorPane)
+		    AddCorner(EditorPane)
+		    local EditorDots: ImageLabel = Instance.new("ImageLabel")
+		    EditorDots.BackgroundTransparency = 1
+		    EditorDots.Image = GetVapeAsset("kingvape/assets/new/settingdots.png")
+		    EditorDots.AnchorPoint = Vector2.new(0.5, 0.5)
+		    EditorDots.ImageColor3 = VapeColors.Secondary
+		    EditorDots.Name = "Dots"
+		    EditorDots.Position = UDim2.fromOffset(17, 20)
+		    EditorDots.Size = UDim2.fromOffset(2, 11)
+		    EditorDots.Parent = EditorPane
+		    local EditorTitle: TextLabel = SettingsTitle:Clone()
+		    EditorTitle.Parent = EditorPane
+		    local EditorClose: ImageButton = Instance.new("ImageButton")
+		    EditorClose.BackgroundTransparency = 1
+		    EditorClose.Image = GetVapeAsset("kingvape/assets/new/closetiny.png")
+		    EditorClose.AnchorPoint = Vector2.new(0.5, 0.5)
+		    EditorClose.ImageColor3 = VapeColors.Secondary
+		    EditorClose.Name = "Close"
+		    EditorClose.Position = UDim2.fromOffset(197, 20)
+		    EditorClose.Size = UDim2.fromOffset(24, 24)
+		    EditorClose.Parent = EditorPane
 		
+		    CloseButton.MouseButton1Click:Connect(function()
+		        Component:Toggle()
+		    end)
 		
-			closebutton.MouseButton1Click:Connect(function()
-				component:Toggle()
-			end)
+		    CloseButton.MouseEnter:Connect(function()
+		        CloseIcon.ImageColor3 = VapeColors.Primary
 		
-			closebutton.MouseEnter:Connect(function()
-				closeicon.ImageColor3 = vapecolors.Primary
+		        Tween:Tween(CloseButton, UIPallet.Tween, {
+		            BackgroundColor3 = VapeColors.Panel,
+		            BackgroundTransparency = 0
+		        })
+		    end)
 		
-				tween:Tween(closebutton, uipallet.Tween, {
-					BackgroundColor3 = vapecolors.Panel,
-					BackgroundTransparency = 0
-				})
-			end)
+		    CloseButton.MouseLeave:Connect(function()
+		        CloseIcon.ImageColor3 = VapeColors.Secondary
 		
-			closebutton.MouseLeave:Connect(function()
-				closeicon.ImageColor3 = vapecolors.Secondary
+		        Tween:Tween(CloseButton, UIPallet.Tween, {
+		            BackgroundColor3 = VapeColors.Panel,
+		            BackgroundTransparency = 0.45
+		        })
+		    end)
 		
-				tween:Tween(closebutton, uipallet.Tween, {
-					BackgroundColor3 = vapecolors.Panel,
-					BackgroundTransparency = 0.45
-				})
-			end)
+		    ModuleChildren.InputBegan:Connect(function(Input: InputObject)
+		        if not API.Window.Visible then return end
 		
-			modulechildren.InputBegan:Connect(function(input)
-				if not (api and api.Window and api.Window.Visible) then return end
+		        if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+		            Component:Select(true)
+		        end
+		    end)
 		
-				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-					component:Select(true)
-				end
-			end)
+		    ModuleChildren.MouseEnter:Connect(function()
+		        if API.Window.Visible and not Editor.Visible then
+		            ObjectStroke.Thickness = 2
+		        end
+		    end)
 		
-			modulechildren.MouseEnter:Connect(function()
-				if api and api.Window and api.Window.Visible and not editor.Visible then
-					objectstroke.Thickness = 2
-				end
-			end)
+		    ModuleChildren.MouseLeave:Connect(function()
+		        ObjectStroke.Thickness = 0
+		    end)
 		
-			modulechildren.MouseLeave:Connect(function()
-				objectstroke.Thickness = 0
-			end)
+		    ModuleChildren:GetPropertyChangedSignal("Size"):Connect(function()
+		        if Editor.Visible then
+		            RefreshDashes()
+		        end
+		    end)
 		
-			modulechildren:GetPropertyChangedSignal('Size'):Connect(function()
-				if editor.Visible then
-					refreshDashes()
-				end
-			end)
+		    EditorClose.MouseButton1Click:Connect(function()
+		        SettingsChildren.Parent = SettingsPane
+		        EditorPane.Visible = false
+		    end)
 		
-			editorclose.MouseButton1Click:Connect(function()
-				settingschildren.Parent = settingspane
-				editorpane.Visible = false
-			end)
+		    EditorClose.MouseEnter:Connect(function()
+		        EditorClose.ImageColor3 = VapeColors.Primary
+		    end)
 		
-			editorclose.MouseEnter:Connect(function()
-				editorclose.ImageColor3 = vapecolors.Primary
-			end)
+		    EditorClose.MouseLeave:Connect(function()
+		        EditorClose.ImageColor3 = VapeColors.Secondary
+		    end)
 		
-			editorclose.MouseLeave:Connect(function()
-				editorclose.ImageColor3 = vapecolors.Secondary
-			end)
+		    SettingsButton.MouseButton1Click:Connect(function()
+		        Component:ShowSettings(not EditorPane.Visible)
+		    end)
 		
-			settingsbutton.MouseButton1Click:Connect(function()
-				component:ShowSettings(not editorpane.Visible)
-			end)
+		    SettingsButton.MouseEnter:Connect(function()
+		        SettingsIcon.ImageColor3 = VapeColors.Primary
 		
-			settingsbutton.MouseEnter:Connect(function()
-				settingsicon.ImageColor3 = vapecolors.Primary
+		        Tween:Tween(SettingsButton, UIPallet.Tween, {
+		            BackgroundColor3 = VapeColors.Panel,
+		            BackgroundTransparency = 0
+		        })
+		    end)
 		
-				tween:Tween(settingsbutton, uipallet.Tween, {
-					BackgroundColor3 = vapecolors.Panel,
-					BackgroundTransparency = 0
-				})
-			end)
+		    SettingsButton.MouseLeave:Connect(function()
+		        SettingsIcon.ImageColor3 = VapeColors.Secondary
 		
-			settingsbutton.MouseLeave:Connect(function()
-				settingsicon.ImageColor3 = vapecolors.Secondary
-		
-				tween:Tween(settingsbutton, uipallet.Tween, {
-					BackgroundColor3 = uipallet.Main,
-					BackgroundTransparency = 0.45
-				})
-			end)
+		        Tween:Tween(SettingsButton, UIPallet.Tween, {
+		            BackgroundColor3 = UIPallet.Main,
+		            BackgroundTransparency = 0.45
+		        })
+		    end)
 		end
-		props.Function = props.Function or function() end
-		addMaid(component)
+		Props.Function = Props.Function or function() end
+		AddMaid(Component)
 		
-		function component:Color(hue, sat, val, isRainbow)
-			if self.Enabled then
-				tween:Cancel(holder)
-				holder.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-				icon.ImageColor3 = Color3.fromHSV(hue, sat, val)
-			end
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    if self.Enabled then
+		        Tween:Cancel(Holder)
+		        Holder.BackgroundColor3 = Color3.fromHSV(Hue, Sat, Val)
+		        Icon.ImageColor3 = Color3.fromHSV(Hue, Sat, Val)
+		    end
 		
-			for _, component in self.Options do
-				if component.Color then
-					component:Color(hue, sat, val, isRainbow)
-				end
-			end
-		end
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
-		
-			vape:LoadOptions(self, data.Options)
-			self:SetFavorite(data.Favorited or false)
-		
-			if self.Enabled ~= (data.Enabled or false) then
-				self:Toggle()
-			end
-		
-			if data.Position and self.Children then
-				self.Children.Position = UDim2.fromOffset(data.Position.X, data.Position.Y)
-			end
-		end
-		function component:RefreshSettings()
-			if not editorpane or not editorpane.Visible then return end
-		
-			editorpane.Size = UDim2.fromOffset(220, math.clamp(windowlist.AbsoluteContentSize.Y / scale.Scale, 0, 360) + 45)
-		end
-		function component:Destroy()
-			for _, connection in connections do
-				connection:Disconnect()
-			end
-			table.clear(connections)
-		
-			for _, object in {settingschildren, shadow} do
-				if typeof(object) == 'Instance' then
-					object:Destroy()
-				end
-			end
-		end
-		function component:Save(data)
-			data[props.Name] = {
-				Enabled = self.Enabled,
-				Favorited = self.Favorited,
-				Options = vape:SaveOptions(self),
-				Position = self.Children and {
-					X = self.Children.Position.X.Offset,
-					Y = self.Children.Position.Y.Offset
-				} or nil
-			}
-		end
-		function component:Select(state)
-			if not editor then return end
-		
-			if state then
-				if api.Selected == self then return end
-		
-				if api.Selected then
-					api.Selected:Select(false)
-				end
-		
-				api.Selected = self
-				objectstroke.Thickness = 0
-				refreshDashes()
-			elseif api.Selected == self then
-				api.Selected = nil
-			end
-		
-			if not state and editorpane.Visible then
-				self:ShowSettings(false)
-				shadow.Visible = false
-				settingspane.Position = UDim2.fromScale(1, 0)
-			end
-		
-			editor.Visible = state
-		end
-		function component:SetFavorite(state)
-			self.Favorited = state
-			favoriteicon.ImageColor3 = state and vapecolors.Favorite or vapecolors.Icon
-			api:Refresh()
-			vape:QueueSave()
-		end
-		function component:ShowSettings(anchored)
-			if anchored then
-				local holder = self.Children
-				local flip = holder.AbsolutePosition.X + holder.AbsoluteSize.X + (224 * scale.Scale) > gui.AbsoluteSize.X
-				settingschildren.Parent = editorpane
-				editorpane.Position = flip and UDim2.new(0, -216, 0, 30) or UDim2.new(1, 4, 0, 30)
-				editorpane.Visible = true
-				self:RefreshSettings()
-		
-				return
-			end
-		
-			if editorpane then
-				editorpane.Visible = false
-			end
-		
-			settingschildren.Parent = settingspane
-			shadow.Visible = true
-		
-			tween:Tween(shadow, uipallet.Tween, {
-				BackgroundTransparency = 0.5
-			})
-		
-			tween:Tween(settingspane, uipallet.Tween, {
-				Position = UDim2.new(1, -220, 0, 0)
-			})
-		end
-		function component:Toggle()
-			self.Enabled = not self.Enabled
-			if self.Children then
-				self.Children.Visible = self.Enabled
-		
-				if not self.Enabled then
-					self:Select(false)
-				end
-			end
-		
-			title.TextColor3 = self.Enabled and color.Light(uipallet.Text, 0.2) or color.Dark(uipallet.Text, 0.31)
-			button.BackgroundColor3 = self.Enabled and color.Light(uipallet.Main, 0.05) or button.BackgroundColor3
-			icon.ImageColor3 = self.Enabled and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or vapecolors.Icon
-		
-			tween:Tween(holder, uipallet.Tween, {
-				BackgroundColor3 = self.Enabled and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or color.Light(uipallet.Main, 0.14)
-			})
-		
-			tween:Tween(knob, uipallet.Tween, {
-				Position = UDim2.fromOffset(self.Enabled and 12 or 2, 2)
-			})
-		
-			if not self.Enabled then
-				for _, v in self.Connections do
-					v:Disconnect()
-				end
-				table.clear(self.Connections)
-			end
-		
-			vape:QueueSave()
-			task.spawn(function()
-				local success, err = xpcall(props.Function, function(err)
-					return `{err}\n{debug.traceback(nil, 2)}`
-				end, self.Enabled)
-		
-				if not success then
-					warn(`[KingVape] {props.Name} errored turning {self.Enabled and 'on' or 'off'} : {err}`)
-					vape:CreateNotification('Vape', `{props.Name} errored, check your console`, 10, 'alert')
-				end
-			end)
+		    for _, Option: any in self.Options do
+		        if Option.Color then
+		            Option:Color(Hue, Sat, Val, IsRainbow)
+		        end
+		    end
 		end
 		
-		for index, comp in components do
-			component['Create'..index] = function(_, props)
-				return comp(props, settingschildren, component)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
+		
+		    vape:LoadOptions(self, Data.Options)
+		    self:SetFavorite(Data.Favorited or false)
+		
+		    if self.Enabled ~= (Data.Enabled or false) then
+		        self:Toggle()
+		    end
+		
+		    if Data.Position and self.Children then
+		        self.Children.Position = UDim2.fromOffset(Data.Position.X, Data.Position.Y)
+		    end
 		end
 		
-		if api and api.Window then
-			table.insert(connections, api.Window:GetPropertyChangedSignal('Visible'):Connect(function()
-				if not api.Window.Visible then
-					component:Select(false)
-				end
-			end))
+		function Component:RefreshSettings()
+		    if not EditorPane or not EditorPane.Visible then return end
+		
+		    EditorPane.Size = UDim2.fromOffset(220, math.clamp(WindowList.AbsoluteContentSize.Y / Scale.Scale, 0, 360) + 45)
 		end
 		
-		back.MouseEnter:Connect(function()
-			back.ImageColor3 = uipallet.Text
-		end)
+		function Component:Destroy()
+		    for _, Connection: RBXScriptConnection in Connections do
+		        Connection:Disconnect()
+		    end
+		    table.clear(Connections)
 		
-		back.MouseLeave:Connect(function()
-			back.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		end)
+		    for _, Object: Instance in {SettingsChildren, Shadow} do
+		        if typeof(Object) == "Instance" then
+		            Object:Destroy()
+		        end
+		    end
+		end
 		
-		back.MouseButton1Click:Connect(function()
-			tween:Tween(shadow, uipallet.Tween, {
-				BackgroundTransparency = 1
-			})
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Enabled = self.Enabled,
+		        Favorited = self.Favorited,
+		        Options = vape:SaveOptions(self),
+		        Position = self.Children and {
+		            X = self.Children.Position.X.Offset,
+		            Y = self.Children.Position.Y.Offset
+		        } or nil
+		    }
+		end
 		
-			tween:Tween(settingspane, uipallet.Tween, {
-				Position = UDim2.fromScale(1, 0)
-			})
+		function Component:Select(State: boolean)
+		    if not Editor then return end
 		
-			task.delay(0.2, function()
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+		    if State then
+		        if API.Selected == self then return end
 		
-				shadow.Visible = false
-			end)
-		end)
+		        if API.Selected then
+		            API.Selected:Select(false)
+		        end
 		
-		button.MouseEnter:Connect(function()
-			if not component.Enabled then
-				button.BackgroundColor3 = color.Light(uipallet.Main, 0.05)
-				icon.ImageColor3 = vapecolors.IconHover
-			end
-		end)
+		        API.Selected = self
+		        ObjectStroke.Thickness = 0
+		        RefreshDashes()
+		    elseif API.Selected == self then
+		        API.Selected = nil
+		    end
 		
-		button.MouseLeave:Connect(function()
-			if not component.Enabled then
-				button.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-				icon.ImageColor3 = vapecolors.Icon
-			end
-		end)
+		    if not State and EditorPane.Visible then
+		        self:ShowSettings(false)
+		        Shadow.Visible = false
+		        SettingsPane.Position = UDim2.fromScale(1, 0)
+		    end
 		
-		button.MouseButton1Click:Connect(function()
-			component:Toggle()
-		end)
+		    Editor.Visible = State
+		end
 		
-		button.MouseButton2Click:Connect(function()
-			component:ShowSettings(false)
-		end)
+		function Component:SetFavorite(State: boolean)
+		    self.Favorited = State
+		    FavoriteIcon.ImageColor3 = State and VapeColors.Favorite or VapeColors.Icon
+		    API:Refresh()
+		    vape:QueueSave()
+		end
 		
-		dotsbutton.MouseButton1Click:Connect(function()
-			component:ShowSettings(false)
-		end)
+		function Component:ShowSettings(Anchored: boolean)
+		    if Anchored then
+		        local ModuleChildren: Frame = self.Children
+		        local Flip: boolean = ModuleChildren.AbsolutePosition.X + ModuleChildren.AbsoluteSize.X + (224 * Scale.Scale) > GUI.AbsoluteSize.X
+		        SettingsChildren.Parent = EditorPane
+		        EditorPane.Position = Flip and UDim2.new(0, -216, 0, 30) or UDim2.new(1, 4, 0, 30)
+		        EditorPane.Visible = true
+		        self:RefreshSettings()
 		
-		favorite.MouseButton1Click:Connect(function()
-			component:SetFavorite(not component.Favorited)
-		end)
+		        return
+		    end
 		
-		favorite.MouseEnter:Connect(function()
-			if not component.Favorited then
-				favoriteicon.ImageColor3 = vapecolors.IconHover
-			end
-		end)
+		    if EditorPane then
+		        EditorPane.Visible = false
+		    end
 		
-		favorite.MouseLeave:Connect(function()
-			if not component.Favorited then
-				favoriteicon.ImageColor3 = vapecolors.Icon
-			end
-		end)
+		    SettingsChildren.Parent = SettingsPane
+		    Shadow.Visible = true
 		
-		dotsbutton.MouseEnter:Connect(function()
-			dots.ImageColor3 = uipallet.Text
-		end)
+		    Tween:Tween(Shadow, UIPallet.Tween, {
+		        BackgroundTransparency = 0.5
+		    })
 		
-		dotsbutton.MouseLeave:Connect(function()
-			dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		end)
+		    Tween:Tween(SettingsPane, UIPallet.Tween, {
+		        Position = UDim2.new(1, -220, 0, 0)
+		    })
+		end
 		
-		shadow.MouseButton1Click:Connect(function()
-			tween:Tween(shadow, uipallet.Tween, {
-				BackgroundTransparency = 1
-			})
+		function Component:Toggle()
+		    self.Enabled = not self.Enabled
+		    if self.Children then
+		        self.Children.Visible = self.Enabled
 		
-			tween:Tween(settingspane, uipallet.Tween, {
-				Position = UDim2.fromScale(1, 0)
-			})
+		        if not self.Enabled then
+		            self:Select(false)
+		        end
+		    end
 		
-			task.delay(0.2, function()
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+		    Title.TextColor3 = self.Enabled and Color.Light(UIPallet.Text, 0.2) or Color.Dark(UIPallet.Text, 0.31)
+		    Button.BackgroundColor3 = self.Enabled and Color.Light(UIPallet.Main, 0.05) or Button.BackgroundColor3
+		    Icon.ImageColor3 = self.Enabled and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or VapeColors.Icon
 		
-				shadow.Visible = false
-			end)
-		end)
+		    Tween:Tween(Holder, UIPallet.Tween, {
+		        BackgroundColor3 = self.Enabled and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or Color.Light(UIPallet.Main, 0.14)
+		    })
 		
-		shadow:GetPropertyChangedSignal('Visible'):Connect(function()
-			tooltip.Visible = false
-			vape.LegitVisible = shadow.Visible
-		end)
+		    Tween:Tween(Knob, UIPallet.Tween, {
+		        Position = UDim2.fromOffset(self.Enabled and 12 or 2, 2)
+		    })
 		
-		table.insert(connections, windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if not component.RefreshSettings then return end
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		    if not self.Enabled then
+		        for _, v: RBXScriptConnection in self.Connections do
+		            v:Disconnect()
+		        end
+		        table.clear(self.Connections)
+		    end
 		
-			settingschildren.CanvasSize = UDim2.fromOffset(0, windowlist.AbsoluteContentSize.Y / scale.Scale)
-			component:RefreshSettings()
+		    vape:QueueSave()
+		    task.spawn(function()
+		        local Success, Error = xpcall(Props.Function, function(ErrorMessage)
+		            return `{ErrorMessage}\n{debug.traceback(nil, 2)}`
+		        end, self.Enabled)
+		
+		        if not Success then
+		            warn(`[catvape] {Props.Name} errored turning {self.Enabled and "on" or "off"} : {Error}`)
+		            vape:CreateNotification("Vape", `{Props.Name} errored, check your console`, 10, "alert")
+		        end
+		    end)
+		end
+		
+		for ComponentName: string, Constructor: (...any) -> ...any in Components do
+		    Component[`Create{ComponentName}`] = function(_, Properties)
+		        return Constructor(Properties, SettingsChildren, Component)
+		    end
+		end
+		
+		table.insert(Connections, API.Window:GetPropertyChangedSignal("Visible"):Connect(function()
+		    if not API.Window.Visible then
+		        Component:Select(false)
+		    end
 		end))
 		
-		api.Modules[props.Name] = component
-		api:Refresh()
+		Back.MouseEnter:Connect(function()
+		    Back.ImageColor3 = UIPallet.Text
+		end)
 		
-		local sorting = {}
-		for _, mod in api.Modules do
-			table.insert(sorting, mod.Name)
+		Back.MouseLeave:Connect(function()
+		    Back.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		end)
+		
+		Back.MouseButton1Click:Connect(function()
+		    Tween:Tween(Shadow, UIPallet.Tween, {
+		        BackgroundTransparency = 1
+		    })
+		
+		    Tween:Tween(SettingsPane, UIPallet.Tween, {
+		        Position = UDim2.fromScale(1, 0)
+		    })
+		
+		    task.delay(0.2, function()
+		        if vape.ThreadFix then
+		            setthreadidentity(8)
+		        end
+		
+		        Shadow.Visible = false
+		    end)
+		end)
+		
+		Button.MouseEnter:Connect(function()
+		    if not Component.Enabled then
+		        Button.BackgroundColor3 = Color.Light(UIPallet.Main, 0.05)
+		        Icon.ImageColor3 = VapeColors.IconHover
+		    end
+		end)
+		
+		Button.MouseLeave:Connect(function()
+		    if not Component.Enabled then
+		        Button.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		        Icon.ImageColor3 = VapeColors.Icon
+		    end
+		end)
+		
+		Button.MouseButton1Click:Connect(function()
+		    Component:Toggle()
+		end)
+		
+		Button.MouseButton2Click:Connect(function()
+		    Component:ShowSettings(false)
+		end)
+		
+		DotsButton.MouseButton1Click:Connect(function()
+		    Component:ShowSettings(false)
+		end)
+		
+		Favorite.MouseButton1Click:Connect(function()
+		    Component:SetFavorite(not Component.Favorited)
+		end)
+		
+		Favorite.MouseEnter:Connect(function()
+		    if not Component.Favorited then
+		        FavoriteIcon.ImageColor3 = VapeColors.IconHover
+		    end
+		end)
+		
+		Favorite.MouseLeave:Connect(function()
+		    if not Component.Favorited then
+		        FavoriteIcon.ImageColor3 = VapeColors.Icon
+		    end
+		end)
+		
+		DotsButton.MouseEnter:Connect(function()
+		    Dots.ImageColor3 = UIPallet.Text
+		end)
+		
+		DotsButton.MouseLeave:Connect(function()
+		    Dots.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		end)
+		
+		Shadow.MouseButton1Click:Connect(function()
+		    Tween:Tween(Shadow, UIPallet.Tween, {
+		        BackgroundTransparency = 1
+		    })
+		
+		    Tween:Tween(SettingsPane, UIPallet.Tween, {
+		        Position = UDim2.fromScale(1, 0)
+		    })
+		
+		    task.delay(0.2, function()
+		        if vape.ThreadFix then
+		            setthreadidentity(8)
+		        end
+		
+		        Shadow.Visible = false
+		    end)
+		end)
+		
+		Shadow:GetPropertyChangedSignal("Visible"):Connect(function()
+		    Tooltip.Visible = false
+		    vape.LegitVisible = Shadow.Visible
+		end)
+		
+		table.insert(Connections, WindowList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if not Component.RefreshSettings then return end
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
+		
+		    SettingsChildren.CanvasSize = UDim2.fromOffset(0, WindowList.AbsoluteContentSize.Y / Scale.Scale)
+		    Component:RefreshSettings()
+		end))
+		
+		API.Modules[Props.Name] = Component
+		API:Refresh()
+		
+		local Sorting: {string} = {}
+		for _, Module: any in API.Modules do
+		    table.insert(Sorting, Module.Name)
 		end
-		table.sort(sorting)
+		table.sort(Sorting)
 		
-		for index, name in sorting do
-			api.Modules[name].Object.LayoutOrder = index
+		for i: number, Name: string in Sorting do
+		    API.Modules[Name].Object.LayoutOrder = i
 		end
 		
-		return component
+		return Component
 	end,
-	LegitWindow = function(props, children, api)
-		local component = {
-			Group = 'All',
-			Modules = {},
-			Search = '',
-			Tabs = {}
+	LegitWindow = function(Props, Children, API)
+		local Component = {
+		    Group = "All",
+		    Modules = {},
+		    Search = "",
+		    Tabs = {}
 		}
 		
-		local window = Instance.new('Frame')
-		window.BackgroundColor3 = uipallet.Main
-		window.Position = UDim2.new(0.5, -350, 0.5, -190)
-		window.Size = UDim2.fromOffset(700, 380)
-		window.Name = 'LegitGUI'
-		window.Visible = false
-		window.Parent = scaledgui
-		table.insert(vape.Windows, window)
-		component.Window = window
-		addBlur(window)
-		addCorner(window)
-		addDragHandler(window)
-		local modal = Instance.new('TextButton')
-		modal.BackgroundTransparency = 1
-		modal.Modal = true
-		modal.Text = ''
-		modal.Parent = window
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('kingvape/assets/new/legit_mode_icon.png')
-		icon.ImageColor3 = uipallet.Text
-		icon.Position = UDim2.fromOffset(18, 11)
-		icon.Size = UDim2.fromOffset(16, 16)
-		icon.Parent = window
-		local close = Instance.new('ImageButton')
-		close.BackgroundTransparency = 1
-		close.Image = getvapeasset('kingvape/assets/new/min.png')
-		close.ImageColor3 = color.Light(uipallet.Main, 0.24)
-		close.Position = UDim2.new(1, -31, 0, 11)
-		close.Size = UDim2.fromOffset(16, 16)
-		close.Parent = window
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		holder.Position = UDim2.new(1, -253, 0, 42)
-		holder.Size = UDim2.fromOffset(242, 29)
-		holder.Parent = window
-		addCorner(holder, UDim.new(0, 4))
-		local stroke = Instance.new('UIStroke')
-		stroke.Color = color.Light(uipallet.Main, 0.02)
-		stroke.Parent = holder
-		local searchicon = Instance.new('ImageLabel')
-		searchicon.BackgroundTransparency = 1
-		searchicon.Image = getvapeasset('kingvape/assets/new/search.png')
-		searchicon.ImageColor3 = color.Light(uipallet.Main, 0.42)
-		searchicon.Position = UDim2.new(1, -25, 0, 9)
-		searchicon.Size = UDim2.fromOffset(12, 12)
-		searchicon.Parent = holder
-		local box = Instance.new('TextBox')
-		box.BackgroundTransparency = 1
-		box.ClearTextOnFocus = false
-		box.FontFace = uipallet.Font
-		box.PlaceholderColor3 = color.Dark(uipallet.Text, 0.16)
-		box.PlaceholderText = 'Search mods'
-		box.Position = UDim2.fromOffset(8, 0)
-		box.Size = UDim2.new(1, -8, 1, 0)
-		box.Text = ''
-		box.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		box.TextSize = 14
-		box.TextXAlignment = Enum.TextXAlignment.Left
-		box.Parent = holder
-		local children = Instance.new('ScrollingFrame')
-		children.BackgroundTransparency = 1
-		children.BorderSizePixel = 0
-		children.CanvasSize = UDim2.new()
-		children.Position = UDim2.fromOffset(14, 76)
-		children.ScrollBarThickness = 2
-		children.ScrollBarImageTransparency = 0.75
-		children.Size = UDim2.fromOffset(684, 301)
-		children.Parent = window
-		local empty = Instance.new('Frame')
-		empty.BackgroundTransparency = 1
-		empty.Name = 'Empty'
-		empty.Position = UDim2.fromOffset(14, 76)
-		empty.Size = UDim2.fromOffset(684, 301)
-		empty.Visible = false
-		empty.Parent = window
-		local emptyicon = Instance.new('ImageLabel')
-		emptyicon.AnchorPoint = Vector2.new(0.5, 0.5)
-		emptyicon.BackgroundTransparency = 1
-		emptyicon.Image = getvapeasset('kingvape/assets/new/empty.png')
-		emptyicon.ImageColor3 = vapecolors.Primary
-		emptyicon.Position = UDim2.new(0.5, -8, 0.5, -30)
-		emptyicon.Size = UDim2.fromOffset(53, 40)
-		emptyicon.Parent = empty
-		local emptylabel = Instance.new('TextLabel')
-		emptylabel.AnchorPoint = Vector2.new(0.5, 0.5)
-		emptylabel.BackgroundTransparency = 1
-		emptylabel.FontFace = uipallet.Font
-		emptylabel.Position = UDim2.new(0.5, -8, 0.5, 15)
-		emptylabel.Size = UDim2.fromOffset(200, 20)
-		emptylabel.Text = 'No Favorites'
-		emptylabel.TextColor3 = vapecolors.Muted
-		emptylabel.TextSize = 16
-		emptylabel.Parent = empty
-		local windowlist = Instance.new('UIGridLayout')
-		windowlist.CellSize = UDim2.fromOffset(163, 114)
-		windowlist.CellPadding = UDim2.fromOffset(6, 6)
-		windowlist.FillDirectionMaxCells = 4
-		windowlist.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlist.Parent = children
+		local Window: Frame = Instance.new("Frame")
+		Window.BackgroundColor3 = UIPallet.Main
+		Window.Position = UDim2.new(0.5, -350, 0.5, -190)
+		Window.Size = UDim2.fromOffset(700, 380)
+		Window.Name = "LegitGUI"
+		Window.Visible = false
+		Window.Parent = ScaledGUI
+		table.insert(vape.Windows, Window)
+		Component.Window = Window
+		AddBlur(Window)
+		AddCorner(Window)
+		AddDragHandler(Window)
+		local Modal: TextButton = Instance.new("TextButton")
+		Modal.BackgroundTransparency = 1
+		Modal.Modal = true
+		Modal.Text = ""
+		Modal.Parent = Window
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = GetVapeAsset("kingvape/assets/new/legit_mode_icon.png")
+		Icon.ImageColor3 = UIPallet.Text
+		Icon.Position = UDim2.fromOffset(18, 11)
+		Icon.Size = UDim2.fromOffset(16, 16)
+		Icon.Parent = Window
+		local Close: ImageButton = Instance.new("ImageButton")
+		Close.BackgroundTransparency = 1
+		Close.Image = GetVapeAsset("kingvape/assets/new/min.png")
+		Close.ImageColor3 = Color.Light(UIPallet.Main, 0.24)
+		Close.Position = UDim2.new(1, -31, 0, 11)
+		Close.Size = UDim2.fromOffset(16, 16)
+		Close.Parent = Window
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		Holder.Position = UDim2.new(1, -253, 0, 42)
+		Holder.Size = UDim2.fromOffset(242, 29)
+		Holder.Parent = Window
+		AddCorner(Holder, UDim.new(0, 4))
+		local Stroke: UIStroke = Instance.new("UIStroke")
+		Stroke.Color = Color.Light(UIPallet.Main, 0.02)
+		Stroke.Parent = Holder
+		local SearchIcon: ImageLabel = Instance.new("ImageLabel")
+		SearchIcon.BackgroundTransparency = 1
+		SearchIcon.Image = GetVapeAsset("kingvape/assets/new/search.png")
+		SearchIcon.ImageColor3 = Color.Light(UIPallet.Main, 0.42)
+		SearchIcon.Position = UDim2.new(1, -25, 0, 9)
+		SearchIcon.Size = UDim2.fromOffset(12, 12)
+		SearchIcon.Parent = Holder
+		local SearchBox: TextBox = Instance.new("TextBox")
+		SearchBox.BackgroundTransparency = 1
+		SearchBox.ClearTextOnFocus = false
+		SearchBox.FontFace = UIPallet.Font
+		SearchBox.PlaceholderColor3 = Color.Dark(UIPallet.Text, 0.16)
+		SearchBox.PlaceholderText = "Search mods"
+		SearchBox.Position = UDim2.fromOffset(8, 0)
+		SearchBox.Size = UDim2.new(1, -8, 1, 0)
+		SearchBox.Text = ""
+		SearchBox.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		SearchBox.TextSize = 14
+		SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+		SearchBox.Parent = Holder
+		local Children: ScrollingFrame = Instance.new("ScrollingFrame")
+		Children.BackgroundTransparency = 1
+		Children.BorderSizePixel = 0
+		Children.CanvasSize = UDim2.new()
+		Children.Position = UDim2.fromOffset(14, 76)
+		Children.ScrollBarThickness = 2
+		Children.ScrollBarImageTransparency = 0.75
+		Children.Size = UDim2.fromOffset(684, 301)
+		Children.Parent = Window
+		local Empty: Frame = Instance.new("Frame")
+		Empty.BackgroundTransparency = 1
+		Empty.Name = "Empty"
+		Empty.Position = UDim2.fromOffset(14, 76)
+		Empty.Size = UDim2.fromOffset(684, 301)
+		Empty.Visible = false
+		Empty.Parent = Window
+		local EmptyIcon: ImageLabel = Instance.new("ImageLabel")
+		EmptyIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		EmptyIcon.BackgroundTransparency = 1
+		EmptyIcon.Image = GetVapeAsset("kingvape/assets/new/empty.png")
+		EmptyIcon.ImageColor3 = VapeColors.Primary
+		EmptyIcon.Position = UDim2.new(0.5, -8, 0.5, -30)
+		EmptyIcon.Size = UDim2.fromOffset(53, 40)
+		EmptyIcon.Parent = Empty
+		local EmptyLabel: TextLabel = Instance.new("TextLabel")
+		EmptyLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+		EmptyLabel.BackgroundTransparency = 1
+		EmptyLabel.FontFace = UIPallet.Font
+		EmptyLabel.Position = UDim2.new(0.5, -8, 0.5, 15)
+		EmptyLabel.Size = UDim2.fromOffset(200, 20)
+		EmptyLabel.Text = "No Favorites"
+		EmptyLabel.TextColor3 = VapeColors.Muted
+		EmptyLabel.TextSize = 16
+		EmptyLabel.Parent = Empty
+		local WindowList: UIGridLayout = Instance.new("UIGridLayout")
+		WindowList.CellSize = UDim2.fromOffset(163, 114)
+		WindowList.CellPadding = UDim2.fromOffset(6, 6)
+		WindowList.FillDirectionMaxCells = 4
+		WindowList.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowList.Parent = Children
 		
-		local tabx = 25
+		local TabX: number = 25
 		
-		for _, v in {'All', 'HUD', 'Game'} do
-			local tab = Instance.new('TextButton')
-			tab.AutoButtonColor = false
-			tab.BackgroundTransparency = 1
-			tab.FontFace = uipallet.Font
-			tab.Name = v
-			tab.Position = UDim2.fromOffset(tabx, 46)
-			tab.Size = UDim2.fromOffset(getfontbounds(v, 12, uipallet.Font).X, 20)
-			tab.Text = v
-			tab.TextColor3 = v == component.Group and Color3.new(1, 1, 1) or vapecolors.Secondary
-			tab.TextSize = 12
-			tab.Parent = window
-			local underline = Instance.new('Frame')
-			underline.BackgroundTransparency = 1
-			underline.Name = 'Underline'
-			underline.Position = UDim2.fromOffset(0, 17)
-			underline.Size = UDim2.new(1, 2, 0, 2)
-			underline.Visible = v == component.Group
-			underline.Parent = tab
+		for _, TabName: string in {"Favorite", "All", "HUD", "Game"} do
+		    local Tab: TextButton = Instance.new("TextButton")
+		    Tab.AutoButtonColor = false
+		    Tab.BackgroundTransparency = 1
+		    Tab.FontFace = UIPallet.Font
+		    Tab.Name = TabName
+		    Tab.Position = UDim2.fromOffset(TabX, 46)
+		    Tab.Size = UDim2.fromOffset(GetFontBounds(TabName, 12, UIPallet.Font).X, 20)
+		    Tab.Text = TabName
+		    Tab.TextColor3 = TabName == Component.Group and Color3.new(1, 1, 1) or VapeColors.Secondary
+		    Tab.TextSize = 12
+		    Tab.Parent = Window
+		    local Underline: Frame = Instance.new("Frame")
+		    Underline.BackgroundTransparency = 1
+		    Underline.Name = "Underline"
+		    Underline.Position = UDim2.fromOffset(0, 17)
+		    Underline.Size = UDim2.new(1, 2, 0, 2)
+		    Underline.Visible = TabName == Component.Group
+		    Underline.Parent = Tab
 		
-			for i = 0, (tab.Size.X.Offset + 2) // 4 do
-				local mark = Instance.new('Frame')
-				mark.BackgroundColor3 = vapecolors.Primary
-				mark.BorderSizePixel = 0
-				mark.Position = UDim2.fromOffset(i * 4, 0)
-				mark.Size = UDim2.fromOffset(2, 2)
-				mark.Parent = underline
-			end
+		    for i: number = 0, (Tab.Size.X.Offset + 2) // 4 do
+		        local Mark: Frame = Instance.new("Frame")
+		        Mark.BackgroundColor3 = VapeColors.Primary
+		        Mark.BorderSizePixel = 0
+		        Mark.Position = UDim2.fromOffset(i * 4, 0)
+		        Mark.Size = UDim2.fromOffset(2, 2)
+		        Mark.Parent = Underline
+		    end
 		
-			tabx += tab.Size.X.Offset + 35
-			component.Tabs[v] = tab
+		    TabX += Tab.Size.X.Offset + 35
+		    Component.Tabs[TabName] = Tab
 		
-			tab.MouseButton1Click:Connect(function()
-				component.Group = v
+		    Tab.MouseButton1Click:Connect(function()
+		        Component.Group = TabName
 		
-				for i2, v2 in component.Tabs do
-					v2.TextColor3 = i2 == v and Color3.new(1, 1, 1) or vapecolors.Secondary
-					v2.Underline.Visible = i2 == v
-				end
+		        for Name: string, Button: TextButton in Component.Tabs do
+		            Button.TextColor3 = Name == TabName and Color3.new(1, 1, 1) or VapeColors.Secondary
+		            Button.Underline.Visible = Name == TabName
+		        end
 		
-				component:Refresh()
-			end)
+		        Component:Refresh()
+		    end)
 		end
 		
-		for index, comp in components do
-			component['Create'..index] = function(_, props)
-				return comp(props, children, component)
-			end
+		for ComponentName: string, Constructor: (...any) -> ...any in Components do
+		    Component[`Create{ComponentName}`] = function(_, Properties)
+		        return Constructor(Properties, Children, Component)
+		    end
 		end
 		
-		function component:CreateModule(props)
-			component.Window = component.Window or window
-			return components.LegitModule(props, children, component)
+		function Component:CreateModule(Properties)
+		    return Components.LegitModule(Properties, Children, Component)
 		end
 		
-		function component:Refresh()
-			local shown = 0
+		function Component:Refresh()
+		    local Shown: number = 0
 		
-			for i, v in self.Modules do
-				v.Object.Visible = (self.Search == '' or i:lower():find(self.Search, 1, true) ~= nil) and (self.Group == 'All' or self.Group == v.Category or (self.Group == 'Favorite' and v.Favorited)) or false
-				shown += v.Object.Visible and 1 or 0
-			end
+		    for Name: string, v: any in self.Modules do
+		        v.Object.Visible = (self.Search == "" or Name:lower():find(self.Search, 1, true) ~= nil) and (self.Group == "All" or self.Group == v.Category or (self.Group == "Favorite" and v.Favorited)) or false
+		        Shown += v.Object.Visible and 1 or 0
+		    end
 		
-			empty.Visible = shown == 0
+		    Empty.Visible = Shown == 0 and self.Group == "Favorite"
 		end
 		
-		local function visibleCheck()
-			for _, module in component.Modules do
-				if module.Children then
-					local visible = clickgui.Visible
-					--[[for _, v2 in self.Windows do
-						visible = visible or v2.Visible
-					end]]
+		local function VisibleCheck()
+		    for _, Module: any in Component.Modules do
+		        if Module.Children then
+		            local Visible: boolean = ClickGUI.Visible
 		
-					module.Children.Visible = (not visible or window.Visible) and module.Enabled
-				end
-			end
+		            Module.Children.Visible = (not Visible or Window.Visible) and Module.Enabled
+		        end
+		    end
 		end
 		
-		box:GetPropertyChangedSignal('Text'):Connect(function()
-			component.Search = box.Text:lower()
-			component:Refresh()
+		SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		    Component.Search = SearchBox.Text:lower()
+		    Component:Refresh()
 		end)
 		
-		close.MouseButton1Click:Connect(function()
-			window.Visible = false
-			clickgui.Visible = true
+		Close.MouseButton1Click:Connect(function()
+		    Window.Visible = false
+		    ClickGUI.Visible = true
 		end)
 		
-		close.MouseEnter:Connect(function()
-			close.ImageColor3 = color.Light(uipallet.Main, 0.37)
+		Close.MouseEnter:Connect(function()
+		    Close.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
 		end)
 		
-		close.MouseLeave:Connect(function()
-			close.ImageColor3 = color.Light(uipallet.Main, 0.24)
+		Close.MouseLeave:Connect(function()
+		    Close.ImageColor3 = Color.Light(UIPallet.Main, 0.24)
 		end)
 		
-		vape:Clean(clickgui:GetPropertyChangedSignal('Visible'):Connect(visibleCheck))
+		vape:Clean(ClickGUI:GetPropertyChangedSignal("Visible"):Connect(VisibleCheck))
 		
-		holder.MouseEnter:Connect(function()
-			tween:Tween(stroke, uipallet.Tween, {
-				Color = color.Light(uipallet.Main, 0.0875)
-			})
+		Holder.MouseEnter:Connect(function()
+		    Tween:Tween(Stroke, UIPallet.Tween, {
+		        Color = Color.Light(UIPallet.Main, 0.0875)
+		    })
 		end)
 		
-		holder.MouseLeave:Connect(function()
-			tween:Tween(stroke, uipallet.Tween, {
-				Color = color.Light(uipallet.Main, 0.02)
-			})
+		Holder.MouseLeave:Connect(function()
+		    Tween:Tween(Stroke, UIPallet.Tween, {
+		        Color = Color.Light(UIPallet.Main, 0.02)
+		    })
 		end)
 		
-		window:GetPropertyChangedSignal('Visible'):Connect(function()
-			vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-			vape:BlurCheck()
-			visibleCheck()
+		Window:GetPropertyChangedSignal("Visible"):Connect(function()
+		    vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		    vape:BlurCheck()
+		    VisibleCheck()
 		end)
 		
-		windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		WindowList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			children.CanvasSize = UDim2.fromOffset(0, windowlist.AbsoluteContentSize.Y / scale.Scale)
+		    Children.CanvasSize = UDim2.fromOffset(0, WindowList.AbsoluteContentSize.Y / Scale.Scale)
 		end)
 		
-		vape.Legit = component
+		vape.Legit = Component
 		
-		return component
+		return Component
 	end,
-	Module = function(props, children, api)
-		vape:Remove(props.Name)
-		local component = {
-			Category = api.Name,
-			ConfigName = props.ConfigName or props.Name,
-			Enabled = false,
-			ExtraText = props.ExtraText,
-			Favorited = false,
-			Highlighted = false,
-			Index = getTableSize(vape.Modules),
-			Name = props.Name,
-			OptionSpecs = {},
-			Options = {},
-			Tags = {},
-			Tooltip = props.Tooltip,
-			Visible = true
+	Module = function(Props, Children, API)
+		vape:Remove(Props.Name)
+		local Component = {
+		    Category = API.Name,
+		    ConfigName = Props.ConfigName or Props.Name,
+		    Enabled = false,
+		    ExtraText = Props.ExtraText,
+		    Favorited = false,
+		    Highlighted = false,
+		    Index = GetTableSize(vape.Modules),
+		    Name = Props.Name,
+		    OptionSpecs = {},
+		    Options = {},
+		    Paid = false,
+		    Tags = {},
+		    Tooltip = Props.Tooltip,
+		    Top = Props.Top == true,
+		    Visible = true
 		}
 		
-		local isHover = false
-		local button = Instance.new('TextButton')
-		button.AutoButtonColor = false
-		button.BackgroundColor3 = uipallet.Main
-		button.BorderSizePixel = 0
-		button.FontFace = uipallet.Font
-		button.Name = props.Name
-		button.Size = UDim2.fromOffset(220, 40)
-		button.Text = string.rep(' ', 12)..props.Name
-		button.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		button.TextSize = 14
-		button.TextXAlignment = Enum.TextXAlignment.Left
-		button.Parent = children
-		component.Object = button
-		addTooltip(button, props.Tooltip)
-		local gradient = Instance.new('UIGradient')
-		gradient.Enabled = false
-		gradient.Rotation = 90
-		gradient.Parent = button
-		local highlight = Instance.new('UIStroke')
-		highlight.Color = vapecolors.Favorite
-		highlight.Enabled = false
-		highlight.LineJoinMode = Enum.LineJoinMode.Miter
-		highlight.Name = 'Highlight'
-		highlight.Parent = button
-		local modulechildren = Instance.new('Frame')
-		modulechildren.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		modulechildren.BorderSizePixel = 0
-		modulechildren.Name = props.Name..'Children'
-		modulechildren.Size = UDim2.new(1, 0, 0, 0)
-		modulechildren.Visible = false
-		modulechildren.Parent = children
-		local windowlist = Instance.new('UIListLayout')
-		windowlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		windowlist.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlist.Parent = modulechildren
-		local dotsbutton = Instance.new('TextButton')
-		dotsbutton.BackgroundTransparency = 1
-		dotsbutton.Name = 'Dots'
-		dotsbutton.Position = UDim2.new(1, -25, 0, 0)
-		dotsbutton.Size = UDim2.fromOffset(25, 40)
-		dotsbutton.Text = ''
-		dotsbutton.Parent = button
-		local dots = Instance.new('ImageLabel')
-		dots.BackgroundTransparency = 1
-		dots.Image = getvapeasset('kingvape/assets/new/settingdots.png')
-		dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		dots.Name = 'Dots'
-		dots.Position = UDim2.fromOffset(4, 12)
-		dots.Size = UDim2.fromOffset(3, 16)
-		dots.Parent = dotsbutton
-		local indicators = Instance.new('Frame')
-		indicators.AnchorPoint = Vector2.new(0, 0.5)
-		indicators.BackgroundTransparency = 1
-		indicators.Name = 'Indicators'
-		indicators.Position = UDim2.new(0, 187, 0.5, 0)
-		indicators.Size = UDim2.fromOffset(0, 21)
-		indicators.Parent = button
-		local indicatorlist = Instance.new('UIListLayout')
-		indicatorlist.FillDirection = Enum.FillDirection.Horizontal
-		indicatorlist.HorizontalAlignment = Enum.HorizontalAlignment.Right
-		indicatorlist.Padding = UDim.new(0, 5)
-		indicatorlist.SortOrder = Enum.SortOrder.LayoutOrder
-		indicatorlist.VerticalAlignment = Enum.VerticalAlignment.Center
-		indicatorlist.Parent = indicators
-		local favorite = Instance.new('TextButton')
-		favorite.AutoButtonColor = false
-		favorite.BackgroundTransparency = 1
-		favorite.LayoutOrder = -1
-		favorite.Name = 'Favorite'
-		favorite.Size = UDim2.fromOffset(18, 21)
-		favorite.Text = ''
-		favorite.Visible = false
-		favorite.Parent = indicators
-		addTooltip(favorite, 'Add module to favorites')
-		local favoriteicon = Instance.new('ImageLabel')
-		favoriteicon.AnchorPoint = Vector2.new(0.5, 0.5)
-		favoriteicon.BackgroundTransparency = 1
-		favoriteicon.Image = getvapeasset('kingvape/assets/new/star.png')
-		favoriteicon.ImageColor3 = vapecolors.Icon
-		favoriteicon.Name = 'Icon'
-		favoriteicon.Position = UDim2.fromScale(0.5, 0.5)
-		favoriteicon.Size = UDim2.fromOffset(16, 15)
-		favoriteicon.Parent = favorite
-		local divider = Instance.new('Frame')
-		divider.BackgroundColor3 = Color3.new(0.19, 0.19, 0.19)
-		divider.BackgroundTransparency = 0.52
-		divider.BorderSizePixel = 0
-		divider.Name = 'Divider'
-		divider.Position = UDim2.new(0, 0, 1, -1)
-		divider.Size = UDim2.new(1, 0, 0, 1)
-		divider.Visible = false
-		divider.Parent = button
-		local edit = Instance.new('TextButton')
-		edit.AutoButtonColor = false
-		edit.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		edit.BorderSizePixel = 0
-		edit.Name = 'Edit'
-		edit.Size = UDim2.fromOffset(40, 40)
-		edit.Text = ''
-		edit.Visible = false
-		edit.Parent = button
-		local editbox = Instance.new('Frame')
-		editbox.BorderSizePixel = 0
-		editbox.Name = 'EditBox'
-		editbox.Position = UDim2.fromOffset(16, 16)
-		editbox.Size = UDim2.fromOffset(8, 8)
-		editbox.Parent = edit
-		local editborder = Instance.new('UIStroke')
-		editborder.BorderOffset = UDim.new(0, 1)
-		editborder.LineJoinMode = Enum.LineJoinMode.Miter
-		editborder.Parent = editbox
-		props.Function = props.Function or function() end
-		component.Edit = edit
-		component.Children = modulechildren
-		addMaid(component)
+		local IsHover: boolean = false
+		local Button: TextButton = Instance.new("TextButton")
+		Button.AutoButtonColor = false
+		Button.BackgroundColor3 = UIPallet.Main
+		Button.BorderSizePixel = 0
+		Button.FontFace = UIPallet.Font
+		Button.Name = Props.Name
+		Button.Size = UDim2.fromOffset(220, 40)
+		Button.Text = `{string.rep(" ", 12)}{Props.Name}`
+		Button.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Button.TextSize = 14
+		Button.TextXAlignment = Enum.TextXAlignment.Left
+		Button.Parent = Children
+		Component.Object = Button
+		AddTooltip(Button, Props.Tooltip)
+		local Gradient: UIGradient = Instance.new("UIGradient")
+		Gradient.Enabled = false
+		Gradient.Rotation = 90
+		Gradient.Parent = Button
+		local Highlight: UIStroke = Instance.new("UIStroke")
+		Highlight.Color = VapeColors.Favorite
+		Highlight.Enabled = false
+		Highlight.LineJoinMode = Enum.LineJoinMode.Miter
+		Highlight.Name = "Highlight"
+		Highlight.Parent = Button
+		local ModuleChildren: Frame = Instance.new("Frame")
+		ModuleChildren.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		ModuleChildren.BorderSizePixel = 0
+		ModuleChildren.Name = `{Props.Name}Children`
+		ModuleChildren.Size = UDim2.new(1, 0, 0, 0)
+		ModuleChildren.Visible = false
+		local WindowList: UIListLayout = Instance.new("UIListLayout")
+		WindowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		WindowList.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowList.Parent = ModuleChildren
+		local DotsButton: TextButton = Instance.new("TextButton")
+		DotsButton.BackgroundTransparency = 1
+		DotsButton.Name = "Dots"
+		DotsButton.Position = UDim2.new(1, -25, 0, 0)
+		DotsButton.Size = UDim2.fromOffset(25, 40)
+		DotsButton.Text = ""
+		DotsButton.Parent = Button
+		local Dots: ImageLabel = Instance.new("ImageLabel")
+		Dots.BackgroundTransparency = 1
+		Dots.Image = GetVapeAsset("kingvape/assets/new/settingdots.png")
+		Dots.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Dots.Name = "Dots"
+		Dots.Position = UDim2.fromOffset(4, 12)
+		Dots.Size = UDim2.fromOffset(3, 16)
+		Dots.Parent = DotsButton
+		local Indicators: Frame = Instance.new("Frame")
+		Indicators.AnchorPoint = Vector2.new(0, 0.5)
+		Indicators.BackgroundTransparency = 1
+		Indicators.Name = "Indicators"
+		Indicators.Position = UDim2.new(0, 187, 0.5, 0)
+		Indicators.Size = UDim2.fromOffset(0, 21)
+		Indicators.Parent = Button
+		local IndicatorList: UIListLayout = Instance.new("UIListLayout")
+		IndicatorList.FillDirection = Enum.FillDirection.Horizontal
+		IndicatorList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		IndicatorList.Padding = UDim.new(0, 5)
+		IndicatorList.SortOrder = Enum.SortOrder.LayoutOrder
+		IndicatorList.VerticalAlignment = Enum.VerticalAlignment.Center
+		IndicatorList.Parent = Indicators
+		local Favorite: TextButton = Instance.new("TextButton")
+		Favorite.AutoButtonColor = false
+		Favorite.BackgroundTransparency = 1
+		Favorite.LayoutOrder = -1
+		Favorite.Name = "Favorite"
+		Favorite.Size = UDim2.fromOffset(18, 21)
+		Favorite.Text = ""
+		Favorite.Visible = false
+		Favorite.Parent = Indicators
+		AddTooltip(Favorite, "Add module to favorites")
+		local FavoriteIcon: ImageLabel = Instance.new("ImageLabel")
+		FavoriteIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		FavoriteIcon.BackgroundTransparency = 1
+		FavoriteIcon.Image = GetVapeAsset("kingvape/assets/new/star.png")
+		FavoriteIcon.ImageColor3 = VapeColors.Icon
+		FavoriteIcon.Name = "Icon"
+		FavoriteIcon.Position = UDim2.fromScale(0.5, 0.5)
+		FavoriteIcon.Size = UDim2.fromOffset(16, 15)
+		FavoriteIcon.Parent = Favorite
+		local Divider: Frame = Instance.new("Frame")
+		Divider.BackgroundColor3 = Color3.new(0.19, 0.19, 0.19)
+		Divider.BackgroundTransparency = 0.52
+		Divider.BorderSizePixel = 0
+		Divider.Name = "Divider"
+		Divider.Position = UDim2.new(0, 0, 1, -1)
+		Divider.Size = UDim2.new(1, 0, 0, 1)
+		Divider.Visible = false
+		Divider.Parent = Button
+		local Edit: TextButton = Instance.new("TextButton")
+		Edit.AutoButtonColor = false
+		Edit.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		Edit.BorderSizePixel = 0
+		Edit.Name = "Edit"
+		Edit.Size = UDim2.fromOffset(40, 40)
+		Edit.Text = ""
+		Edit.Visible = false
+		Edit.Parent = Button
+		local EditBox: Frame = Instance.new("Frame")
+		EditBox.BorderSizePixel = 0
+		EditBox.Name = "EditBox"
+		EditBox.Position = UDim2.fromOffset(16, 16)
+		EditBox.Size = UDim2.fromOffset(8, 8)
+		EditBox.Parent = Edit
+		local EditBorder: UIStroke = Instance.new("UIStroke")
+		EditBorder.BorderOffset = UDim.new(0, 1)
+		EditBorder.LineJoinMode = Enum.LineJoinMode.Miter
+		EditBorder.Parent = EditBox
+		Props.Function = Props.Function or function() end
+		Component.Edit = Edit
+		Component.Children = ModuleChildren
+		AddMaid(Component)
 		
-		local function updateIndicators()
-			local bind = component.Bind and component.Bind.Object
-			indicators.Position = UDim2.new(0, (bind and bind.Visible) and (179 - bind.Size.X.Offset) or 187, 0.5, 0)
-			favorite.Visible = false
+		local function UpdateIndicators()
+		    local BindObject = Component.Bind and Component.Bind.Object
+		    Indicators.Position = UDim2.new(0, (BindObject and BindObject.Visible) and (179 - BindObject.Size.X.Offset) or 187, 0.5, 0)
+		    Favorite.Visible = Component.Favorited or IsHover or ModuleChildren.Visible
 		end
 		
-		props.Tags = props.Tags or {}
-		local featureTag = getFeatureTag(props.Name)
+		Props.Tags = Props.Tags or {}
+		local FeatureTag: string? = GetFeatureTag(Props.Name)
 		
-		if featureTag and not table.find(props.Tags, featureTag) then
-			table.insert(props.Tags, featureTag)
+		if FeatureTag and not table.find(Props.Tags, FeatureTag) then
+		    table.insert(Props.Tags, FeatureTag)
 		end
 		
-		for i, v in props.Tags do
-			v = v:upper()
-			if v == 'NEW' or v == 'UPDATED' or v == 'ADDED' then
-				continue
-			end
-			props.Tags[i] = v:lower()
-			local indicator = Instance.new('TextLabel')
-			indicator.BackgroundColor3 = Color3.new(1, 1, 1)
-			indicator.FontFace = uipallet.FontSemiBold
-			indicator.LayoutOrder = i - 1
-			indicator.Name = v
-			indicator.Size = UDim2.fromOffset(getfontbounds(removeTags(v), 11, uipallet.FontSemiBold).X + 10, 15)
-			indicator.Text = v
-			indicator.TextColor3 = Color3.new()
-			indicator.TextSize = 11
-			indicator.TextTransparency = 1
-			indicator.Visible = v ~= 'MATCHED'
-			indicator.Parent = indicators
-			addCorner(indicator, UDim.new(0, 4))
-			local text = indicator:Clone()
-			text.AnchorPoint = Vector2.new()
-			text.BackgroundTransparency = 1
-			text.Name = 'Text'
-			text.Position = UDim2.new()
-			text.Size = UDim2.fromScale(1, 1)
-			text.TextTransparency = 0
-			text.Parent = indicator
-			table.insert(component.Tags, indicator)
+		for i: number, Tag: string in Props.Tags do
+		    Tag = Tag:upper()
+		    Props.Tags[i] = Tag:lower()
+		    Component.Paid = Component.Paid or Tag == "PAID"
+		    local Indicator: TextLabel = Instance.new("TextLabel")
+		    Indicator.BackgroundColor3 = Color3.new(1, 1, 1)
+		    Indicator.FontFace = UIPallet.FontSemiBold
+		    Indicator.LayoutOrder = i - 1
+		    Indicator.Name = Tag
+		    Indicator.Size = UDim2.fromOffset(GetFontBounds(RemoveTags(Tag), 11, UIPallet.FontSemiBold).X + 10, 15)
+		    Indicator.Text = Tag
+		    Indicator.TextColor3 = Color3.new()
+		    Indicator.TextSize = 11
+		    Indicator.TextTransparency = 1
+		    Indicator.Visible = Tag ~= "MATCHED"
+		    Indicator.Parent = Indicators
+		    AddCorner(Indicator, UDim.new(0, 4))
+		    local Label: TextLabel = Indicator:Clone()
+		    Label.AnchorPoint = Vector2.new()
+		    Label.BackgroundTransparency = 1
+		    Label.Name = "Text"
+		    Label.Position = UDim2.new()
+		    Label.Size = UDim2.fromScale(1, 1)
+		    Label.TextTransparency = 0
+		    Label.Parent = Indicator
+		    table.insert(Component.Tags, Indicator)
 		end
 		
-		function component:Color(hue, sat, val, isRainbow)
-			if self.Enabled then
-				button.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.025)) % 1)) or Color3.fromHSV(hue, sat, val)
-				button.TextColor3 = vape.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or vape:TextColor(hue, sat, val)
-				button.UIGradient.Enabled = isRainbow and vape.RainbowMode.Value == 'Gradient'
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    if self.Enabled then
+		        Button.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (self.Index * 0.025)) % 1)) or Color3.fromHSV(Hue, Sat, Val)
+		        Button.TextColor3 = vape.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or vape:TextColor(Hue, Sat, Val)
+		        Button.UIGradient.Enabled = IsRainbow and vape.RainbowMode.Value == "Gradient"
 		
-				if button.UIGradient.Enabled then
-					button.BackgroundColor3 = Color3.new(1, 1, 1)
-					button.UIGradient.Color = ColorSequence.new({
-						ColorSequenceKeypoint.new(0, Color3.fromHSV(vape:Color((hue - (self.Index * 0.025)) % 1))),
-						ColorSequenceKeypoint.new(1, Color3.fromHSV(vape:Color((hue - ((self.Index + 1) * 0.025)) % 1)))
-					})
-				end
+		        if Button.UIGradient.Enabled then
+		            Button.BackgroundColor3 = Color3.new(1, 1, 1)
+		            Button.UIGradient.Color = ColorSequence.new({
+		                ColorSequenceKeypoint.new(0, Color3.fromHSV(vape:Color((Hue - (self.Index * 0.025)) % 1))),
+		                ColorSequenceKeypoint.new(1, Color3.fromHSV(vape:Color((Hue - ((self.Index + 1) * 0.025)) % 1)))
+		            })
+		        end
 		
-				self.Bind:SetColor(self.Object.TextColor3)
-				dots.ImageColor3 = self.Object.TextColor3
-			end
+		        self.Bind:SetColor(self.Object.TextColor3)
+		        Dots.ImageColor3 = self.Object.TextColor3
+		    end
 		
-			if self.Visible then
-				editbox.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.025)) % 1)) or Color3.fromHSV(hue, sat, val)
-				editborder.Color = editbox.BackgroundColor3
-			end
+		    if self.Visible then
+		        EditBox.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (self.Index * 0.025)) % 1)) or Color3.fromHSV(Hue, Sat, Val)
+		        EditBorder.Color = EditBox.BackgroundColor3
+		    end
 		
-			for _, component in self.Options do
-				if component.Color then
-					component:Color(hue, sat, val, isRainbow)
-				end
-			end
+		    for _, Option: any in self.Options do
+		        if Option.Color then
+		            Option:Color(Hue, Sat, Val, IsRainbow)
+		        end
+		    end
 		
-			for _, v in self.Tags do
-				v.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.025)) % 1)) or self.Enabled and Color3.new(1, 1, 1) or Color3.fromHSV(hue, sat, val)
-				v.BackgroundTransparency = (isRainbow or not self.Enabled) and 0 or 0.85
-				v:FindFirstChild('Text').TextColor3 = vape.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or vape:TextColor(hue, sat, val)
-			end
+		    for _, v: TextLabel in self.Tags do
+		        v.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (self.Index * 0.025)) % 1)) or self.Enabled and Color3.new(1, 1, 1) or Color3.fromHSV(Hue, Sat, Val)
+		        v.BackgroundTransparency = (IsRainbow or not self.Enabled) and 0 or 0.85
+		        v:FindFirstChild("Text").TextColor3 = vape.GUIColor.Rainbow and Color3.new(0.19, 0.19, 0.19) or vape:TextColor(Hue, Sat, Val)
+		    end
 		end
 		
-		function component:CreateOptionsView(parent)
-			local view = setmetatable({Options = {}}, {__index = self})
-			local mirrors = {}
+		function Component:CreateOptionsView(Parent: Frame)
+		    local View = setmetatable({Options = {}}, {__index = self})
+		    local Mirrors = {}
 		
-			local function readState(option, name)
-				local state = {}
-				option:Save(state)
+		    local function ReadState(Option, Name: string)
+		        local State = {}
+		        Option:Save(State)
 		
-				if state[name] ~= nil then
-					return state[name]
-				end
+		        if State[Name] ~= nil then
+		            return State[Name]
+		        end
 		
-				local _, only = next(state)
-				return only
-			end
+		        local _, Only = next(State)
+		        return Only
+		    end
 		
-			local function sameState(a, b)
-				if a == nil or b == nil then
-					return a == b
-				end
+		    local function SameState(A, B)
+		        if A == nil or B == nil then
+		            return A == B
+		        end
 		
-				for i, v in a do
-					local other = b[i]
+		        for Key: any, v: any in A do
+		            local Other = B[Key]
 		
-					if typeof(v) == 'table' then
-						if typeof(other) ~= 'table' or #v ~= #other then
-							return false
-						end
+		            if typeof(v) == "table" then
+		                if typeof(Other) ~= "table" or #v ~= #Other then
+		                    return false
+		                end
 		
-						for i2, v2 in v do
-							if other[i2] ~= v2 then
-								return false
-							end
-						end
-					elseif other ~= v then
-						return false
-					end
-				end
+		                for i: number, Entry: any in v do
+		                    if Other[i] ~= Entry then
+		                        return false
+		                    end
+		                end
+		            elseif Other ~= v then
+		                return false
+		            end
+		        end
 		
-				return true
-			end
+		        return true
+		    end
 		
-			for _, v in self.OptionSpecs do
-				local settings = table.clone(v.Settings)
-				settings.Function = function() end
+		    for _, Spec: any in self.OptionSpecs do
+		        local Settings = table.clone(Spec.Settings)
+		        Settings.Function = function() end
 		
-				local mirror = components[v.Type](settings, parent, view)
-				local key
+		        local Mirror = Components[Spec.Type](Settings, Parent, View)
+		        local Key
 		
-				for i2, v2 in view.Options do
-					if v2 == mirror then
-						key = i2
-						break
-					end
-				end
+		        for OptionName: string, Option: any in View.Options do
+		            if Option == Mirror then
+		                Key = OptionName
+		                break
+		            end
+		        end
 		
-				local canonical = key and self.Options[key]
-				if canonical and canonical.Save and mirror.Save and mirror.Load then
-					table.insert(mirrors, {
-						Name = key,
-						Canonical = canonical,
-						Mirror = mirror,
-						Last = readState(mirror, key)
-					})
-				else
-					settings.Function = v.Settings.Function
-				end
-			end
+		        local Canonical = Key and self.Options[Key]
+		        if Canonical and Canonical.Save and Mirror.Save and Mirror.Load then
+		            table.insert(Mirrors, {
+		                Name = Key,
+		                Canonical = Canonical,
+		                Mirror = Mirror,
+		                Last = ReadState(Mirror, Key)
+		            })
+		        else
+		            Settings.Function = Spec.Settings.Function
+		        end
+		    end
 		
-			task.spawn(function()
-				repeat
-					if not parent.Visible then
-						task.wait(0.5)
-						continue
-					end
+		    task.spawn(function()
+		        repeat
+		            if not Parent.Visible then
+		                task.wait(0.5)
+		                continue
+		            end
 		
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					for _, v in mirrors do
-						local mirrorstate = readState(v.Mirror, v.Name)
+		            for _, Entry: any in Mirrors do
+		                local MirrorState = ReadState(Entry.Mirror, Entry.Name)
 		
-						if not sameState(mirrorstate, v.Last) then
-							v.Canonical:Load(mirrorstate)
-							v.Last = mirrorstate
-						else
-							local canonicalstate = readState(v.Canonical, v.Name)
+		                if not SameState(MirrorState, Entry.Last) then
+		                    Entry.Canonical:Load(MirrorState)
+		                    Entry.Last = MirrorState
+		                else
+		                    local CanonicalState = ReadState(Entry.Canonical, Entry.Name)
 		
-							if not sameState(canonicalstate, mirrorstate) then
-								v.Mirror:Load(canonicalstate)
-								v.Last = readState(v.Mirror, v.Name)
-							end
-						end
-					end
+		                    if not SameState(CanonicalState, MirrorState) then
+		                        Entry.Mirror:Load(CanonicalState)
+		                        Entry.Last = ReadState(Entry.Mirror, Entry.Name)
+		                    end
+		                end
+		            end
 		
-					task.wait()
-				until not parent.Parent
-			end)
+		            task.wait()
+		        until not Parent.Parent
+		    end)
 		
-			return view
+		    return View
 		end
 		
-		function component:Destroy()
-			self.Bind:Destroy()
+		function Component:Destroy()
+		    self.Bind:Destroy()
 		
-			for _, option in self.Options do
-				if option.Type == 'Bind' then
-					option:Destroy()
-				end
-			end
+		    for _, Option: any in self.Options do
+		        if Option.Type == "Bind" then
+		            Option:Destroy()
+		        end
+		    end
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			vape:LoadOptions(self, data.Options)
-			self.Bind:Load(data.Bind or {Keys = {}})
+		    vape:LoadOptions(self, Data.Options)
+		    self.Bind:Load(Data.Bind or {Keys = {}})
 		
-			if data.Favorited then
-				self:SetFavorite(data.Favorited)
-			end
+		    if Data.Favorited then
+		        self:SetFavorite(Data.Favorited)
+		    end
 		
-			if self.Enabled ~= (data.Enabled or false) then
-				self:Toggle(true)
-			end
+		    if self.Enabled ~= ((Data.Enabled or false) and not self.Bind.Hold) then
+		        self:Toggle(true)
+		    end
 		
-			if self.Visible ~= data.Visible then
-				self:SetVisible(data.Visible, true)
-			end
+		    if self.Visible ~= Data.Visible then
+		        self:SetVisible(Data.Visible, true)
+		    end
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Enabled = self.Enabled,
-				Favorited = self.FavoriteIndex,
-				Options = vape:SaveOptions(self),
-				Visible = self.Visible
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Enabled = self.Enabled,
+		        Favorited = self.FavoriteIndex,
+		        Options = vape:SaveOptions(self),
+		        Visible = self.Visible
+		    }
 		
-			self.Bind:Save(data[props.Name])
+		    self.Bind:Save(Data[Props.Name])
 		end
 		
-		function component:SetFavorite(state)
-			local order = typeof(state) == 'number' and state or nil
-			self.Favorited = state and true or false
-			self.FavoriteIndex = self.Favorited and (order or (vape.FavoriteCount + 1)) or nil
+		function Component:SetFavorite(State)
+		    local Order: number? = typeof(State) == "number" and State or nil
+		    self.Favorited = State and true or false
+		    self.FavoriteIndex = self.Favorited and (Order or (vape.FavoriteCount + 1)) or nil
 		
-			if self.FavoriteIndex then
-				vape.FavoriteCount = math.max(vape.FavoriteCount, self.FavoriteIndex)
-			end
+		    if self.FavoriteIndex then
+		        vape.FavoriteCount = math.max(vape.FavoriteCount, self.FavoriteIndex)
+		    end
 		
-			favoriteicon.ImageColor3 = self.Favorited and vapecolors.Favorite or vapecolors.Icon
-			updateIndicators()
+		    FavoriteIcon.ImageColor3 = self.Favorited and VapeColors.Favorite or VapeColors.Icon
+		    UpdateIndicators()
 		
-			local favorites = vape.Categories.Favorites
-			if favorites then
-				if self.Favorited and not self.FavoriteRow then
-					self.FavoriteRow = favorites:MirrorModule(self)
-				elseif not self.Favorited and self.FavoriteRow then
-					self.FavoriteRow:Destroy()
-					self.FavoriteRow = nil
-				end
-			end
+		    local Favorites = vape.Categories.Favorites
+		    if Favorites then
+		        if self.Favorited and not self.FavoriteRow then
+		            self.FavoriteRow = Favorites:MirrorModule(self)
+		        elseif not self.Favorited and self.FavoriteRow then
+		            self.FavoriteRow:Destroy()
+		            self.FavoriteRow = nil
+		        end
+		    end
 		
-			vape:QueueSave()
+		    vape:QueueSave()
 		end
 		
-		function component:SetHighlight(order)
-			self.Highlighted = order and true or false
-			highlight.Enabled = self.Highlighted
-			button.LayoutOrder = order and (-1000 + (order * 2)) or 0
-			modulechildren.LayoutOrder = order and (button.LayoutOrder + 1) or 0
+		function Component:SetHighlight(Order: number?)
+		    self.Highlighted = Order and true or false
+		    Highlight.Enabled = self.Highlighted
+		    Button.LayoutOrder = Order and (-1000 + (Order * 2)) or self.Index
+		    ModuleChildren.LayoutOrder = Order and (Button.LayoutOrder + 1) or self.Index
 		end
 		
-		function component:SetVisible(isVisible, isLoad)
-			self.Visible = isVisible
-			editbox.BackgroundTransparency = isVisible and 0 or 1
-			editborder.Color = isVisible and editbox.BackgroundColor3 or color.Light(uipallet.Main, 0.37)
+		function Component:SetVisible(IsVisible: boolean, IsLoad: boolean?)
+		    self.Visible = IsVisible
+		    EditBox.BackgroundTransparency = IsVisible and 0 or 1
+		    EditBorder.Color = IsVisible and EditBox.BackgroundColor3 or Color.Light(UIPallet.Main, 0.37)
 		
-			if isLoad and not vape.EditGUI then
-				button.Visible = isVisible
-			end
+		    if IsLoad and not vape.EditGUI then
+		        Button.Visible = IsVisible
+		    end
 		
-			if api.UpdateHidden then
-				api:UpdateHidden()
-			end
+		    if API.UpdateHidden then
+		        API:UpdateHidden()
+		    end
 		
-			vape:QueueSave()
+		    vape:QueueSave()
 		end
 		
-		function component:Toggle(multiple)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Toggle()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			self.Enabled = not self.Enabled
-			divider.Visible = self.Enabled
-			gradient.Enabled = self.Enabled
-			button.TextColor3 = (isHover or modulechildren.Visible) and uipallet.Text or color.Dark(uipallet.Text, 0.16)
-			button.BackgroundColor3 = (isHover or modulechildren.Visible) and color.Light(uipallet.Main, 0.02) or uipallet.Main
-			dots.ImageColor3 = self.Enabled and Color3.fromRGB(50, 50, 50) or color.Light(uipallet.Main, 0.37)
-			component.Bind:SetColor(color.Dark(uipallet.Text, 0.43))
+		    self.Enabled = not self.Enabled
+		    Divider.Visible = self.Enabled
+		    Gradient.Enabled = self.Enabled
+		    Button.TextColor3 = (IsHover or ModuleChildren.Visible) and UIPallet.Text or Color.Dark(UIPallet.Text, 0.16)
+		    Button.BackgroundColor3 = (IsHover or ModuleChildren.Visible) and Color.Light(UIPallet.Main, 0.02) or UIPallet.Main
+		    Dots.ImageColor3 = self.Enabled and Color3.fromRGB(50, 50, 50) or Color.Light(UIPallet.Main, 0.37)
+		    Component.Bind:SetColor(Color.Dark(UIPallet.Text, 0.43))
 		
-			if not self.Enabled then
-				for _, v in self.Connections do
-					v:Disconnect()
-				end
-				table.clear(self.Connections)
-			end
+		    if not self.Enabled then
+		        for _, v: RBXScriptConnection in self.Connections do
+		            v:Disconnect()
+		        end
+		        table.clear(self.Connections)
+		    end
 		
-			if multiple then
-				if not vape.TextGUIThread then
-					vape.TextGUIThread = task.defer(function()
-						if vape.ThreadFix then
-							setthreadidentity(8)
-						end
+		    if not vape.TextGUIThread then
+		        vape.TextGUIThread = task.defer(function()
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-						if vape.Loaded ~= nil then
-							vape:UpdateTextGUI()
-						end
+		            if vape.Loaded ~= nil then
+		                vape:UpdateTextGUI()
+		            end
 		
-						vape.TextGUIThread = nil
-					end)
-				end
-			else
-				vape:UpdateTextGUI()
-			end
+		            vape.TextGUIThread = nil
+		        end)
+		    end
 		
-			vape:QueueSave()
-			task.spawn(function()
-				local success, err = xpcall(props.Function, function(err)
-					return `{err}\n{debug.traceback(nil, 2)}`
-				end, self.Enabled)
+		    vape:QueueSave()
+		    task.spawn(function()
+		        local Success, Error = xpcall(Props.Function, function(ErrorMessage)
+		            return `{ErrorMessage}\n{debug.traceback(nil, 2)}`
+		        end, self.Enabled)
 		
-				if not success then
-					warn(`[KingVape] {props.Name} errored turning {self.Enabled and 'on' or 'off'} : {err}`)
-					vape:CreateNotification('Vape', `{props.Name} errored, check your console`, 10, 'alert')
-				end
-			end)
+		        if not Success then
+		            warn(`[catvape] {Props.Name} errored turning {self.Enabled and "on" or "off"} : {Error}`)
+		            vape:CreateNotification("Vape", `{Props.Name} errored, check your console`, 10, "alert")
+		        end
+		    end)
 		end
 		
-		for index, comp in components do
-			component['Create'..index] = function(_, props)
-				if not props.Module then
-					table.insert(component.OptionSpecs, {Type = index, Settings = props})
-				end
+		for ComponentName: string, Constructor: (...any) -> ...any in Components do
+		    Component[`Create{ComponentName}`] = function(_, Properties)
+		        if not Properties.Module then
+		            table.insert(Component.OptionSpecs, {Type = ComponentName, Settings = Properties})
+		        end
 		
-				return comp(props, modulechildren, component)
-			end
+		        return Constructor(Properties, ModuleChildren, Component)
+		    end
 		end
 		
-		local function toggleChildren()
-			modulechildren.Visible = not modulechildren.Visible
-			updateIndicators()
+		local function MountChildren()
+		    if ModuleChildren.Parent then return end
+		
+		    ModuleChildren.Parent = Children
+		    ModuleChildren.Size = UDim2.new(1, 0, 0, WindowList.AbsoluteContentSize.Y / Scale.Scale)
 		end
 		
-		button.MouseEnter:Connect(function()
-			isHover = true
-			if not component.Enabled and not modulechildren.Visible then
-				button.TextColor3 = uipallet.Text
-				button.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-			end
+		local function ToggleChildren()
+		    MountChildren()
+		    ModuleChildren.Visible = not ModuleChildren.Visible
+		    UpdateIndicators()
+		end
 		
-			component.Bind:SetVisible(isHover or modulechildren.Visible)
-			updateIndicators()
+		Button.MouseEnter:Connect(function()
+		    IsHover = true
+		    if not Component.Enabled and not ModuleChildren.Visible then
+		        Button.TextColor3 = UIPallet.Text
+		        Button.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		    end
+		
+		    Component.Bind:SetVisible(IsHover or ModuleChildren.Visible)
+		    UpdateIndicators()
 		end)
 		
-		button.MouseLeave:Connect(function()
-			isHover = false
-			if not component.Enabled and not modulechildren.Visible then
-				button.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				button.BackgroundColor3 = uipallet.Main
-			end
+		Button.MouseLeave:Connect(function()
+		    IsHover = false
+		    if not Component.Enabled and not ModuleChildren.Visible then
+		        Button.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        Button.BackgroundColor3 = UIPallet.Main
+		    end
 		
-			component.Bind:SetVisible(isHover or modulechildren.Visible)
-			updateIndicators()
+		    Component.Bind:SetVisible(IsHover or ModuleChildren.Visible)
+		    UpdateIndicators()
 		end)
 		
-		button.MouseButton1Click:Connect(function()
-			if vape.EditGUI then
-				return
-			end
+		Button.MouseButton1Click:Connect(function()
+		    if vape.EditGUI then
+		        return
+		    end
 		
-			if inputService:IsKeyDown(Enum.KeyCode.LeftShift) and component.Bind then
-				component.Bind:StartBinding()
-				return
-			end
-
-			component:Toggle()
+		    Component:Toggle()
 		end)
 		
-		button.MouseButton2Click:Connect(toggleChildren)
+		Button.MouseButton2Click:Connect(ToggleChildren)
 		
-		dotsbutton.MouseButton1Click:Connect(toggleChildren)
+		DotsButton.MouseButton1Click:Connect(ToggleChildren)
 		
-		dotsbutton.MouseButton2Click:Connect(toggleChildren)
+		DotsButton.MouseButton2Click:Connect(ToggleChildren)
 		
-		dotsbutton.MouseEnter:Connect(function()
-			if not component.Enabled then
-				dots.ImageColor3 = uipallet.Text
-			end
+		DotsButton.MouseEnter:Connect(function()
+		    if not Component.Enabled then
+		        Dots.ImageColor3 = UIPallet.Text
+		    end
 		end)
 		
-		dotsbutton.MouseLeave:Connect(function()
-			if not component.Enabled then
-				dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
-			end
+		DotsButton.MouseLeave:Connect(function()
+		    if not Component.Enabled then
+		        Dots.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		    end
 		end)
 		
-		edit.MouseButton1Click:Connect(function()
-			component:SetVisible(not component.Visible)
+		Edit.MouseButton1Click:Connect(function()
+		    Component:SetVisible(not Component.Visible)
 		end)
 		
-		favorite.MouseButton1Click:Connect(function()
-			component:SetFavorite(not component.Favorited)
+		Favorite.MouseButton1Click:Connect(function()
+		    Component:SetFavorite(not Component.Favorited)
 		end)
 		
-		favorite.MouseEnter:Connect(function()
-			if not component.Favorited then
-				favoriteicon.ImageColor3 = vapecolors.IconHover
-			end
+		Favorite.MouseEnter:Connect(function()
+		    if not Component.Favorited then
+		        FavoriteIcon.ImageColor3 = VapeColors.IconHover
+		    end
 		end)
 		
-		favorite.MouseLeave:Connect(function()
-			favoriteicon.ImageColor3 = component.Favorited and vapecolors.Favorite or vapecolors.Icon
+		Favorite.MouseLeave:Connect(function()
+		    FavoriteIcon.ImageColor3 = Component.Favorited and VapeColors.Favorite or VapeColors.Icon
 		end)
 		
-		windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		WindowList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			modulechildren.Size = UDim2.new(1, 0, 0, windowlist.AbsoluteContentSize.Y / scale.Scale)
+		    ModuleChildren.Size = UDim2.new(1, 0, 0, WindowList.AbsoluteContentSize.Y / Scale.Scale)
 		end)
 		
-		local bind = component:CreateBind({
-			Module = true,
-			Cover = true
+		local Bind = Component:CreateBind({
+		    Module = true,
+		    Cover = true
 		})
 		
-		bind.Object:GetPropertyChangedSignal('Size'):Connect(updateIndicators)
+		Bind.Object:GetPropertyChangedSignal("Size"):Connect(UpdateIndicators)
 		
-		bind.Object:GetPropertyChangedSignal('Visible'):Connect(updateIndicators)
+		Bind.Object:GetPropertyChangedSignal("Visible"):Connect(UpdateIndicators)
 		
-		bind.Triggered:Connect(function()
-			if vape.ToggleNotifications.Enabled then
-				vape:CreateNotification(props.Name, (not component.Enabled and "<font color='#00AA00'>Enabled</font>" or "<font color='#FF5555'>Disabled</font>"), 1.5, nil, props.Name)
-			end
-
-			component:Toggle(true)
+		Bind.Triggered:Connect(function(IsDown: boolean)
+		    if Bind.Hold then
+		        if Component.Enabled ~= IsDown then
+		            if vape.ToggleNotifications.Enabled then
+		                vape:CreateNotification(Props.Name, (not Component.Enabled and "<font color='#00AA00'>Enabled</font>" or "<font color='#FF5555'>Disabled</font>"), 1.5, nil, Props.Name)
+		            end
+		
+		            Component:Toggle(true)
+		        end
+		    else
+		        if vape.ToggleNotifications.Enabled then
+		            vape:CreateNotification(Props.Name, (not Component.Enabled and "<font color='#00AA00'>Enabled</font>" or "<font color='#FF5555'>Disabled</font>"), 1.5, nil, Props.Name)
+		        end
+		
+		        Component:Toggle(true)
+		    end
 		end)
 		
-		if inputService.TouchEnabled then
-			local isHeld = false
+		if UserInputService.TouchEnabled then
+		    local IsHeld: boolean = false
 		
-			button.MouseButton1Down:Connect(function()
-				isHeld = true
-				local holdtime, holdPos = os.clock(), inputService:GetMouseLocation()
-				repeat
-					isHeld = (inputService:GetMouseLocation() - holdPos).Magnitude < 3
-					task.wait()
-				until (os.clock() - holdtime) > 1 or not isHeld or not clickgui.Visible
+		    Button.MouseButton1Down:Connect(function()
+		        IsHeld = true
+		        local HoldTime, HoldPosition = os.clock(), UserInputService:GetMouseLocation()
+		        repeat
+		            IsHeld = (UserInputService:GetMouseLocation() - HoldPosition).Magnitude < 3
+		            task.wait()
+		        until (os.clock() - HoldTime) > 1 or not IsHeld or not ClickGUI.Visible
 		
-				if isHeld and clickgui.Visible then
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		        if IsHeld and ClickGUI.Visible then
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					clickgui.Visible = false
-					tooltip.Visible = false
-					vape:BlurCheck()
-					for _, module in vape.Modules do
-						if module.Bind.Mobile then
-							module.Bind.Mobile.Visible = true
-						end
-					end
+		            ClickGUI.Visible = false
+		            Tooltip.Visible = false
+		            vape:BlurCheck()
+		            for _, Module: any in vape.Modules do
+		                if Module.Bind.Mobile then
+		                    Module.Bind.Mobile.Visible = true
+		                end
+		            end
 		
-					local connection
-					connection = inputService.InputBegan:Connect(function(input)
-						if input.UserInputType == Enum.UserInputType.Touch then
-							if vape.ThreadFix then
-								setthreadidentity(8)
-							end
+		            local Connection
+		            Connection = UserInputService.InputBegan:Connect(function(Input: InputObject)
+		                if Input.UserInputType == Enum.UserInputType.Touch then
+		                    if vape.ThreadFix then
+		                        setthreadidentity(8)
+		                    end
 		
-							bind:CreateMobileButton(input.Position + Vector3.new(0, guiService:GetGuiInset().Y, 0))
-							clickgui.Visible = true
-							vape:BlurCheck()
+		                    Bind:CreateMobileButton(Input.Position + Vector3.new(0, GuiService:GetGuiInset().Y, 0))
+		                    ClickGUI.Visible = true
+		                    vape:BlurCheck()
 		
-							for _, module in vape.Modules do
-								if module.Bind.Mobile then
-									module.Bind.Mobile.Visible = false
-								end
-							end
+		                    for _, Module: any in vape.Modules do
+		                        if Module.Bind.Mobile then
+		                            Module.Bind.Mobile.Visible = false
+		                        end
+		                    end
 		
-							connection:Disconnect()
-						end
-					end)
-				end
-			end)
+		                    Connection:Disconnect()
+		                end
+		            end)
+		        end
+		    end)
 		
-			button.MouseButton1Up:Connect(function()
-				isHeld = false
-			end)
+		    Button.MouseButton1Up:Connect(function()
+		        IsHeld = false
+		    end)
 		end
 		
-		vape.Modules[props.Name] = component
+		vape.Modules[Props.Name] = Component
 		
 		vape:SortCategories()
 		
-		return component
+		return Component
 	end,
-	Overlay = function(props, children, api)
-		local window
-		local component
-		component = {
-			Button = vape.Overlays:CreateImageToggle({
-				Name = props.Name,
-				Function = function(callback)
-					window.Visible = callback and (clickgui.Visible or component.Pinned)
+	Overlay = function(Props, Children, API)
+		local Window: TextButton
+		local Component
+		Component = {
+		    Button = vape.Overlays:CreateImageToggle({
+		        Name = Props.Name,
+		        Function = function(Callback: boolean)
+		            Window.Visible = Callback and (ClickGUI.Visible or Component.Pinned)
 		
-					if not callback then
-						for _, v in component.Connections do
-							v:Disconnect()
-						end
-						table.clear(component.Connections)
-					end
+		            if not Callback then
+		                for _, v: RBXScriptConnection in Component.Connections do
+		                    v:Disconnect()
+		                end
+		                table.clear(Component.Connections)
+		            end
 		
-					if props.Function then
-						task.spawn(props.Function, callback)
-					end
-				end,
-				Icon = props.Icon,
-				Size = props.Size,
-				Position = props.Position
-			}),
-			Expanded = false,
-			Pinned = false,
-			Options = {},
-			Type = 'Overlay'
+		            if Props.Function then
+		                task.spawn(Props.Function, Callback)
+		            end
+		        end,
+		        Icon = Props.Icon,
+		        Size = Props.Size,
+		        Position = Props.Position
+		    }),
+		    Expanded = false,
+		    Pinned = false,
+		    Options = {},
+		    Type = "Overlay"
 		}
 		
-		window = Instance.new('TextButton')
-		window.AutoButtonColor = false
-		window.BackgroundColor3 = uipallet.Main
-		window.Name = props.Name..'Overlay'
-		window.Position = UDim2.fromOffset(240, 46)
-		window.Size = UDim2.fromOffset(props.CategorySize or 220, 41)
-		window.Text = ''
-		window.Visible = false
-		window.Parent = scaledgui
-		component.Object = window
-		local blur = addBlur(window)
-		addCorner(window)
-		addDragHandler(window)
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = props.Icon
-		icon.ImageColor3 = uipallet.Text
-		icon.Position = UDim2.fromOffset(12, (icon.Size.X.Offset > 14 and 14 or 13))
-		icon.Size = props.Size
-		icon.Parent = window
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Size = UDim2.new(1, -32, 0, 41)
-		title.Position = UDim2.fromOffset(math.abs(title.Size.X.Offset), 0)
-		title.Text = props.Name
-		title.TextColor3 = uipallet.Text
-		title.TextSize = 13
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = window
-		local pin = Instance.new('ImageButton')
-		pin.Name = 'Pin'
-		pin.Size = UDim2.fromOffset(14, 14)
-		pin.Position = UDim2.new(1, -37, 0, 14)
-		pin.BackgroundTransparency = 1
-		pin.AutoButtonColor = false
-		pin.Image = getvapeasset('kingvape/assets/new/pin.png')
-		pin.ImageColor3 = color.Dark(uipallet.Text, 0.43)
-		pin.Parent = window
-		local dotsbutton = Instance.new('TextButton')
-		dotsbutton.Name = 'Dots'
-		dotsbutton.Size = UDim2.fromOffset(17, 40)
-		dotsbutton.Position = UDim2.new(1, -17, 0, 0)
-		dotsbutton.BackgroundTransparency = 1
-		dotsbutton.Text = ''
-		dotsbutton.Parent = window
-		local dots = Instance.new('ImageLabel')
-		dots.BackgroundTransparency = 1
-		dots.Image = getvapeasset('kingvape/assets/new/overlaydots.png')
-		dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		dots.Position = UDim2.fromOffset(5, 15)
-		dots.Size = UDim2.fromOffset(2, 12)
-		dots.Parent = dotsbutton
-		local customchildren = Instance.new('Frame')
-		customchildren.BackgroundTransparency = 1
-		customchildren.Position = UDim2.fromScale(0, 1)
-		customchildren.Size = UDim2.new(1, 0, 0, 200)
-		customchildren.Parent = window
-		local children = Instance.new('ScrollingFrame')
-		children.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		children.BorderSizePixel = 0
-		children.CanvasSize = UDim2.new()
-		children.Position = UDim2.fromOffset(0, 37)
-		children.Size = UDim2.new(1, 0, 1, -41)
-		children.ScrollBarThickness = 2
-		children.ScrollBarImageTransparency = 0.75
-		children.Visible = false
-		children.Parent = window
-		local stroke = Instance.new('UIStroke')
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Color = Color3.fromRGB(85, 85, 85)
-		stroke.Transparency = 0.8
-		stroke.Parent = window
-		local windowlist = Instance.new('UIListLayout')
-		windowlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		windowlist.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlist.Parent = children
-		addMaid(component)
+		Window = Instance.new("TextButton")
+		Window.AutoButtonColor = false
+		Window.BackgroundColor3 = UIPallet.Main
+		Window.Name = `{Props.Name}Overlay`
+		Window.Position = UDim2.fromOffset(240, 46)
+		Window.Size = UDim2.fromOffset(Props.CategorySize or 220, 41)
+		Window.Text = ""
+		Window.Visible = false
+		Window.Parent = ScaledGUI
+		Component.Object = Window
+		local Blur = AddBlur(Window)
+		AddCorner(Window)
+		AddDragHandler(Window)
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = Props.Icon
+		Icon.ImageColor3 = UIPallet.Text
+		Icon.Position = UDim2.fromOffset(12, (Icon.Size.X.Offset > 14 and 14 or 13))
+		Icon.Size = Props.Size
+		Icon.Parent = Window
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Size = UDim2.new(1, -32, 0, 41)
+		Title.Position = UDim2.fromOffset(math.abs(Title.Size.X.Offset), 0)
+		Title.Text = Props.Name
+		Title.TextColor3 = UIPallet.Text
+		Title.TextSize = 13
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Window
+		local Pin: ImageButton = Instance.new("ImageButton")
+		Pin.Name = "Pin"
+		Pin.Size = UDim2.fromOffset(14, 14)
+		Pin.Position = UDim2.new(1, -37, 0, 14)
+		Pin.BackgroundTransparency = 1
+		Pin.AutoButtonColor = false
+		Pin.Image = GetVapeAsset("kingvape/assets/new/pin.png")
+		Pin.ImageColor3 = Color.Dark(UIPallet.Text, 0.43)
+		Pin.Parent = Window
+		local DotsButton: TextButton = Instance.new("TextButton")
+		DotsButton.Name = "Dots"
+		DotsButton.Size = UDim2.fromOffset(17, 40)
+		DotsButton.Position = UDim2.new(1, -17, 0, 0)
+		DotsButton.BackgroundTransparency = 1
+		DotsButton.Text = ""
+		DotsButton.Parent = Window
+		local Dots: ImageLabel = Instance.new("ImageLabel")
+		Dots.BackgroundTransparency = 1
+		Dots.Image = GetVapeAsset("kingvape/assets/new/overlaydots.png")
+		Dots.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Dots.Position = UDim2.fromOffset(5, 15)
+		Dots.Size = UDim2.fromOffset(2, 12)
+		Dots.Parent = DotsButton
+		local CustomChildren: Frame = Instance.new("Frame")
+		CustomChildren.BackgroundTransparency = 1
+		CustomChildren.Position = UDim2.fromScale(0, 1)
+		CustomChildren.Size = UDim2.new(1, 0, 0, 200)
+		CustomChildren.Parent = Window
+		local Children: ScrollingFrame = Instance.new("ScrollingFrame")
+		Children.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		Children.BorderSizePixel = 0
+		Children.CanvasSize = UDim2.new()
+		Children.Position = UDim2.fromOffset(0, 37)
+		Children.Size = UDim2.new(1, 0, 1, -41)
+		Children.ScrollBarThickness = 2
+		Children.ScrollBarImageTransparency = 0.75
+		Children.Visible = false
+		Children.Parent = Window
+		local Stroke: UIStroke = Instance.new("UIStroke")
+		Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		Stroke.Color = Color3.fromRGB(85, 85, 85)
+		Stroke.Transparency = 0.8
+		Stroke.Parent = Window
+		local WindowList: UIListLayout = Instance.new("UIListLayout")
+		WindowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		WindowList.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowList.Parent = Children
+		AddMaid(Component)
 		
-		function component:Color(hue, sat, val, isRainbow)
-			for _, component in self.Options do
-				if component.Color then
-					component:Color(hue, sat, val, isRainbow)
-				end
-			end
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    for _, Option: any in self.Options do
+		        if Option.Color then
+		            Option:Color(Hue, Sat, Val, IsRainbow)
+		        end
+		    end
 		end
 		
-		function component:Expand(visCheck)
-			if visCheck and not blur.Enabled then return end
+		function Component:Expand(VisibleCheck: boolean?)
+		    if VisibleCheck and not Blur.Enabled then return end
 		
-			self.Expanded = not self.Expanded
-			children.Visible = self.Expanded
-			dots.ImageColor3 = self.Expanded and uipallet.Text or color.Light(uipallet.Main, 0.37)
+		    self.Expanded = not self.Expanded
+		    Children.Visible = self.Expanded
+		    Dots.ImageColor3 = self.Expanded and UIPallet.Text or Color.Light(UIPallet.Main, 0.37)
 		
-			if self.Expanded then
-				window.Size = UDim2.fromOffset(window.Size.X.Offset, math.min(41 + windowlist.AbsoluteContentSize.Y / scale.Scale, 601))
-			else
-				window.Size = UDim2.fromOffset(window.Size.X.Offset, 41)
-			end
+		    if self.Expanded then
+		        Window.Size = UDim2.fromOffset(Window.Size.X.Offset, math.min(41 + WindowList.AbsoluteContentSize.Y / Scale.Scale, 601))
+		    else
+		        Window.Size = UDim2.fromOffset(Window.Size.X.Offset, 41)
+		    end
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			vape:LoadOptions(self, data.Options)
+		    vape:LoadOptions(self, Data.Options)
 		
-			if self.Button.Enabled ~= (data.Enabled or false) then
-				self.Button:Toggle()
-			end
+		    if self.Button.Enabled ~= (Data.Enabled or false) then
+		        self.Button:Toggle()
+		    end
 		
-			if self.Pinned ~= (data.Pinned or false) then
-				self:Pin()
-				self:Update()
-			end
+		    if self.Pinned ~= (Data.Pinned or false) then
+		        self:Pin()
+		        self:Update()
+		    end
 		
-			if data.Position then
-				window.Position = UDim2.fromOffset(data.Position.X, data.Position.Y)
-			end
+		    if Data.Position then
+		        Window.Position = UDim2.fromOffset(Data.Position.X, Data.Position.Y)
+		    end
 		end
 		
-		function component:Pin()
-			self.Pinned = not self.Pinned
-			pin.ImageColor3 = self.Pinned and uipallet.Text or color.Dark(uipallet.Text, 0.43)
-			vape:QueueSave()
+		function Component:Pin()
+		    self.Pinned = not self.Pinned
+		    Pin.ImageColor3 = self.Pinned and UIPallet.Text or Color.Dark(UIPallet.Text, 0.43)
+		    vape:QueueSave()
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Enabled = self.Button.Enabled,
-				Options = vape:SaveOptions(self),
-				Pinned = self.Pinned,
-				Position = {
-					X = window.Position.X.Offset,
-					Y = window.Position.Y.Offset
-				}
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Enabled = self.Button.Enabled,
+		        Options = vape:SaveOptions(self),
+		        Pinned = self.Pinned,
+		        Position = {
+		            X = Window.Position.X.Offset,
+		            Y = Window.Position.Y.Offset
+		        }
+		    }
 		end
 		
-		function component:Update()
-			window.Visible = self.Button.Enabled and (clickgui.Visible or self.Pinned)
-			if self.Expanded then
-				self:Expand()
-			end
+		function Component:Update()
+		    Window.Visible = self.Button.Enabled and (ClickGUI.Visible or self.Pinned)
+		    if self.Expanded then
+		        self:Expand()
+		    end
 		
-			if clickgui.Visible then
-				window.Size = UDim2.fromOffset(window.Size.X.Offset, 41)
-				window.BackgroundTransparency = 0
-				blur.Enabled = true
-				stroke.Enabled = true
-				icon.Visible = true
-				title.Visible = true
-				pin.Visible = true
-				dotsbutton.Visible = true
-			else
-				window.Size = UDim2.fromOffset(window.Size.X.Offset, 0)
-				window.BackgroundTransparency = 1
-				blur.Enabled = false
-				stroke.Enabled = false
-				icon.Visible = false
-				title.Visible = false
-				pin.Visible = false
-				dotsbutton.Visible = false
-			end
+		    if ClickGUI.Visible then
+		        Window.Size = UDim2.fromOffset(Window.Size.X.Offset, 41)
+		        Window.BackgroundTransparency = 0
+		        Blur.Enabled = true
+		        Stroke.Enabled = true
+		        Icon.Visible = true
+		        Title.Visible = true
+		        Pin.Visible = true
+		        DotsButton.Visible = true
+		    else
+		        Window.Size = UDim2.fromOffset(Window.Size.X.Offset, 0)
+		        Window.BackgroundTransparency = 1
+		        Blur.Enabled = false
+		        Stroke.Enabled = false
+		        Icon.Visible = false
+		        Title.Visible = false
+		        Pin.Visible = false
+		        DotsButton.Visible = false
+		    end
 		end
 		
-		for index, comp in components do
-			component['Create'..index] = function(_, props)
-				return comp(props, children, component)
-			end
+		for ComponentName: string, Constructor: (...any) -> ...any in Components do
+		    Component[`Create{ComponentName}`] = function(_, Properties)
+		        return Constructor(Properties, Children, Component)
+		    end
 		end
 		
-		vape:Clean(clickgui:GetPropertyChangedSignal('Visible'):Connect(function()
-			component:Update()
+		vape:Clean(ClickGUI:GetPropertyChangedSignal("Visible"):Connect(function()
+		    Component:Update()
 		end))
 		
-		dotsbutton.MouseEnter:Connect(function()
-			if not children.Visible then
-				dots.ImageColor3 = uipallet.Text
-			end
+		DotsButton.MouseEnter:Connect(function()
+		    if not Children.Visible then
+		        Dots.ImageColor3 = UIPallet.Text
+		    end
 		end)
 		
-		dotsbutton.MouseLeave:Connect(function()
-			if not children.Visible then
-				dots.ImageColor3 = color.Light(uipallet.Main, 0.37)
-			end
+		DotsButton.MouseLeave:Connect(function()
+		    if not Children.Visible then
+		        Dots.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		    end
 		end)
 		
-		dotsbutton.MouseButton1Click:Connect(function()
-			component:Expand(true)
+		DotsButton.MouseButton1Click:Connect(function()
+		    Component:Expand(true)
 		end)
 		
-		dotsbutton.MouseButton2Click:Connect(function()
-			component:Expand(true)
+		DotsButton.MouseButton2Click:Connect(function()
+		    Component:Expand(true)
 		end)
 		
-		pin.MouseButton1Click:Connect(function()
-			component:Pin()
+		Pin.MouseButton1Click:Connect(function()
+		    Component:Pin()
 		end)
 		
-		window.MouseButton2Click:Connect(function()
-			component:Expand(true)
+		Window.MouseButton2Click:Connect(function()
+		    Component:Expand(true)
 		end)
 		
-		windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		WindowList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			children.CanvasSize = UDim2.fromOffset(0, windowlist.AbsoluteContentSize.Y / scale.Scale)
-			if component.Expanded then
-				window.Size = UDim2.fromOffset(window.Size.X.Offset, math.min(41 + windowlist.AbsoluteContentSize.Y / scale.Scale, 601))
-			end
+		    Children.CanvasSize = UDim2.fromOffset(0, WindowList.AbsoluteContentSize.Y / Scale.Scale)
+		    if Component.Expanded then
+		        Window.Size = UDim2.fromOffset(Window.Size.X.Offset, math.min(41 + WindowList.AbsoluteContentSize.Y / Scale.Scale, 601))
+		    end
 		end)
 		
-		component.Children = customchildren
-		vape.Categories[props.Name] = component
+		Component.Children = CustomChildren
+		vape.Categories[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	OverlayBar = function(props, children, api)
-		local component = {
-			Options = {},
-			Type = 'OverlayBar'
+	OverlayBar = function(Props, Children, API)
+		local Component = {
+		    Options = {},
+		    Type = "OverlayBar"
 		}
 		
-		local bar = Instance.new('Frame')
-		bar.Name = 'Overlays'
-		bar.Size = UDim2.fromOffset(220, 36)
-		bar.BackgroundColor3 = uipallet.Main
-		bar.BorderSizePixel = 0
-		bar.Parent = children
-		components.Divider(nil, bar)
-		local button = Instance.new('ImageButton')
-		button.AutoButtonColor = false
-		button.BackgroundTransparency = 1
-		button.Image = getvapeasset('kingvape/assets/new/overlays.png')
-		button.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		button.Position = UDim2.new(1, -34, 0, 7)
-		button.Size = UDim2.fromOffset(24, 24)
-		button.Parent = bar
-		addCorner(button, UDim.new(1, 0))
-		addTooltip(button, 'Open overlays menu')
-		local favorites = Instance.new('ImageButton')
-		favorites.AutoButtonColor = false
-		favorites.BackgroundTransparency = 1
-		favorites.Name = 'Favorites'
-		favorites.Position = UDim2.new(1, -58, 0, 7)
-		favorites.Size = UDim2.fromOffset(24, 24)
-		favorites.Visible = false
-		favorites.Parent = bar
-		addCorner(favorites, UDim.new(1, 0))
-		addTooltip(favorites, 'Favorites')
-		local favoritesicon = Instance.new('ImageLabel')
-		favoritesicon.AnchorPoint = Vector2.new(0.5, 0.5)
-		favoritesicon.BackgroundTransparency = 1
-		favoritesicon.Image = getvapeasset('kingvape/assets/new/favoritesicon.png')
-		favoritesicon.ImageColor3 = vapecolors.Icon
-		favoritesicon.Name = 'Icon'
-		favoritesicon.Position = UDim2.fromScale(0.5, 0.5)
-		favoritesicon.ScaleType = Enum.ScaleType.Fit
-		favoritesicon.Size = UDim2.fromOffset(12, 11)
-		favoritesicon.Parent = favorites
-		local shadow = Instance.new('TextButton')
-		shadow.AutoButtonColor = false
-		shadow.BackgroundColor3 = Color3.new()
-		shadow.BackgroundTransparency = 1
-		shadow.ClipsDescendants = true
-		shadow.Name = 'Shadow'
-		shadow.Size = UDim2.new(1, 0, 1, -5)
-		shadow.Text = ''
-		shadow.Visible = false
-		shadow.Parent = api.Object
-		addCorner(shadow)
-		local window = Instance.new('Frame')
-		window.BackgroundColor3 = uipallet.Main
-		window.Position = UDim2.fromScale(0, 1)
-		window.Size = UDim2.fromOffset(220, 42)
-		window.Parent = shadow
-		addCorner(window)
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('kingvape/assets/new/overlayslarge.png')
-		icon.ImageColor3 = uipallet.Text
-		icon.Position = UDim2.fromOffset(10, 13)
-		icon.Size = UDim2.fromOffset(14, 12)
-		icon.Parent = window
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(36, 0)
-		title.Size = UDim2.new(1, -36, 0, 38)
-		title.Text = 'Overlays'
-		title.TextColor3 = uipallet.Text
-		title.TextSize = 15
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = window
-		local close = addCloseButton(window, false, UDim2.new(1, -35, 0, 7))
-		local divider = Instance.new('Frame')
-		divider.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-		divider.BorderSizePixel = 0
-		divider.Position = UDim2.fromOffset(0, 37)
-		divider.Size = UDim2.new(1, 0, 0, 1)
-		divider.Parent = window
-		local childrentoggle = Instance.new('Frame')
-		childrentoggle.BackgroundColor3 = uipallet.Main
-		childrentoggle.BackgroundTransparency = 1
-		childrentoggle.Position = UDim2.fromOffset(0, 38)
-		childrentoggle.Parent = window
-		local windowlist = Instance.new('UIListLayout')
-		windowlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		windowlist.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlist.Parent = childrentoggle
+		local Bar: Frame = Instance.new("Frame")
+		Bar.Name = "Overlays"
+		Bar.Size = UDim2.fromOffset(220, 36)
+		Bar.BackgroundColor3 = UIPallet.Main
+		Bar.BorderSizePixel = 0
+		Bar.Parent = Children
+		Components.Divider(nil, Bar)
+		local Button: ImageButton = Instance.new("ImageButton")
+		Button.AutoButtonColor = false
+		Button.BackgroundTransparency = 1
+		Button.Image = GetVapeAsset("kingvape/assets/new/overlays.png")
+		Button.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Button.Position = UDim2.new(1, -34, 0, 7)
+		Button.Size = UDim2.fromOffset(24, 24)
+		Button.Parent = Bar
+		AddCorner(Button, UDim.new(1, 0))
+		AddTooltip(Button, "Open overlays menu")
+		local Favorites: ImageButton = Instance.new("ImageButton")
+		Favorites.AutoButtonColor = false
+		Favorites.BackgroundTransparency = 1
+		Favorites.Name = "Favorites"
+		Favorites.Position = UDim2.new(1, -58, 0, 7)
+		Favorites.Size = UDim2.fromOffset(24, 24)
+		Favorites.Parent = Bar
+		AddCorner(Favorites, UDim.new(1, 0))
+		AddTooltip(Favorites, "Favorites")
+		local FavoritesIcon: ImageLabel = Instance.new("ImageLabel")
+		FavoritesIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		FavoritesIcon.BackgroundTransparency = 1
+		FavoritesIcon.Image = GetVapeAsset("kingvape/assets/new/favoritesicon.png")
+		FavoritesIcon.ImageColor3 = VapeColors.Icon
+		FavoritesIcon.Name = "Icon"
+		FavoritesIcon.Position = UDim2.fromScale(0.5, 0.5)
+		FavoritesIcon.ScaleType = Enum.ScaleType.Fit
+		FavoritesIcon.Size = UDim2.fromOffset(12, 11)
+		FavoritesIcon.Parent = Favorites
+		local Shadow: TextButton = Instance.new("TextButton")
+		Shadow.AutoButtonColor = false
+		Shadow.BackgroundColor3 = Color3.new()
+		Shadow.BackgroundTransparency = 1
+		Shadow.ClipsDescendants = true
+		Shadow.Name = "Shadow"
+		Shadow.Size = UDim2.new(1, 0, 1, -5)
+		Shadow.Text = ""
+		Shadow.Visible = false
+		Shadow.Parent = API.Object
+		AddCorner(Shadow)
+		local Window: Frame = Instance.new("Frame")
+		Window.BackgroundColor3 = UIPallet.Main
+		Window.Position = UDim2.fromScale(0, 1)
+		Window.Size = UDim2.fromOffset(220, 42)
+		Window.Parent = Shadow
+		AddCorner(Window)
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = GetVapeAsset("kingvape/assets/new/overlayslarge.png")
+		Icon.ImageColor3 = UIPallet.Text
+		Icon.Position = UDim2.fromOffset(10, 13)
+		Icon.Size = UDim2.fromOffset(14, 12)
+		Icon.Parent = Window
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Position = UDim2.fromOffset(36, 0)
+		Title.Size = UDim2.new(1, -36, 0, 38)
+		Title.Text = "Overlays"
+		Title.TextColor3 = UIPallet.Text
+		Title.TextSize = 15
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Window
+		local Close: ImageButton = AddCloseButton(Window, false, UDim2.new(1, -35, 0, 7))
+		local Divider: Frame = Instance.new("Frame")
+		Divider.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		Divider.BorderSizePixel = 0
+		Divider.Position = UDim2.fromOffset(0, 37)
+		Divider.Size = UDim2.new(1, 0, 0, 1)
+		Divider.Parent = Window
+		local ChildrenToggle: Frame = Instance.new("Frame")
+		ChildrenToggle.BackgroundColor3 = UIPallet.Main
+		ChildrenToggle.BackgroundTransparency = 1
+		ChildrenToggle.Position = UDim2.fromOffset(0, 38)
+		ChildrenToggle.Parent = Window
+		local WindowList: UIListLayout = Instance.new("UIListLayout")
+		WindowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		WindowList.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowList.Parent = ChildrenToggle
 		
-		for index, comp in components do
-			component['Create'..index] = function(_, props)
-				return comp(props, childrentoggle, component)
-			end
+		for ComponentName: string, Constructor: (...any) -> ...any in Components do
+		    Component[`Create{ComponentName}`] = function(_, Properties)
+		        return Constructor(Properties, ChildrenToggle, Component)
+		    end
 		end
 		
-		local function paintFavorites()
-			local category = vape.Categories.Favorites
-			if category and category.Object then
-				category.Object.Visible = false
-			end
-			favorites.Visible = false
+		local function PaintFavorites()
+		    local Category = vape.Categories.Favorites
+		    FavoritesIcon.ImageColor3 = (Category and Category.Standalone) and VapeColors.Favorite or VapeColors.Icon
 		end
 		
-		vape.PaintFavorites = paintFavorites
+		vape.PaintFavorites = PaintFavorites
 		
-		button.MouseEnter:Connect(function()
-			button.ImageColor3 = uipallet.Text
-			tween:Tween(button, uipallet.Tween, {
-				BackgroundTransparency = 0.9
-			})
+		Button.MouseEnter:Connect(function()
+		    Button.ImageColor3 = UIPallet.Text
+		    Tween:Tween(Button, UIPallet.Tween, {
+		        BackgroundTransparency = 0.9
+		    })
 		end)
 		
-		button.MouseLeave:Connect(function()
-			button.ImageColor3 = color.Light(uipallet.Main, 0.37)
-			tween:Tween(button, uipallet.Tween, {
-				BackgroundTransparency = 1
-			})
+		Button.MouseLeave:Connect(function()
+		    Button.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		    Tween:Tween(Button, UIPallet.Tween, {
+		        BackgroundTransparency = 1
+		    })
 		end)
 		
-		button.MouseButton1Click:Connect(function()
-			shadow.Visible = true
-			tween:Tween(shadow, uipallet.Tween, {
-				BackgroundTransparency = 0.5
-			})
+		Button.MouseButton1Click:Connect(function()
+		    Shadow.Visible = true
+		    Tween:Tween(Shadow, UIPallet.Tween, {
+		        BackgroundTransparency = 0.5
+		    })
 		
-			tween:Tween(window, uipallet.Tween, {
-				Position = UDim2.new(0, 0, 1, -(window.Size.Y.Offset))
-			})
+		    Tween:Tween(Window, UIPallet.Tween, {
+		        Position = UDim2.new(0, 0, 1, -(Window.Size.Y.Offset))
+		    })
 		end)
 		
-		close.MouseButton1Click:Connect(function()
-			tween:Tween(shadow, uipallet.Tween, {
-				BackgroundTransparency = 1
-			})
+		Close.MouseButton1Click:Connect(function()
+		    Tween:Tween(Shadow, UIPallet.Tween, {
+		        BackgroundTransparency = 1
+		    })
 		
-			tween:Tween(window, uipallet.Tween, {
-				Position = UDim2.fromScale(0, 1)
-			})
+		    Tween:Tween(Window, UIPallet.Tween, {
+		        Position = UDim2.fromScale(0, 1)
+		    })
 		
-			task.delay(0.2, function()
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+		    task.delay(0.2, function()
+		        if vape.ThreadFix then
+		            setthreadidentity(8)
+		        end
 		
-				shadow.Visible = false
-			end)
+		        Shadow.Visible = false
+		    end)
 		end)
 		
-		favorites.MouseButton1Click:Connect(function()
-			local category = vape.Categories.Favorites
-			if not category then return end
+		Favorites.MouseButton1Click:Connect(function()
+		    local Category = vape.Categories.Favorites
+		    if not Category then return end
 		
-			category:SetStandalone(not category.Standalone)
-			paintFavorites()
-			vape:QueueSave()
+		    Category:SetStandalone(not Category.Standalone)
+		    PaintFavorites()
+		    vape:QueueSave()
 		end)
 		
-		favorites.MouseEnter:Connect(function()
-			local category = vape.Categories.Favorites
-			favoritesicon.ImageColor3 = (category and category.Standalone) and Color3.fromRGB(255, 160, 84) or vapecolors.IconHover
+		Favorites.MouseEnter:Connect(function()
+		    local Category = vape.Categories.Favorites
+		    FavoritesIcon.ImageColor3 = (Category and Category.Standalone) and Color3.fromRGB(255, 160, 84) or VapeColors.IconHover
 		end)
 		
-		favorites.MouseLeave:Connect(paintFavorites)
+		Favorites.MouseLeave:Connect(PaintFavorites)
 		
-		shadow.MouseButton1Click:Connect(function()
-			tween:Tween(shadow, uipallet.Tween, {
-				BackgroundTransparency = 1
-			})
+		Shadow.MouseButton1Click:Connect(function()
+		    Tween:Tween(Shadow, UIPallet.Tween, {
+		        BackgroundTransparency = 1
+		    })
 		
-			tween:Tween(window, uipallet.Tween, {
-				Position = UDim2.fromScale(0, 1)
-			})
+		    Tween:Tween(Window, UIPallet.Tween, {
+		        Position = UDim2.fromScale(0, 1)
+		    })
 		
-			task.delay(0.2, function()
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+		    task.delay(0.2, function()
+		        if vape.ThreadFix then
+		            setthreadidentity(8)
+		        end
 		
-				shadow.Visible = false
-			end)
+		        Shadow.Visible = false
+		    end)
 		end)
 		
-		windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		WindowList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			window.Size = UDim2.fromOffset(220, math.min(37 + windowlist.AbsoluteContentSize.Y / scale.Scale, 605))
-			childrentoggle.Size = UDim2.fromOffset(220, window.Size.Y.Offset - 5)
+		    Window.Size = UDim2.fromOffset(220, math.min(37 + WindowList.AbsoluteContentSize.Y / Scale.Scale, 605))
+		    ChildrenToggle.Size = UDim2.fromOffset(220, Window.Size.Y.Offset - 5)
 		end)
 		
-		vape.Overlays = component
+		vape.Overlays = Component
 		
-		return component
+		return Component
 	end,
-	PublicProfiles = function(props, children, api)
-		local component = {Configs = {}, Cards = {}, Owned = {}, Accents = {}, Sort = 'rated', Search = ''}
+	PublicProfiles = function(Props, Children, API)
+		local Component = {Configs = {}, Cards = {}, Owned = {}, Accents = {}, Sort = "rated", Search = ""}
 		
-		local function accentColor()
-			local guicolor = vape.GUIColor
-			if not guicolor then return Color3.fromRGB(5, 133, 102) end
-			return Color3.fromHSV(guicolor.Hue, guicolor.Sat, guicolor.Value)
+		local function AccentColor()
+		    local GUIColor = vape.GUIColor
+		    if not GUIColor then return Color3.fromRGB(5, 133, 102) end
+		    return Color3.fromHSV(GUIColor.Hue, GUIColor.Sat, GUIColor.Value)
 		end
 		
-		local function accentTextColor()
-			local guicolor = vape.GUIColor
-			if not guicolor then return Color3.new(1, 1, 1) end
-			return vape:TextColor(guicolor.Hue, guicolor.Sat, guicolor.Value)
+		local function AccentTextColor()
+		    local GUIColor = vape.GUIColor
+		    if not GUIColor then return Color3.new(1, 1, 1) end
+		    return vape:TextColor(GUIColor.Hue, GUIColor.Sat, GUIColor.Value)
 		end
 		
-		local sorts = {
-			rated = function(a, b)
-				if (a.likes or 0) == (b.likes or 0) then
-					return a.Uploaded > b.Uploaded
-				end
+		local Sorts = {
+		    rated = function(A, B)
+		        if (A.likes or 0) == (B.likes or 0) then
+		            return A.Uploaded > B.Uploaded
+		        end
 		
-				return (a.likes or 0) > (b.likes or 0)
-			end,
-			downloaded = function(a, b)
-				if (a.downloads or 0) == (b.downloads or 0) then
-					return a.Uploaded > b.Uploaded
-				end
+		        return (A.likes or 0) > (B.likes or 0)
+		    end,
+		    downloaded = function(A, B)
+		        if (A.downloads or 0) == (B.downloads or 0) then
+		            return A.Uploaded > B.Uploaded
+		        end
 		
-				return (a.downloads or 0) > (b.downloads or 0)
-			end,
-			newest = function(a, b)
-				return a.Uploaded > b.Uploaded
-			end
+		        return (A.downloads or 0) > (B.downloads or 0)
+		    end,
+		    newest = function(A, B)
+		        return A.Uploaded > B.Uploaded
+		    end
 		}
 		
-		local window = Instance.new('Frame')
-		window.BackgroundColor3 = uipallet.Main
-		window.Name = 'PublicProfilesGUI'
-		window.Position = UDim2.new(0.5, -356, 0.5, -214)
-		window.Size = UDim2.fromOffset(712, 428)
-		window.Visible = false
-		window.Parent = scaledgui
-		addShadow(window)
-		addCorner(window)
-		addDragHandler(window)
-		local modal = Instance.new('TextButton')
-		modal.BackgroundTransparency = 1
-		modal.Modal = true
-		modal.Text = ''
-		modal.Parent = window
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Name = 'Icon'
-		icon.Position = UDim2.fromOffset(10, 13)
-		icon.Size = UDim2.fromOffset(16, 10)
-		icon.Image = getvapeasset('kingvape/assets/new/profilesicon.png')
-		icon.ImageColor3 = vapecolors.Primary
-		icon.Parent = window
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Name = 'Title'
-		title.Position = UDim2.fromOffset(36, 0)
-		title.Size = UDim2.fromOffset(200, 36)
-		title.Text = 'Public Profiles'
-		title.TextColor3 = vapecolors.Primary
-		title.TextSize = 14
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = window
-		local close = addCloseButton(window, false, UDim2.new(1, -35, 0, 6))
-		local divider = Instance.new('Frame')
-		divider.BackgroundColor3 = vapecolors.Outline
-		divider.BackgroundTransparency = 0.5
-		divider.BorderSizePixel = 0
-		divider.Name = 'Divider'
-		divider.Position = UDim2.fromOffset(0, 38)
-		divider.Size = UDim2.new(1, 0, 0, 1)
-		divider.Parent = window
+		local Window: Frame = Instance.new("Frame")
+		Window.BackgroundColor3 = UIPallet.Main
+		Window.Name = "PublicProfilesGUI"
+		Window.Position = UDim2.new(0.5, -356, 0.5, -214)
+		Window.Size = UDim2.fromOffset(712, 428)
+		Window.Visible = false
+		Window.Parent = ScaledGUI
+		AddShadow(Window)
+		AddCorner(Window)
+		AddDragHandler(Window)
+		local Modal: TextButton = Instance.new("TextButton")
+		Modal.BackgroundTransparency = 1
+		Modal.Modal = true
+		Modal.Text = ""
+		Modal.Parent = Window
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Name = "Icon"
+		Icon.Position = UDim2.fromOffset(10, 13)
+		Icon.Size = UDim2.fromOffset(16, 10)
+		Icon.Image = GetVapeAsset("kingvape/assets/new/profilesicon.png")
+		Icon.ImageColor3 = VapeColors.Primary
+		Icon.Parent = Window
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Name = "Title"
+		Title.Position = UDim2.fromOffset(36, 0)
+		Title.Size = UDim2.fromOffset(200, 36)
+		Title.Text = "Public Profiles"
+		Title.TextColor3 = VapeColors.Primary
+		Title.TextSize = 14
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Window
+		local Close: ImageButton = AddCloseButton(Window, false, UDim2.new(1, -35, 0, 6))
+		local Divider: Frame = Instance.new("Frame")
+		Divider.BackgroundColor3 = VapeColors.Outline
+		Divider.BackgroundTransparency = 0.5
+		Divider.BorderSizePixel = 0
+		Divider.Name = "Divider"
+		Divider.Position = UDim2.fromOffset(0, 38)
+		Divider.Size = UDim2.new(1, 0, 0, 1)
+		Divider.Parent = Window
 		
-		local ownedlabel = Instance.new('TextLabel')
-		ownedlabel.BackgroundTransparency = 1
-		ownedlabel.FontFace = uipallet.FontBold
-		ownedlabel.Name = 'OwnedLabel'
-		ownedlabel.Position = UDim2.fromOffset(12, 44)
-		ownedlabel.Size = UDim2.fromOffset(174, 24)
-		ownedlabel.Text = 'YOUR PUBLIC PROFILES'
-		ownedlabel.TextColor3 = vapecolors.Muted
-		ownedlabel.TextSize = 11
-		ownedlabel.TextXAlignment = Enum.TextXAlignment.Left
-		ownedlabel.Parent = window
+		local OwnedLabel: TextLabel = Instance.new("TextLabel")
+		OwnedLabel.BackgroundTransparency = 1
+		OwnedLabel.FontFace = UIPallet.FontBold
+		OwnedLabel.Name = "OwnedLabel"
+		OwnedLabel.Position = UDim2.fromOffset(12, 44)
+		OwnedLabel.Size = UDim2.fromOffset(174, 24)
+		OwnedLabel.Text = "YOUR PUBLIC PROFILES"
+		OwnedLabel.TextColor3 = VapeColors.Muted
+		OwnedLabel.TextSize = 11
+		OwnedLabel.TextXAlignment = Enum.TextXAlignment.Left
+		OwnedLabel.Parent = Window
 		
-		local collapse = Instance.new('TextButton')
-		collapse.AutoButtonColor = false
-		collapse.BackgroundTransparency = 1
-		collapse.Name = 'Collapse'
-		collapse.Position = UDim2.fromOffset(176, 48)
-		collapse.Size = UDim2.fromOffset(20, 24)
-		collapse.Text = ''
-		collapse.Parent = window
-		local collapseicon = Instance.new('ImageLabel')
-		collapseicon.AnchorPoint = Vector2.new(0.5, 0)
-		collapseicon.BackgroundTransparency = 1
-		collapseicon.Image = getvapeasset('kingvape/assets/new/hide.png')
-		collapseicon.ImageColor3 = vapecolors.Icon
-		collapseicon.Position = UDim2.fromOffset(10, 0)
-		collapseicon.Size = UDim2.fromOffset(10, 8)
-		collapseicon.Parent = collapse
-		addTooltip(collapse, 'Hide your published profiles')
+		local Collapse: TextButton = Instance.new("TextButton")
+		Collapse.AutoButtonColor = false
+		Collapse.BackgroundTransparency = 1
+		Collapse.Name = "Collapse"
+		Collapse.Position = UDim2.fromOffset(176, 48)
+		Collapse.Size = UDim2.fromOffset(20, 24)
+		Collapse.Text = ""
+		Collapse.Parent = Window
+		local CollapseIcon: ImageLabel = Instance.new("ImageLabel")
+		CollapseIcon.AnchorPoint = Vector2.new(0.5, 0)
+		CollapseIcon.BackgroundTransparency = 1
+		CollapseIcon.Image = GetVapeAsset("kingvape/assets/new/hide.png")
+		CollapseIcon.ImageColor3 = VapeColors.Icon
+		CollapseIcon.Position = UDim2.fromOffset(10, 0)
+		CollapseIcon.Size = UDim2.fromOffset(10, 8)
+		CollapseIcon.Parent = Collapse
+		AddTooltip(Collapse, "Hide your published profiles")
 		
-		local publish = Instance.new('TextButton')
-		publish.AutoButtonColor = false
-		publish.BackgroundColor3 = accentColor()
-		publish.FontFace = uipallet.FontBold
-		publish.Name = 'Publish'
-		publish.Position = UDim2.fromOffset(12, 72)
-		publish.Size = UDim2.fromOffset(184, 28)
-		publish.Text = 'CREATE NEW'
-		publish.TextColor3 = accentTextColor()
-		publish.TextSize = 11
-		publish.Parent = window
-		addCorner(publish, UDim.new(0, 4))
-		table.insert(component.Accents, publish)
+		local Publish: TextButton = Instance.new("TextButton")
+		Publish.AutoButtonColor = false
+		Publish.BackgroundColor3 = AccentColor()
+		Publish.FontFace = UIPallet.FontBold
+		Publish.Name = "Publish"
+		Publish.Position = UDim2.fromOffset(12, 72)
+		Publish.Size = UDim2.fromOffset(184, 28)
+		Publish.Text = "CREATE NEW"
+		Publish.TextColor3 = AccentTextColor()
+		Publish.TextSize = 11
+		Publish.Parent = Window
+		AddCorner(Publish, UDim.new(0, 4))
+		table.insert(Component.Accents, Publish)
 		
-		local owned = Instance.new('ScrollingFrame')
-		owned.BackgroundTransparency = 1
-		owned.BorderSizePixel = 0
-		owned.CanvasSize = UDim2.new()
-		owned.Name = 'Owned'
-		owned.Position = UDim2.fromOffset(12, 104)
-		owned.ScrollBarThickness = 0
-		owned.Size = UDim2.fromOffset(184, 318)
-		owned.Parent = window
-		local ownedlayout = Instance.new('UIListLayout')
-		ownedlayout.Padding = UDim.new(0, 4)
-		ownedlayout.SortOrder = Enum.SortOrder.LayoutOrder
-		ownedlayout.Parent = owned
+		local Owned: ScrollingFrame = Instance.new("ScrollingFrame")
+		Owned.BackgroundTransparency = 1
+		Owned.BorderSizePixel = 0
+		Owned.CanvasSize = UDim2.new()
+		Owned.Name = "Owned"
+		Owned.Position = UDim2.fromOffset(12, 104)
+		Owned.ScrollBarThickness = 0
+		Owned.Size = UDim2.fromOffset(184, 318)
+		Owned.Parent = Window
+		local OwnedLayout: UIListLayout = Instance.new("UIListLayout")
+		OwnedLayout.Padding = UDim.new(0, 4)
+		OwnedLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		OwnedLayout.Parent = Owned
 		
-		local ownedempty = Instance.new('TextLabel')
-		ownedempty.BackgroundTransparency = 1
-		ownedempty.FontFace = uipallet.Font
-		ownedempty.Name = 'OwnedEmpty'
-		ownedempty.Position = UDim2.fromOffset(12, 108)
-		ownedempty.Size = UDim2.fromOffset(184, 20)
-		ownedempty.Text = 'Nothing published yet'
-		ownedempty.TextColor3 = vapecolors.Muted
-		ownedempty.TextSize = 12
-		ownedempty.TextXAlignment = Enum.TextXAlignment.Left
-		ownedempty.Visible = false
-		ownedempty.Parent = window
+		local OwnedEmpty: TextLabel = Instance.new("TextLabel")
+		OwnedEmpty.BackgroundTransparency = 1
+		OwnedEmpty.FontFace = UIPallet.Font
+		OwnedEmpty.Name = "OwnedEmpty"
+		OwnedEmpty.Position = UDim2.fromOffset(12, 108)
+		OwnedEmpty.Size = UDim2.fromOffset(184, 20)
+		OwnedEmpty.Text = "Nothing published yet"
+		OwnedEmpty.TextColor3 = VapeColors.Muted
+		OwnedEmpty.TextSize = 12
+		OwnedEmpty.TextXAlignment = Enum.TextXAlignment.Left
+		OwnedEmpty.Visible = false
+		OwnedEmpty.Parent = Window
 		
-		local resultslabel = Instance.new('TextLabel')
-		resultslabel.BackgroundTransparency = 1
-		resultslabel.FontFace = uipallet.FontBold
-		resultslabel.Name = 'ResultsLabel'
-		resultslabel.Position = UDim2.fromOffset(216, 44)
-		resultslabel.Size = UDim2.fromOffset(300, 14)
-		resultslabel.Text = 'ALL PUBLIC PROFILES'
-		resultslabel.TextColor3 = vapecolors.Muted
-		resultslabel.TextSize = 11
-		resultslabel.TextXAlignment = Enum.TextXAlignment.Left
-		resultslabel.Parent = window
+		local ResultsLabel: TextLabel = Instance.new("TextLabel")
+		ResultsLabel.BackgroundTransparency = 1
+		ResultsLabel.FontFace = UIPallet.FontBold
+		ResultsLabel.Name = "ResultsLabel"
+		ResultsLabel.Position = UDim2.fromOffset(216, 44)
+		ResultsLabel.Size = UDim2.fromOffset(300, 14)
+		ResultsLabel.Text = "ALL PUBLIC PROFILES"
+		ResultsLabel.TextColor3 = VapeColors.Muted
+		ResultsLabel.TextSize = 11
+		ResultsLabel.TextXAlignment = Enum.TextXAlignment.Left
+		ResultsLabel.Parent = Window
 		
-		local searchbkg = Instance.new('Frame')
-		searchbkg.BackgroundTransparency = 1
-		searchbkg.BorderSizePixel = 0
-		searchbkg.Name = 'Search'
-		searchbkg.Position = UDim2.fromOffset(216, 67)
-		searchbkg.Size = UDim2.fromOffset(478, 40)
-		searchbkg.Parent = window
-		addCorner(searchbkg, UDim.new(0, 4))
-		local searchstroke = Instance.new('UIStroke')
-		searchstroke.Color = vapecolors.Outline
-		searchstroke.Thickness = 1.5
-		searchstroke.Transparency = 0.25
-		searchstroke.Parent = searchbkg
-		local searchicon = Instance.new('ImageLabel')
-		searchicon.AnchorPoint = Vector2.new(0.5, 0.5)
-		searchicon.BackgroundTransparency = 1
-		searchicon.BorderSizePixel = 0
-		searchicon.Image = getvapeasset('kingvape/assets/new/search.png')
-		searchicon.ImageColor3 = vapecolors.Icon
-		searchicon.Position = UDim2.new(0, 18, 0.5, 0)
-		searchicon.Size = UDim2.fromOffset(12, 12)
-		searchicon.Parent = searchbkg
-		local searchbox = Instance.new('TextBox')
-		searchbox.BackgroundTransparency = 1
-		searchbox.BorderSizePixel = 0
-		searchbox.ClearTextOnFocus = false
-		searchbox.FontFace = uipallet.Font
-		searchbox.PlaceholderColor3 = vapecolors.Primary
-		searchbox.PlaceholderText = 'Search Profile / Username'
-		searchbox.Position = UDim2.fromOffset(38, 0)
-		searchbox.Size = UDim2.new(1, -58, 1, 0)
-		searchbox.Text = ''
-		searchbox.TextColor3 = vapecolors.Secondary
-		searchbox.TextSize = 13
-		searchbox.TextXAlignment = Enum.TextXAlignment.Left
-		searchbox.Parent = searchbkg
+		local SearchBackground: Frame = Instance.new("Frame")
+		SearchBackground.BackgroundTransparency = 1
+		SearchBackground.BorderSizePixel = 0
+		SearchBackground.Name = "Search"
+		SearchBackground.Position = UDim2.fromOffset(216, 67)
+		SearchBackground.Size = UDim2.fromOffset(478, 40)
+		SearchBackground.Parent = Window
+		AddCorner(SearchBackground, UDim.new(0, 4))
+		local SearchStroke: UIStroke = Instance.new("UIStroke")
+		SearchStroke.Color = VapeColors.Outline
+		SearchStroke.Thickness = 1.5
+		SearchStroke.Transparency = 0.25
+		SearchStroke.Parent = SearchBackground
+		local SearchIcon: ImageLabel = Instance.new("ImageLabel")
+		SearchIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		SearchIcon.BackgroundTransparency = 1
+		SearchIcon.BorderSizePixel = 0
+		SearchIcon.Image = GetVapeAsset("kingvape/assets/new/search.png")
+		SearchIcon.ImageColor3 = VapeColors.Icon
+		SearchIcon.Position = UDim2.new(0, 18, 0.5, 0)
+		SearchIcon.Size = UDim2.fromOffset(12, 12)
+		SearchIcon.Parent = SearchBackground
+		local SearchBox: TextBox = Instance.new("TextBox")
+		SearchBox.BackgroundTransparency = 1
+		SearchBox.BorderSizePixel = 0
+		SearchBox.ClearTextOnFocus = false
+		SearchBox.FontFace = UIPallet.Font
+		SearchBox.PlaceholderColor3 = VapeColors.Primary
+		SearchBox.PlaceholderText = "Search Profile / Username"
+		SearchBox.Position = UDim2.fromOffset(38, 0)
+		SearchBox.Size = UDim2.new(1, -58, 1, 0)
+		SearchBox.Text = ""
+		SearchBox.TextColor3 = VapeColors.Secondary
+		SearchBox.TextSize = 13
+		SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+		SearchBox.Parent = SearchBackground
 		
-		local sortframe = Instance.new('Frame')
-		sortframe.BackgroundTransparency = 1
-		sortframe.BorderSizePixel = 0
-		sortframe.Name = 'Sorts'
-		sortframe.Position = UDim2.fromOffset(216, 119)
-		sortframe.Size = UDim2.fromOffset(480, 28)
-		sortframe.Parent = window
-		local sortlayout = Instance.new('UIListLayout')
-		sortlayout.FillDirection = Enum.FillDirection.Horizontal
-		sortlayout.Padding = UDim.new(0, 2)
-		sortlayout.SortOrder = Enum.SortOrder.LayoutOrder
-		sortlayout.Parent = sortframe
+		local SortFrame: Frame = Instance.new("Frame")
+		SortFrame.BackgroundTransparency = 1
+		SortFrame.BorderSizePixel = 0
+		SortFrame.Name = "Sorts"
+		SortFrame.Position = UDim2.fromOffset(216, 119)
+		SortFrame.Size = UDim2.fromOffset(480, 28)
+		SortFrame.Parent = Window
+		local SortLayout: UIListLayout = Instance.new("UIListLayout")
+		SortLayout.FillDirection = Enum.FillDirection.Horizontal
+		SortLayout.Padding = UDim.new(0, 2)
+		SortLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		SortLayout.Parent = SortFrame
 		
-		local children = Instance.new('ScrollingFrame')
-		children.BackgroundTransparency = 1
-		children.BorderSizePixel = 0
-		children.CanvasSize = UDim2.new()
-		children.Name = 'Children'
-		children.Position = UDim2.fromOffset(216, 161)
-		children.ScrollBarImageColor3 = vapecolors.Outline
-		children.ScrollBarImageTransparency = 0.5
-		children.ScrollBarThickness = 4
-		children.Size = UDim2.fromOffset(482, 267)
-		children.Parent = window
-		local gridlayout = Instance.new('UIGridLayout')
-		gridlayout.CellPadding = UDim2.fromOffset(6, 6)
-		gridlayout.CellSize = UDim2.fromOffset(156, 144)
-		gridlayout.SortOrder = Enum.SortOrder.LayoutOrder
-		gridlayout.Parent = children
+		local Children: ScrollingFrame = Instance.new("ScrollingFrame")
+		Children.BackgroundTransparency = 1
+		Children.BorderSizePixel = 0
+		Children.CanvasSize = UDim2.new()
+		Children.Name = "Children"
+		Children.Position = UDim2.fromOffset(216, 161)
+		Children.ScrollBarImageColor3 = VapeColors.Outline
+		Children.ScrollBarImageTransparency = 0.5
+		Children.ScrollBarThickness = 4
+		Children.Size = UDim2.fromOffset(482, 267)
+		Children.Parent = Window
+		local GridLayout: UIGridLayout = Instance.new("UIGridLayout")
+		GridLayout.CellPadding = UDim2.fromOffset(6, 6)
+		GridLayout.CellSize = UDim2.fromOffset(156, 144)
+		GridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		GridLayout.Parent = Children
 		
-		local empty = Instance.new('TextLabel')
-		empty.BackgroundTransparency = 1
-		empty.FontFace = uipallet.Font
-		empty.Name = 'Empty'
-		empty.Position = UDim2.fromOffset(216, 255)
-		empty.Size = UDim2.fromOffset(482, 20)
-		empty.Text = 'No profiles found'
-		empty.TextColor3 = vapecolors.Secondary
-		empty.TextSize = 12
-		empty.Visible = false
-		empty.Parent = window
+		local Empty: TextLabel = Instance.new("TextLabel")
+		Empty.BackgroundTransparency = 1
+		Empty.FontFace = UIPallet.Font
+		Empty.Name = "Empty"
+		Empty.Position = UDim2.fromOffset(216, 255)
+		Empty.Size = UDim2.fromOffset(482, 20)
+		Empty.Text = "No profiles found"
+		Empty.TextColor3 = VapeColors.Secondary
+		Empty.TextSize = 12
+		Empty.Visible = false
+		Empty.Parent = Window
 		
-		local function setCollapsed(state)
-			component.Collapsed = state
-			ownedlabel.Visible = not state
-			publish.Visible = not state
-			owned.Visible = not state
-			ownedempty.Visible = not state and #component.Owned == 0
-			collapseicon.Image = getvapeasset('kingvape/assets/new/'..(state and 'show' or 'hide')..'.png')
-			collapse.Position = UDim2.fromOffset(state and 12 or 176, 48)
-			resultslabel.Position = UDim2.fromOffset(state and 50 or 216, 44)
-			searchbkg.Position = UDim2.fromOffset(state and 50 or 216, 67)
-			searchbkg.Size = UDim2.fromOffset(state and 646 or 478, 40)
-			sortframe.Position = UDim2.fromOffset(state and 50 or 216, 119)
-			children.Position = UDim2.fromOffset(state and 50 or 216, 161)
-			children.Size = UDim2.fromOffset(state and 648 or 482, 267)
-			empty.Position = UDim2.fromOffset(state and 50 or 216, 255)
+		local function SetCollapsed(State: boolean)
+		    Component.Collapsed = State
+		    OwnedLabel.Visible = not State
+		    Publish.Visible = not State
+		    Owned.Visible = not State
+		    OwnedEmpty.Visible = not State and #Component.Owned == 0
+		    CollapseIcon.Image = GetVapeAsset(`kingvape/assets/new/{State and "show" or "hide"}.png`)
+		    Collapse.Position = UDim2.fromOffset(State and 12 or 176, 48)
+		    ResultsLabel.Position = UDim2.fromOffset(State and 50 or 216, 44)
+		    SearchBackground.Position = UDim2.fromOffset(State and 50 or 216, 67)
+		    SearchBackground.Size = UDim2.fromOffset(State and 646 or 478, 40)
+		    SortFrame.Position = UDim2.fromOffset(State and 50 or 216, 119)
+		    Children.Position = UDim2.fromOffset(State and 50 or 216, 161)
+		    Children.Size = UDim2.fromOffset(State and 648 or 482, 267)
+		    Empty.Position = UDim2.fromOffset(State and 50 or 216, 255)
 		end
 		
-		component.Window = window
-		table.insert(vape.Windows, window)
+		Component.Window = Window
+		table.insert(vape.Windows, Window)
 		
-		local overlay = Instance.new('TextButton')
-		overlay.AutoButtonColor = false
-		overlay.BackgroundColor3 = Color3.new()
-		overlay.BackgroundTransparency = 0.49
-		overlay.Name = 'Overlay'
-		overlay.Size = UDim2.fromScale(1, 1)
-		overlay.Text = ''
-		overlay.Visible = false
-		overlay.ZIndex = 4
-		overlay.Parent = window
-		addCorner(overlay)
+		local Overlay: TextButton = Instance.new("TextButton")
+		Overlay.AutoButtonColor = false
+		Overlay.BackgroundColor3 = Color3.new()
+		Overlay.BackgroundTransparency = 0.49
+		Overlay.Name = "Overlay"
+		Overlay.Size = UDim2.fromScale(1, 1)
+		Overlay.Text = ""
+		Overlay.Visible = false
+		Overlay.ZIndex = 4
+		Overlay.Parent = Window
+		AddCorner(Overlay)
 		
-		local function makePanel(name, height, width)
-			local panel = Instance.new('Frame')
-			panel.AnchorPoint = Vector2.new(0.5, 0.5)
-			panel.BackgroundColor3 = Color3.fromRGB(33, 32, 33)
-			panel.Name = name
-			panel.Position = UDim2.fromScale(0.5, 0.5)
-			panel.Size = UDim2.fromOffset(width or 440, height)
-			panel.Visible = false
-			panel.ZIndex = 5
-			panel.Parent = window
-			addShadow(panel)
-			addCorner(panel)
-			local stroke = Instance.new('UIStroke')
-			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			stroke.Color = Color3.fromRGB(42, 40, 42)
-			stroke.Parent = panel
-			return panel
+		local function MakePanel(Name: string, Height: number, Width: number?)
+		    local Panel: Frame = Instance.new("Frame")
+		    Panel.AnchorPoint = Vector2.new(0.5, 0.5)
+		    Panel.BackgroundColor3 = Color3.fromRGB(33, 32, 33)
+		    Panel.Name = Name
+		    Panel.Position = UDim2.fromScale(0.5, 0.5)
+		    Panel.Size = UDim2.fromOffset(Width or 440, Height)
+		    Panel.Visible = false
+		    Panel.ZIndex = 5
+		    Panel.Parent = Window
+		    AddShadow(Panel)
+		    AddCorner(Panel)
+		    local Stroke: UIStroke = Instance.new("UIStroke")
+		    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		    Stroke.Color = Color3.fromRGB(42, 40, 42)
+		    Stroke.Parent = Panel
+		    return Panel
 		end
 		
-		local function makeAction(parent, text, accent, y, width, x)
-			local button = Instance.new('TextButton')
-			button.AutoButtonColor = false
-			button.BackgroundColor3 = accent and accentColor() or vapecolors.Panel
-			button.BackgroundTransparency = accent and 0 or 1
-			button.FontFace = uipallet.FontBold
-			button.Position = UDim2.fromOffset(x, y)
-			button.Size = UDim2.fromOffset(width, 30)
-			button.Text = text
-			button.TextColor3 = accent and accentTextColor() or vapecolors.Secondary
-			button.TextSize = 13
-			button.ZIndex = 6
-			button.Parent = parent
-			addCorner(button, UDim.new(0, 4))
-			if accent then
-				table.insert(component.Accents, button)
-			end
+		local function MakeAction(Parent: Instance, Text: string, Accent: boolean, Y: number, Width: number, X: number)
+		    local Button: TextButton = Instance.new("TextButton")
+		    Button.AutoButtonColor = false
+		    Button.BackgroundColor3 = Accent and AccentColor() or VapeColors.Panel
+		    Button.BackgroundTransparency = Accent and 0 or 1
+		    Button.FontFace = UIPallet.FontBold
+		    Button.Position = UDim2.fromOffset(X, Y)
+		    Button.Size = UDim2.fromOffset(Width, 30)
+		    Button.Text = Text
+		    Button.TextColor3 = Accent and AccentTextColor() or VapeColors.Secondary
+		    Button.TextSize = 13
+		    Button.ZIndex = 6
+		    Button.Parent = Parent
+		    AddCorner(Button, UDim.new(0, 4))
+		    if Accent then
+		        table.insert(Component.Accents, Button)
+		    end
 		
-			return button
+		    return Button
 		end
 		
-		local details = makePanel('Details', 338, 672)
-		details.BackgroundColor3 = uipallet.Main
-		local sidebar = Instance.new('Frame')
-		sidebar.BackgroundColor3 = uipallet.Main -- skibidi yes
-		sidebar.BorderSizePixel = 0
-		sidebar.Name = 'Sidebar'
-		sidebar.Size = UDim2.fromOffset(224, 338)
-		sidebar.ZIndex = 6
-		sidebar.Parent = details
-		addCorner(sidebar)
+		local Details: Frame = MakePanel("Details", 338, 672)
+		Details.BackgroundColor3 = UIPallet.Main
+		local Sidebar: Frame = Instance.new("Frame")
+		Sidebar.BackgroundColor3 = UIPallet.Main
+		Sidebar.BorderSizePixel = 0
+		Sidebar.Name = "Sidebar"
+		Sidebar.Size = UDim2.fromOffset(224, 338)
+		Sidebar.ZIndex = 6
+		Sidebar.Parent = Details
+		AddCorner(Sidebar)
 		
-		local detailname = Instance.new('TextLabel')
-		detailname.BackgroundTransparency = 1
-		detailname.FontFace = uipallet.FontSemiBold
-		detailname.Position = UDim2.fromOffset(16, 16)
-		detailname.Size = UDim2.fromOffset(192, 24)
-		detailname.Text = ''
-		detailname.TextColor3 = Color3.new(1, 1, 1)
-		detailname.TextSize = 18
-		detailname.TextTruncate = Enum.TextTruncate.AtEnd
-		detailname.TextXAlignment = Enum.TextXAlignment.Left
-		detailname.ZIndex = 7
-		detailname.Parent = sidebar
+		local DetailName: TextLabel = Instance.new("TextLabel")
+		DetailName.BackgroundTransparency = 1
+		DetailName.FontFace = UIPallet.FontSemiBold
+		DetailName.Position = UDim2.fromOffset(16, 16)
+		DetailName.Size = UDim2.fromOffset(192, 24)
+		DetailName.Text = ""
+		DetailName.TextColor3 = Color3.new(1, 1, 1)
+		DetailName.TextSize = 18
+		DetailName.TextTruncate = Enum.TextTruncate.AtEnd
+		DetailName.TextXAlignment = Enum.TextXAlignment.Left
+		DetailName.ZIndex = 7
+		DetailName.Parent = Sidebar
 		
-		local avatar = Instance.new('ImageLabel')
-		avatar.BackgroundColor3 = color.Light(uipallet.Main, 0.06)
-		avatar.Image = avatarPlaceholder
-		avatar.Position = UDim2.fromOffset(16, 48)
-		avatar.Size = UDim2.fromOffset(20, 20)
-		avatar.ZIndex = 7
-		avatar.Parent = sidebar
-		addCorner(avatar, UDim.new(1, 0))
+		local Avatar: ImageLabel = Instance.new("ImageLabel")
+		Avatar.BackgroundColor3 = Color.Light(UIPallet.Main, 0.06)
+		Avatar.Image = AvatarPlaceholder
+		Avatar.Position = UDim2.fromOffset(16, 48)
+		Avatar.Size = UDim2.fromOffset(20, 20)
+		Avatar.ZIndex = 7
+		Avatar.Parent = Sidebar
+		AddCorner(Avatar, UDim.new(1, 0))
 		
-		local detailauthor = Instance.new('TextLabel')
-		detailauthor.BackgroundTransparency = 1
-		detailauthor.FontFace = uipallet.FontBold
-		detailauthor.Position = UDim2.fromOffset(44, 48)
-		detailauthor.Size = UDim2.fromOffset(160, 20)
-		detailauthor.Text = ''
-		detailauthor.TextColor3 = Color3.fromRGB(171, 171, 171)
-		detailauthor.TextSize = 12
-		detailauthor.TextTruncate = Enum.TextTruncate.AtEnd
-		detailauthor.TextXAlignment = Enum.TextXAlignment.Left
-		detailauthor.ZIndex = 7
-		detailauthor.Parent = sidebar
+		local DetailAuthor: TextLabel = Instance.new("TextLabel")
+		DetailAuthor.BackgroundTransparency = 1
+		DetailAuthor.FontFace = UIPallet.FontBold
+		DetailAuthor.Position = UDim2.fromOffset(44, 48)
+		DetailAuthor.Size = UDim2.fromOffset(160, 20)
+		DetailAuthor.Text = ""
+		DetailAuthor.TextColor3 = Color3.fromRGB(171, 171, 171)
+		DetailAuthor.TextSize = 12
+		DetailAuthor.TextTruncate = Enum.TextTruncate.AtEnd
+		DetailAuthor.TextXAlignment = Enum.TextXAlignment.Left
+		DetailAuthor.ZIndex = 7
+		DetailAuthor.Parent = Sidebar
 		
-		local function clearList(frame)
-			for _, v in frame:GetChildren() do
-				if not v:IsA('UIListLayout') and not v:IsA('UIPadding') then
-					v:Destroy()
-				end
-			end
+		local function ClearList(Container: Instance)
+		    for _, v: Instance in Container:GetChildren() do
+		        if not v:IsA("UIListLayout") and not v:IsA("UIPadding") then
+		            v:Destroy()
+		        end
+		    end
 		end
 		
-		local function addRow(parent, text, y, selected, onClick, order)
-			local row = onClick and Instance.new('TextButton') or Instance.new('Frame')
-			row.LayoutOrder = order or 0
-			if onClick then
-				row.AutoButtonColor = false
-				row.Text = ''
-				row.MouseButton1Click:Connect(function()
-					onClick(row)
-				end)
-			end
-			row.BackgroundColor3 = color.Light(uipallet.Main, 0.05)
-			row.BackgroundTransparency = selected and 0 or 1
-			row.BorderSizePixel = 0
-			row.Position = UDim2.fromOffset(0, y)
-			row.Size = UDim2.fromOffset(224, 36)
-			row.ZIndex = 7
-			row.Parent = parent
-			local rowtext = Instance.new('TextLabel')
-			rowtext.BackgroundTransparency = 1
-			rowtext.FontFace = uipallet.Font
-			rowtext.Position = UDim2.fromOffset(16, 0)
-			rowtext.Size = UDim2.fromOffset(174, 36)
-			rowtext.Text = text
-			rowtext.TextColor3 = selected and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
-			rowtext.TextSize = 13
-			rowtext.TextTruncate = Enum.TextTruncate.AtEnd
-			rowtext.TextXAlignment = Enum.TextXAlignment.Left
-			rowtext.ZIndex = 8
-			rowtext.Parent = row
-			local chevron = Instance.new('TextLabel')
-			chevron.BackgroundTransparency = 1
-			chevron.FontFace = uipallet.Font
-			chevron.Position = UDim2.fromOffset(196, 0)
-			chevron.Size = UDim2.fromOffset(20, 36)
-			chevron.Text = '>'
-			chevron.TextColor3 = Color3.fromRGB(120, 120, 120)
-			chevron.TextSize = 13
-			chevron.ZIndex = 8
-			chevron.Parent = row
-			return row
+		local function AddRow(Parent: Instance, Text: string, Y: number, IsSelected: boolean?, OnClick, Order: number?)
+		    local Row = OnClick and Instance.new("TextButton") or Instance.new("Frame")
+		    Row.LayoutOrder = Order or 0
+		    if OnClick then
+		        Row.AutoButtonColor = false
+		        Row.Text = ""
+		        Row.MouseButton1Click:Connect(function()
+		            OnClick(Row)
+		        end)
+		    end
+		    Row.BackgroundColor3 = Color.Light(UIPallet.Main, 0.05)
+		    Row.BackgroundTransparency = IsSelected and 0 or 1
+		    Row.BorderSizePixel = 0
+		    Row.Position = UDim2.fromOffset(0, Y)
+		    Row.Size = UDim2.fromOffset(224, 36)
+		    Row.ZIndex = 7
+		    Row.Parent = Parent
+		    local RowText: TextLabel = Instance.new("TextLabel")
+		    RowText.BackgroundTransparency = 1
+		    RowText.FontFace = UIPallet.Font
+		    RowText.Position = UDim2.fromOffset(16, 0)
+		    RowText.Size = UDim2.fromOffset(174, 36)
+		    RowText.Text = Text
+		    RowText.TextColor3 = IsSelected and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
+		    RowText.TextSize = 13
+		    RowText.TextTruncate = Enum.TextTruncate.AtEnd
+		    RowText.TextXAlignment = Enum.TextXAlignment.Left
+		    RowText.ZIndex = 8
+		    RowText.Parent = Row
+		    local Chevron: TextLabel = Instance.new("TextLabel")
+		    Chevron.BackgroundTransparency = 1
+		    Chevron.FontFace = UIPallet.Font
+		    Chevron.Position = UDim2.fromOffset(196, 0)
+		    Chevron.Size = UDim2.fromOffset(20, 36)
+		    Chevron.Text = ">"
+		    Chevron.TextColor3 = Color3.fromRGB(120, 120, 120)
+		    Chevron.TextSize = 13
+		    Chevron.ZIndex = 8
+		    Chevron.Parent = Row
+		    return Row
 		end
 		
-		local function fillModules(list, count, source, onClick)
-			clearList(list)
+		local function FillModules(List: ScrollingFrame, Count: TextLabel, Source: string?, OnClick)
+		    ClearList(List)
 		
-			local active, rows = {}, {}
-			local decoded = source and select(2, pcall(httpService.JSONDecode, httpService, source))
-			for i, v in (type(decoded) == 'table' and decoded.Modules or {}) do
-				if type(v) == 'table' and v.Enabled then
-					table.insert(active, tostring(i))
-				end
-			end
-			table.sort(active)
+		    local Active, Rows = {}, {}
+		    local Decoded = Source and select(2, pcall(HttpService.JSONDecode, HttpService, Source))
+		    for ModuleName: any, v: any in (type(Decoded) == "table" and Decoded.Modules or {}) do
+		        if type(v) == "table" and v.Enabled then
+		            table.insert(Active, tostring(ModuleName))
+		        end
+		    end
+		    table.sort(Active)
 		
-			count.Text = `<font color="rgb(255,255,255)">{#active}</font> AFFECTED MODULES`
-			for i, v in active do
-				rows[v] = addRow(list, v, 0, false, onClick and function()
-					onClick(v)
-				end or nil, i)
-			end
-			list.CanvasSize = UDim2.fromOffset(0, #active * 36)
+		    Count.Text = `<font color="rgb(255,255,255)">{#Active}</font> AFFECTED MODULES`
+		    for i: number, ModuleName: string in Active do
+		        Rows[ModuleName] = AddRow(List, ModuleName, 0, false, OnClick and function()
+		            OnClick(ModuleName)
+		        end or nil, i)
+		    end
+		    List.CanvasSize = UDim2.fromOffset(0, #Active * 36)
 		
-			return decoded, rows
+		    return Decoded, Rows
 		end
 		
-		local detailsrow
+		local DetailsRow
 		
-		local modulecount = Instance.new('TextLabel')
-		modulecount.BackgroundTransparency = 1
-		modulecount.FontFace = uipallet.FontBold
-		modulecount.Position = UDim2.fromOffset(16, 126)
-		modulecount.RichText = true
-		modulecount.Size = UDim2.fromOffset(192, 16)
-		modulecount.Text = ''
-		modulecount.TextColor3 = Color3.fromRGB(171, 171, 171)
-		modulecount.TextSize = 11
-		modulecount.TextXAlignment = Enum.TextXAlignment.Left
-		modulecount.ZIndex = 7
-		modulecount.Parent = sidebar
+		local ModuleCount: TextLabel = Instance.new("TextLabel")
+		ModuleCount.BackgroundTransparency = 1
+		ModuleCount.FontFace = UIPallet.FontBold
+		ModuleCount.Position = UDim2.fromOffset(16, 126)
+		ModuleCount.RichText = true
+		ModuleCount.Size = UDim2.fromOffset(192, 16)
+		ModuleCount.Text = ""
+		ModuleCount.TextColor3 = Color3.fromRGB(171, 171, 171)
+		ModuleCount.TextSize = 11
+		ModuleCount.TextXAlignment = Enum.TextXAlignment.Left
+		ModuleCount.ZIndex = 7
+		ModuleCount.Parent = Sidebar
 		
-		local modulelist = Instance.new('ScrollingFrame')
-		modulelist.BackgroundTransparency = 1
-		modulelist.BorderSizePixel = 0
-		modulelist.CanvasSize = UDim2.new()
-		modulelist.Name = 'Modules'
-		modulelist.Position = UDim2.fromOffset(0, 148)
-		modulelist.ScrollBarThickness = 0
-		modulelist.Size = UDim2.fromOffset(224, 182)
-		modulelist.ZIndex = 7
-		modulelist.Parent = sidebar
-		local modulelayout = Instance.new('UIListLayout')
-		modulelayout.Padding = UDim.new(0, 0)
-		modulelayout.SortOrder = Enum.SortOrder.LayoutOrder
-		modulelayout.Parent = modulelist
+		local ModuleList: ScrollingFrame = Instance.new("ScrollingFrame")
+		ModuleList.BackgroundTransparency = 1
+		ModuleList.BorderSizePixel = 0
+		ModuleList.CanvasSize = UDim2.new()
+		ModuleList.Name = "Modules"
+		ModuleList.Position = UDim2.fromOffset(0, 148)
+		ModuleList.ScrollBarThickness = 0
+		ModuleList.Size = UDim2.fromOffset(224, 182)
+		ModuleList.ZIndex = 7
+		ModuleList.Parent = Sidebar
+		local ModuleLayout: UIListLayout = Instance.new("UIListLayout")
+		ModuleLayout.Padding = UDim.new(0, 0)
+		ModuleLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		ModuleLayout.Parent = ModuleList
 		
-		local detailtitle = Instance.new('TextLabel')
-		detailtitle.BackgroundTransparency = 1
-		detailtitle.FontFace = uipallet.FontBold
-		detailtitle.Position = UDim2.fromOffset(244, 22)
-		detailtitle.Size = UDim2.fromOffset(200, 20)
-		detailtitle.Text = 'Details'
-		detailtitle.TextColor3 = vapecolors.Primary
-		detailtitle.TextSize = 14
-		detailtitle.TextXAlignment = Enum.TextXAlignment.Left
-		detailtitle.ZIndex = 6
-		detailtitle.Parent = details
+		local DetailTitle: TextLabel = Instance.new("TextLabel")
+		DetailTitle.BackgroundTransparency = 1
+		DetailTitle.FontFace = UIPallet.FontBold
+		DetailTitle.Position = UDim2.fromOffset(244, 22)
+		DetailTitle.Size = UDim2.fromOffset(200, 20)
+		DetailTitle.Text = "Details"
+		DetailTitle.TextColor3 = VapeColors.Primary
+		DetailTitle.TextSize = 14
+		DetailTitle.TextXAlignment = Enum.TextXAlignment.Left
+		DetailTitle.ZIndex = 6
+		DetailTitle.Parent = Details
 		
-		local created = Instance.new('TextLabel')
-		created.BackgroundTransparency = 1
-		created.FontFace = uipallet.Font
-		created.Position = UDim2.fromOffset(244, 62)
-		created.Size = UDim2.fromOffset(412, 18)
-		created.Text = ''
-		created.TextColor3 = vapecolors.Muted
-		created.TextSize = 13
-		created.TextXAlignment = Enum.TextXAlignment.Left
-		created.ZIndex = 6
-		created.Parent = details
+		local Created: TextLabel = Instance.new("TextLabel")
+		Created.BackgroundTransparency = 1
+		Created.FontFace = UIPallet.Font
+		Created.Position = UDim2.fromOffset(244, 62)
+		Created.Size = UDim2.fromOffset(412, 18)
+		Created.Text = ""
+		Created.TextColor3 = VapeColors.Muted
+		Created.TextSize = 13
+		Created.TextXAlignment = Enum.TextXAlignment.Left
+		Created.ZIndex = 6
+		Created.Parent = Details
 		
-		local function addStat(x, width, label)
-			local box = Instance.new('Frame')
-			box.BackgroundColor3 = Color3.new(1, 1, 1)
-			box.BackgroundTransparency = 0.98
-			box.BorderSizePixel = 0
-			box.Position = UDim2.fromOffset(x, 96)
-			box.Size = UDim2.fromOffset(width, 58)
-			box.ZIndex = 6
-			box.Parent = details
-			addCorner(box, UDim.new(0, 3))
-			local value = Instance.new('TextLabel')
-			value.BackgroundTransparency = 1
-			value.FontFace = uipallet.FontBold
-			value.Position = UDim2.fromOffset(0, 11)
-			value.Size = UDim2.new(1, 0, 0, 20)
-			value.Text = ''
-			value.TextColor3 = vapecolors.Primary
-			value.TextSize = 14
-			value.ZIndex = 7
-			value.Parent = box
-			local caption = Instance.new('TextLabel')
-			caption.BackgroundTransparency = 1
-			caption.FontFace = uipallet.FontBold
-			caption.Position = UDim2.fromOffset(0, 33)
-			caption.Size = UDim2.new(1, 0, 0, 14)
-			caption.Text = label
-			caption.TextColor3 = Color3.fromRGB(115, 113, 115)
-			caption.TextSize = 10
-			caption.ZIndex = 7
-			caption.Parent = box
+		local function AddStat(X: number, Width: number, Label: string)
+		    local Box: Frame = Instance.new("Frame")
+		    Box.BackgroundColor3 = Color3.new(1, 1, 1)
+		    Box.BackgroundTransparency = 0.98
+		    Box.BorderSizePixel = 0
+		    Box.Position = UDim2.fromOffset(X, 96)
+		    Box.Size = UDim2.fromOffset(Width, 58)
+		    Box.ZIndex = 6
+		    Box.Parent = Details
+		    AddCorner(Box, UDim.new(0, 3))
+		    local Value: TextLabel = Instance.new("TextLabel")
+		    Value.BackgroundTransparency = 1
+		    Value.FontFace = UIPallet.FontBold
+		    Value.Position = UDim2.fromOffset(0, 11)
+		    Value.Size = UDim2.new(1, 0, 0, 20)
+		    Value.Text = ""
+		    Value.TextColor3 = VapeColors.Primary
+		    Value.TextSize = 14
+		    Value.ZIndex = 7
+		    Value.Parent = Box
+		    local Caption: TextLabel = Instance.new("TextLabel")
+		    Caption.BackgroundTransparency = 1
+		    Caption.FontFace = UIPallet.FontBold
+		    Caption.Position = UDim2.fromOffset(0, 33)
+		    Caption.Size = UDim2.new(1, 0, 0, 14)
+		    Caption.Text = Label
+		    Caption.TextColor3 = Color3.fromRGB(115, 113, 115)
+		    Caption.TextSize = 10
+		    Caption.ZIndex = 7
+		    Caption.Parent = Box
 		
-			return box, value
+		    return Box, Value
 		end
 		
-		local likesbox, likesvalue = addStat(245, 131, 'Positive reviews')
-		local updatedbox, updatedvalue = addStat(384, 131, 'Last updated')
-		local downloadsbox, downloadsvalue = addStat(523, 131, 'Downloads')
+		local LikesBox, LikesValue = AddStat(245, 131, "Positive reviews")
+		local UpdatedBox, UpdatedValue = AddStat(384, 131, "Last updated")
+		local DownloadsBox, DownloadsValue = AddStat(523, 131, "Downloads")
 		
-		local detaildesc = Instance.new('TextLabel')
-		detaildesc.BackgroundTransparency = 1
-		detaildesc.FontFace = uipallet.Font
-		detaildesc.Position = UDim2.fromOffset(244, 174)
-		detaildesc.Size = UDim2.fromOffset(412, 80)
-		detaildesc.Text = ''
-		detaildesc.TextColor3 = vapecolors.Secondary
-		detaildesc.TextSize = 13
-		detaildesc.TextWrapped = true
-		detaildesc.TextXAlignment = Enum.TextXAlignment.Left
-		detaildesc.TextYAlignment = Enum.TextYAlignment.Top
-		detaildesc.ZIndex = 6
-		detaildesc.Parent = details
+		local DetailDescription: TextLabel = Instance.new("TextLabel")
+		DetailDescription.BackgroundTransparency = 1
+		DetailDescription.FontFace = UIPallet.Font
+		DetailDescription.Position = UDim2.fromOffset(244, 174)
+		DetailDescription.Size = UDim2.fromOffset(412, 80)
+		DetailDescription.Text = ""
+		DetailDescription.TextColor3 = VapeColors.Secondary
+		DetailDescription.TextSize = 13
+		DetailDescription.TextWrapped = true
+		DetailDescription.TextXAlignment = Enum.TextXAlignment.Left
+		DetailDescription.TextYAlignment = Enum.TextYAlignment.Top
+		DetailDescription.ZIndex = 6
+		DetailDescription.Parent = Details
 		
-		local moduletitle = Instance.new('TextLabel')
-		moduletitle.BackgroundTransparency = 1
-		moduletitle.FontFace = uipallet.FontSemiBold
-		moduletitle.Position = UDim2.fromOffset(244, 20)
-		moduletitle.Size = UDim2.fromOffset(412, 26)
-		moduletitle.Text = ''
-		moduletitle.TextColor3 = Color3.new(1, 1, 1)
-		moduletitle.TextSize = 18
-		moduletitle.TextXAlignment = Enum.TextXAlignment.Left
-		moduletitle.Visible = false
-		moduletitle.ZIndex = 6
-		moduletitle.Parent = details
+		local ModuleTitle: TextLabel = Instance.new("TextLabel")
+		ModuleTitle.BackgroundTransparency = 1
+		ModuleTitle.FontFace = UIPallet.FontSemiBold
+		ModuleTitle.Position = UDim2.fromOffset(244, 20)
+		ModuleTitle.Size = UDim2.fromOffset(412, 26)
+		ModuleTitle.Text = ""
+		ModuleTitle.TextColor3 = Color3.new(1, 1, 1)
+		ModuleTitle.TextSize = 18
+		ModuleTitle.TextXAlignment = Enum.TextXAlignment.Left
+		ModuleTitle.Visible = false
+		ModuleTitle.ZIndex = 6
+		ModuleTitle.Parent = Details
 		
-		local optionlist = Instance.new('ScrollingFrame')
-		optionlist.BackgroundTransparency = 1
-		optionlist.BorderSizePixel = 0
-		optionlist.CanvasSize = UDim2.new()
-		optionlist.Name = 'Options'
-		optionlist.Position = UDim2.fromOffset(244, 52)
-		optionlist.ScrollBarThickness = 0
-		optionlist.Size = UDim2.fromOffset(412, 212)
-		optionlist.Visible = false
-		optionlist.ZIndex = 6
-		optionlist.Parent = details
-		local optionlayout = Instance.new('UIListLayout')
-		optionlayout.Padding = UDim.new(0, 0)
-		optionlayout.SortOrder = Enum.SortOrder.LayoutOrder
-		optionlayout.Parent = optionlist
+		local OptionList: ScrollingFrame = Instance.new("ScrollingFrame")
+		OptionList.BackgroundTransparency = 1
+		OptionList.BorderSizePixel = 0
+		OptionList.CanvasSize = UDim2.new()
+		OptionList.Name = "Options"
+		OptionList.Position = UDim2.fromOffset(244, 52)
+		OptionList.ScrollBarThickness = 0
+		OptionList.Size = UDim2.fromOffset(412, 212)
+		OptionList.Visible = false
+		OptionList.ZIndex = 6
+		OptionList.Parent = Details
+		local OptionLayout: UIListLayout = Instance.new("UIListLayout")
+		OptionLayout.Padding = UDim.new(0, 0)
+		OptionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		OptionLayout.Parent = OptionList
 		
-		local detailview = {detailtitle, created, likesbox, updatedbox, downloadsbox, detaildesc}
-		local selectModule
-		local uploadsource
+		local DetailView: {GuiObject} = {DetailTitle, Created, LikesBox, UpdatedBox, DownloadsBox, DetailDescription}
+		local SelectModule
+		local UploadSource: string?
 		
-		local function showDetails(showModule)
-			for _, v in detailview do
-				v.Visible = not showModule
-			end
-			moduletitle.Visible = showModule
-			optionlist.Visible = showModule
+		local function ShowDetails(ShowModule: boolean)
+		    for _, v: GuiObject in DetailView do
+		        v.Visible = not ShowModule
+		    end
+		    ModuleTitle.Visible = ShowModule
+		    OptionList.Visible = ShowModule
 		end
 		
-		local function formatOption(value)
-			if type(value) ~= 'table' then return tostring(value) end
-			if value.List then return `{#value.List} items` end
-			if value.Value ~= nil then
-				if type(value.Value) == 'number' then
-					return tostring(math.floor(value.Value * 10 + 0.5) / 10)
-				end
+		local function FormatOption(Value)
+		    if type(Value) ~= "table" then return tostring(Value) end
+		    if Value.List then return `{#Value.List} items` end
+		    if Value.Value ~= nil then
+		        if type(Value.Value) == "number" then
+		            return tostring(math.floor(Value.Value * 10 + 0.5) / 10)
+		        end
 		
-				return tostring(value.Value)
-			end
-			if value.Min and value.Max then
-				return `{math.floor(value.Min * 10 + 0.5) / 10} - {math.floor(value.Max * 10 + 0.5) / 10}`
-			end
-			if value.Enabled ~= nil then return value.Enabled and 'ON' or 'OFF' end
+		        return tostring(Value.Value)
+		    end
+		    if Value.Min and Value.Max then
+		        return `{math.floor(Value.Min * 10 + 0.5) / 10} - {math.floor(Value.Max * 10 + 0.5) / 10}`
+		    end
+		    if Value.Enabled ~= nil then return Value.Enabled and "ON" or "OFF" end
 		
-			local on = 0
-			for _, v in value do
-				if v == true then on += 1 end
-			end
+		    local EnabledCount: number = 0
+		    for _, v: any in Value do
+		        if v == true then EnabledCount += 1 end
+		    end
 		
-			return on > 0 and `{on} on` or '-'
+		    return EnabledCount > 0 and `{EnabledCount} on` or "-"
 		end
 		
-		local function addOptionRow(parent, name, value, index)
-			local row = Instance.new('Frame')
-			row.BackgroundTransparency = 1
-			row.LayoutOrder = index
-			row.Size = UDim2.fromOffset(412, 30)
-			row.ZIndex = 7
-			row.Parent = parent
-			local label = Instance.new('TextLabel')
-			label.BackgroundTransparency = 1
-			label.FontFace = uipallet.Font
-			label.Size = UDim2.fromOffset(282, 30)
-			label.Text = name
-			label.TextColor3 = Color3.fromRGB(171, 171, 171)
-			label.TextSize = 13
-			label.TextTruncate = Enum.TextTruncate.AtEnd
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.ZIndex = 8
-			label.Parent = row
-			local text = formatOption(value)
-			local pill = Instance.new('Frame')
-			pill.BackgroundColor3 = color.Light(uipallet.Main, 0.06)
-			pill.BorderSizePixel = 0
-			pill.Position = UDim2.new(1, -math.max(#text * 7 + 16, 34), 0, 5)
-			pill.Size = UDim2.fromOffset(math.max(#text * 7 + 16, 34), 20)
-			pill.ZIndex = 8
-			pill.Parent = row
-			addCorner(pill, UDim.new(0, 4))
-			local pilltext = Instance.new('TextLabel')
-			pilltext.BackgroundTransparency = 1
-			pilltext.FontFace = uipallet.Font
-			pilltext.Size = UDim2.fromScale(1, 1)
-			pilltext.Text = text
-			pilltext.TextColor3 = Color3.fromRGB(200, 200, 200)
-			pilltext.TextSize = 11
-			pilltext.ZIndex = 9
-			pilltext.Parent = pill
+		local function AddOptionRow(Parent: Instance, Name: string, Value, Index: number)
+		    local Row: Frame = Instance.new("Frame")
+		    Row.BackgroundTransparency = 1
+		    Row.LayoutOrder = Index
+		    Row.Size = UDim2.fromOffset(412, 30)
+		    Row.ZIndex = 7
+		    Row.Parent = Parent
+		    local Label: TextLabel = Instance.new("TextLabel")
+		    Label.BackgroundTransparency = 1
+		    Label.FontFace = UIPallet.Font
+		    Label.Size = UDim2.fromOffset(282, 30)
+		    Label.Text = Name
+		    Label.TextColor3 = Color3.fromRGB(171, 171, 171)
+		    Label.TextSize = 13
+		    Label.TextTruncate = Enum.TextTruncate.AtEnd
+		    Label.TextXAlignment = Enum.TextXAlignment.Left
+		    Label.ZIndex = 8
+		    Label.Parent = Row
+		    local Text: string = FormatOption(Value)
+		    local Pill: Frame = Instance.new("Frame")
+		    Pill.BackgroundColor3 = Color.Light(UIPallet.Main, 0.06)
+		    Pill.BorderSizePixel = 0
+		    Pill.Position = UDim2.new(1, -math.max(#Text * 7 + 16, 34), 0, 5)
+		    Pill.Size = UDim2.fromOffset(math.max(#Text * 7 + 16, 34), 20)
+		    Pill.ZIndex = 8
+		    Pill.Parent = Row
+		    AddCorner(Pill, UDim.new(0, 4))
+		    local PillText: TextLabel = Instance.new("TextLabel")
+		    PillText.BackgroundTransparency = 1
+		    PillText.FontFace = UIPallet.Font
+		    PillText.Size = UDim2.fromScale(1, 1)
+		    PillText.Text = Text
+		    PillText.TextColor3 = Color3.fromRGB(200, 200, 200)
+		    PillText.TextSize = 11
+		    PillText.ZIndex = 9
+		    PillText.Parent = Pill
 		end
 		
-		detailsrow = addRow(sidebar, 'Details', 80, true, function()
-			if selectModule then
-				selectModule(nil)
-			end
+		DetailsRow = AddRow(Sidebar, "Details", 80, true, function()
+		    if SelectModule then
+		        SelectModule(nil)
+		    end
 		end)
 		
-		local download = makeAction(details, 'Download', true, 289, 288, 374)
+		local Download: TextButton = MakeAction(Details, "Download", true, 289, 288, 374)
 		
-		local function addThumb(parent, flipped)
-			local thumb = Instance.new('ImageLabel')
-			thumb.AnchorPoint = Vector2.new(0.5, 0.5)
-			thumb.BackgroundTransparency = 1
-			thumb.Image = getvapeasset('kingvape/assets/new/'..(flipped and 'dislike' or 'like')..'.png')
-			thumb.ImageColor3 = vapecolors.Icon
-			thumb.Name = 'Thumb'
-			thumb.Position = UDim2.fromScale(0.5, 0.5)
-			thumb.Size = UDim2.fromOffset(13, 11)
-			thumb.ZIndex = 8
-			thumb.Parent = parent
+		local function AddThumb(Parent: Instance, Flipped: boolean)
+		    local Thumb: ImageLabel = Instance.new("ImageLabel")
+		    Thumb.AnchorPoint = Vector2.new(0.5, 0.5)
+		    Thumb.BackgroundTransparency = 1
+		    Thumb.Image = GetVapeAsset(`kingvape/assets/new/{Flipped and "dislike" or "like"}.png`)
+		    Thumb.ImageColor3 = VapeColors.Icon
+		    Thumb.Name = "Thumb"
+		    Thumb.Position = UDim2.fromScale(0.5, 0.5)
+		    Thumb.Size = UDim2.fromOffset(13, 11)
+		    Thumb.ZIndex = 8
+		    Thumb.Parent = Parent
 		
-			return thumb
+		    return Thumb
 		end
 		
-		local voteframe = Instance.new('Frame')
-		voteframe.BackgroundTransparency = 1
-		voteframe.BorderSizePixel = 0
-		voteframe.ClipsDescendants = true
-		voteframe.Name = 'Votes'
-		voteframe.Position = UDim2.fromOffset(254, 289)
-		voteframe.Size = UDim2.fromOffset(90, 30)
-		voteframe.ZIndex = 6
-		voteframe.Parent = details
-		addCorner(voteframe, UDim.new(0, 3))
-		local votestroke = Instance.new('UIStroke')
-		votestroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		votestroke.Color = vapecolors.Outline
-		votestroke.Transparency = 0.5
-		votestroke.Parent = voteframe
+		local VoteFrame: Frame = Instance.new("Frame")
+		VoteFrame.BackgroundTransparency = 1
+		VoteFrame.BorderSizePixel = 0
+		VoteFrame.ClipsDescendants = true
+		VoteFrame.Name = "Votes"
+		VoteFrame.Position = UDim2.fromOffset(254, 289)
+		VoteFrame.Size = UDim2.fromOffset(90, 30)
+		VoteFrame.ZIndex = 6
+		VoteFrame.Parent = Details
+		AddCorner(VoteFrame, UDim.new(0, 3))
+		local VoteStroke: UIStroke = Instance.new("UIStroke")
+		VoteStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		VoteStroke.Color = VapeColors.Outline
+		VoteStroke.Transparency = 0.5
+		VoteStroke.Parent = VoteFrame
 		
-		local votedivider = Instance.new('Frame')
-		votedivider.BackgroundColor3 = vapecolors.Outline
-		votedivider.BackgroundTransparency = 0.5
-		votedivider.BorderSizePixel = 0
-		votedivider.Name = 'Divider'
-		votedivider.Position = UDim2.fromOffset(45, 0)
-		votedivider.Size = UDim2.fromOffset(1, 30)
-		votedivider.ZIndex = 8
-		votedivider.Parent = voteframe
+		local VoteDivider: Frame = Instance.new("Frame")
+		VoteDivider.BackgroundColor3 = VapeColors.Outline
+		VoteDivider.BackgroundTransparency = 0.5
+		VoteDivider.BorderSizePixel = 0
+		VoteDivider.Name = "Divider"
+		VoteDivider.Position = UDim2.fromOffset(45, 0)
+		VoteDivider.Size = UDim2.fromOffset(1, 30)
+		VoteDivider.ZIndex = 8
+		VoteDivider.Parent = VoteFrame
 		
-		local function addVote(name, x, width, flipped)
-			local button = Instance.new('TextButton')
-			button.AutoButtonColor = false
-			button.BackgroundColor3 = color.Light(uipallet.Main, 0.0875)
-			button.BackgroundTransparency = 1
-			button.Name = name
-			button.Position = UDim2.fromOffset(x, 0)
-			button.Size = UDim2.fromOffset(width, 30)
-			button.Text = ''
-			button.ZIndex = 7
-			button.Parent = voteframe
+		local function AddVote(Name: string, X: number, Width: number, Flipped: boolean)
+		    local Button: TextButton = Instance.new("TextButton")
+		    Button.AutoButtonColor = false
+		    Button.BackgroundColor3 = Color.Light(UIPallet.Main, 0.0875)
+		    Button.BackgroundTransparency = 1
+		    Button.Name = Name
+		    Button.Position = UDim2.fromOffset(X, 0)
+		    Button.Size = UDim2.fromOffset(Width, 30)
+		    Button.Text = ""
+		    Button.ZIndex = 7
+		    Button.Parent = VoteFrame
 		
-			button.MouseEnter:Connect(function()
-				tween:Tween(button, uipallet.Tween, {
-					BackgroundTransparency = 0
-				})
-			end)
-			button.MouseLeave:Connect(function()
-				tween:Tween(button, uipallet.Tween, {
-					BackgroundTransparency = 1
-				})
-			end)
+		    Button.MouseEnter:Connect(function()
+		        Tween:Tween(Button, UIPallet.Tween, {
+		            BackgroundTransparency = 0
+		        })
+		    end)
+		    Button.MouseLeave:Connect(function()
+		        Tween:Tween(Button, UIPallet.Tween, {
+		            BackgroundTransparency = 1
+		        })
+		    end)
 		
-			return button, addThumb(button, flipped)
+		    return Button, AddThumb(Button, Flipped)
 		end
 		
-		local like, likethumb = addVote('Like', 0, 45, false)
-		local dislike, dislikethumb = addVote('Dislike', 46, 44, true)
+		local Like, LikeThumb = AddVote("Like", 0, 45, false)
+		local Dislike, DislikeThumb = AddVote("Dislike", 46, 44, true)
 		
-		local detailclose = addCloseButton(details, false, UDim2.new(1, -35, 0, 12))
-		detailclose.ZIndex = 6
+		local DetailClose: ImageButton = AddCloseButton(Details, false, UDim2.new(1, -35, 0, 12))
+		DetailClose.ZIndex = 6
 		
-		local uploader = makePanel('Uploader', 338, 672)
-		uploader.BackgroundColor3 = uipallet.Main
-		local uploadside = Instance.new('Frame')
-		uploadside.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-		uploadside.BorderSizePixel = 0
-		uploadside.Name = 'Sidebar'
-		uploadside.Size = UDim2.fromOffset(224, 338)
-		uploadside.ZIndex = 6
-		uploadside.Parent = uploader
-		addCorner(uploadside)
+		local Uploader: Frame = MakePanel("Uploader", 338, 672)
+		Uploader.BackgroundColor3 = UIPallet.Main
+		local UploadSide: Frame = Instance.new("Frame")
+		UploadSide.BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		UploadSide.BorderSizePixel = 0
+		UploadSide.Name = "Sidebar"
+		UploadSide.Size = UDim2.fromOffset(224, 338)
+		UploadSide.ZIndex = 6
+		UploadSide.Parent = Uploader
+		AddCorner(UploadSide)
 		
-		local uploadtitle = Instance.new('TextLabel')
-		uploadtitle.BackgroundTransparency = 1
-		uploadtitle.FontFace = uipallet.FontSemiBold
-		uploadtitle.Position = UDim2.fromOffset(16, 16)
-		uploadtitle.Size = UDim2.fromOffset(192, 24)
-		uploadtitle.Text = 'New Profile'
-		uploadtitle.TextColor3 = Color3.new(1, 1, 1)
-		uploadtitle.TextSize = 18
-		uploadtitle.TextXAlignment = Enum.TextXAlignment.Left
-		uploadtitle.ZIndex = 7
-		uploadtitle.Parent = uploadside
+		local UploadTitle: TextLabel = Instance.new("TextLabel")
+		UploadTitle.BackgroundTransparency = 1
+		UploadTitle.FontFace = UIPallet.FontSemiBold
+		UploadTitle.Position = UDim2.fromOffset(16, 16)
+		UploadTitle.Size = UDim2.fromOffset(192, 24)
+		UploadTitle.Text = "New Profile"
+		UploadTitle.TextColor3 = Color3.new(1, 1, 1)
+		UploadTitle.TextSize = 18
+		UploadTitle.TextXAlignment = Enum.TextXAlignment.Left
+		UploadTitle.ZIndex = 7
+		UploadTitle.Parent = UploadSide
 		
-		local derived = Instance.new('TextLabel')
-		derived.BackgroundTransparency = 1
-		derived.FontFace = uipallet.FontBold
-		derived.Position = UDim2.fromOffset(16, 46)
-		derived.RichText = true
-		derived.Size = UDim2.fromOffset(192, 16)
-		derived.Text = ''
-		derived.TextColor3 = Color3.fromRGB(140, 140, 140)
-		derived.TextSize = 11
-		derived.TextTruncate = Enum.TextTruncate.AtEnd
-		derived.TextXAlignment = Enum.TextXAlignment.Left
-		derived.ZIndex = 7
-		derived.Parent = uploadside
+		local Derived: TextLabel = Instance.new("TextLabel")
+		Derived.BackgroundTransparency = 1
+		Derived.FontFace = UIPallet.FontBold
+		Derived.Position = UDim2.fromOffset(16, 46)
+		Derived.RichText = true
+		Derived.Size = UDim2.fromOffset(192, 16)
+		Derived.Text = ""
+		Derived.TextColor3 = Color3.fromRGB(140, 140, 140)
+		Derived.TextSize = 11
+		Derived.TextTruncate = Enum.TextTruncate.AtEnd
+		Derived.TextXAlignment = Enum.TextXAlignment.Left
+		Derived.ZIndex = 7
+		Derived.Parent = UploadSide
 		
-		addRow(uploadside, 'Details', 80, true)
+		AddRow(UploadSide, "Details", 80, true)
 		
-		local uploadcount = modulecount:Clone()
-		uploadcount.Parent = uploadside
-		local uploadmodules = Instance.new('ScrollingFrame')
-		uploadmodules.BackgroundTransparency = 1
-		uploadmodules.BorderSizePixel = 0
-		uploadmodules.CanvasSize = UDim2.new()
-		uploadmodules.Name = 'Modules'
-		uploadmodules.Position = UDim2.fromOffset(0, 148)
-		uploadmodules.ScrollBarThickness = 0
-		uploadmodules.Size = UDim2.fromOffset(224, 182)
-		uploadmodules.ZIndex = 7
-		uploadmodules.Parent = uploadside
-		local uploadlayout = Instance.new('UIListLayout')
-		uploadlayout.Padding = UDim.new(0, 0)
-		uploadlayout.SortOrder = Enum.SortOrder.LayoutOrder
-		uploadlayout.Parent = uploadmodules
+		local UploadCount: TextLabel = ModuleCount:Clone()
+		UploadCount.Parent = UploadSide
+		local UploadModules: ScrollingFrame = Instance.new("ScrollingFrame")
+		UploadModules.BackgroundTransparency = 1
+		UploadModules.BorderSizePixel = 0
+		UploadModules.CanvasSize = UDim2.new()
+		UploadModules.Name = "Modules"
+		UploadModules.Position = UDim2.fromOffset(0, 148)
+		UploadModules.ScrollBarThickness = 0
+		UploadModules.Size = UDim2.fromOffset(224, 182)
+		UploadModules.ZIndex = 7
+		UploadModules.Parent = UploadSide
+		local UploadLayout: UIListLayout = Instance.new("UIListLayout")
+		UploadLayout.Padding = UDim.new(0, 0)
+		UploadLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		UploadLayout.Parent = UploadModules
 		
-		local function addCaption(parent, text, y)
-			local caption = Instance.new('TextLabel')
-			caption.BackgroundTransparency = 1
-			caption.FontFace = uipallet.FontBold
-			caption.Position = UDim2.fromOffset(244, y)
-			caption.Size = UDim2.fromOffset(412, 14)
-			caption.Text = text
-			caption.TextColor3 = Color3.fromRGB(115, 113, 115)
-			caption.TextSize = 11
-			caption.TextXAlignment = Enum.TextXAlignment.Left
-			caption.ZIndex = 6
-			caption.Parent = parent
-			return caption
+		local function AddCaption(Parent: Instance, Text: string, Y: number)
+		    local Caption: TextLabel = Instance.new("TextLabel")
+		    Caption.BackgroundTransparency = 1
+		    Caption.FontFace = UIPallet.FontBold
+		    Caption.Position = UDim2.fromOffset(244, Y)
+		    Caption.Size = UDim2.fromOffset(412, 14)
+		    Caption.Text = Text
+		    Caption.TextColor3 = Color3.fromRGB(115, 113, 115)
+		    Caption.TextSize = 11
+		    Caption.TextXAlignment = Enum.TextXAlignment.Left
+		    Caption.ZIndex = 6
+		    Caption.Parent = Parent
+		    return Caption
 		end
 		
-		local function addInput(parent, placeholder, y)
-			local box = Instance.new('TextBox')
-			box.BackgroundTransparency = 1
-			box.ClearTextOnFocus = false
-			box.FontFace = uipallet.Font
-			box.PlaceholderColor3 = vapecolors.Secondary
-			box.PlaceholderText = placeholder
-			box.Position = UDim2.fromOffset(244, y)
-			box.Size = UDim2.fromOffset(412, 26)
-			box.Text = ''
-			box.TextColor3 = vapecolors.Primary
-			box.TextSize = 13
-			box.TextXAlignment = Enum.TextXAlignment.Left
-			box.ZIndex = 6
-			box.Parent = parent
-			local line = Instance.new('Frame')
-			line.BackgroundColor3 = vapecolors.Outline
-			line.BackgroundTransparency = 0.5
-			line.BorderSizePixel = 0
-			line.Position = UDim2.fromOffset(244, y + 30)
-			line.Size = UDim2.fromOffset(412, 1)
-			line.ZIndex = 6
-			line.Parent = parent
-			return box
+		local function AddInput(Parent: Instance, Placeholder: string, Y: number)
+		    local Box: TextBox = Instance.new("TextBox")
+		    Box.BackgroundTransparency = 1
+		    Box.ClearTextOnFocus = false
+		    Box.FontFace = UIPallet.Font
+		    Box.PlaceholderColor3 = VapeColors.Secondary
+		    Box.PlaceholderText = Placeholder
+		    Box.Position = UDim2.fromOffset(244, Y)
+		    Box.Size = UDim2.fromOffset(412, 26)
+		    Box.Text = ""
+		    Box.TextColor3 = VapeColors.Primary
+		    Box.TextSize = 13
+		    Box.TextXAlignment = Enum.TextXAlignment.Left
+		    Box.ZIndex = 6
+		    Box.Parent = Parent
+		    local Line: Frame = Instance.new("Frame")
+		    Line.BackgroundColor3 = VapeColors.Outline
+		    Line.BackgroundTransparency = 0.5
+		    Line.BorderSizePixel = 0
+		    Line.Position = UDim2.fromOffset(244, Y + 30)
+		    Line.Size = UDim2.fromOffset(412, 1)
+		    Line.ZIndex = 6
+		    Line.Parent = Parent
+		    return Box
 		end
 		
-		addCaption(uploader, 'NAME', 24)
-		local namebox = addInput(uploader, 'Enter profile name...', 42)
-		addCaption(uploader, 'DESCRIPTION', 90)
-		local descbox = addInput(uploader, 'Add Description (optional)', 108)
-		addCaption(uploader, 'PREFERENCES', 156)
+		AddCaption(Uploader, "NAME", 24)
+		local NameBox: TextBox = AddInput(Uploader, "Enter profile name...", 42)
+		AddCaption(Uploader, "DESCRIPTION", 90)
+		local DescriptionBox: TextBox = AddInput(Uploader, "Add Description (optional)", 108)
+		AddCaption(Uploader, "PREFERENCES", 156)
 		
-		local anonlabel = Instance.new('TextLabel')
-		anonlabel.BackgroundTransparency = 1
-		anonlabel.FontFace = uipallet.Font
-		anonlabel.Position = UDim2.fromOffset(244, 180)
-		anonlabel.Size = UDim2.fromOffset(412, 20)
-		anonlabel.Text = 'Upload anonymously'
-		anonlabel.TextColor3 = vapecolors.Secondary
-		anonlabel.TextSize = 13
-		anonlabel.TextXAlignment = Enum.TextXAlignment.Left
-		anonlabel.ZIndex = 6
-		anonlabel.Parent = uploader
+		local AnonymousLabel: TextLabel = Instance.new("TextLabel")
+		AnonymousLabel.BackgroundTransparency = 1
+		AnonymousLabel.FontFace = UIPallet.Font
+		AnonymousLabel.Position = UDim2.fromOffset(244, 180)
+		AnonymousLabel.Size = UDim2.fromOffset(412, 20)
+		AnonymousLabel.Text = "Upload anonymously"
+		AnonymousLabel.TextColor3 = VapeColors.Secondary
+		AnonymousLabel.TextSize = 13
+		AnonymousLabel.TextXAlignment = Enum.TextXAlignment.Left
+		AnonymousLabel.ZIndex = 6
+		AnonymousLabel.Parent = Uploader
 		
-		local function addToggle(parent, y)
-			local toggleapi = {Enabled = false}
+		local function AddToggle(Parent: Instance, Y: number)
+		    local ToggleAPI = {Enabled = false}
 		
-			local button = Instance.new('TextButton')
-			button.AutoButtonColor = false
-			button.BackgroundColor3 = Color3.fromRGB(54, 53, 54)
-			button.Position = UDim2.fromOffset(632, y)
-			button.Size = UDim2.fromOffset(25, 14)
-			button.Text = ''
-			button.ZIndex = 6
-			button.Parent = parent
-			addCorner(button, UDim.new(1, 0))
-			local knob = Instance.new('Frame')
-			knob.BackgroundColor3 = uipallet.Main
-			knob.BorderSizePixel = 0
-			knob.Position = UDim2.fromOffset(4, 3)
-			knob.Size = UDim2.fromOffset(8, 8)
-			knob.ZIndex = 7
-			knob.Parent = button
-			addCorner(knob, UDim.new(1, 0))
+		    local Button: TextButton = Instance.new("TextButton")
+		    Button.AutoButtonColor = false
+		    Button.BackgroundColor3 = Color3.fromRGB(54, 53, 54)
+		    Button.Position = UDim2.fromOffset(632, Y)
+		    Button.Size = UDim2.fromOffset(25, 14)
+		    Button.Text = ""
+		    Button.ZIndex = 6
+		    Button.Parent = Parent
+		    AddCorner(Button, UDim.new(1, 0))
+		    local Knob: Frame = Instance.new("Frame")
+		    Knob.BackgroundColor3 = UIPallet.Main
+		    Knob.BorderSizePixel = 0
+		    Knob.Position = UDim2.fromOffset(4, 3)
+		    Knob.Size = UDim2.fromOffset(8, 8)
+		    Knob.ZIndex = 7
+		    Knob.Parent = Button
+		    AddCorner(Knob, UDim.new(1, 0))
 		
-			function toggleapi:Set(state)
-				self.Enabled = state
+		    function ToggleAPI:Set(State: boolean)
+		        self.Enabled = State
 		
-				tween:Tween(knob, uipallet.Tween, {
-					Position = UDim2.fromOffset(state and 14 or 4, 3)
-				})
+		        Tween:Tween(Knob, UIPallet.Tween, {
+		            Position = UDim2.fromOffset(State and 14 or 4, 3)
+		        })
 		
-				tween:Tween(button, uipallet.Tween, {
-					BackgroundColor3 = state and accentColor() or Color3.fromRGB(54, 53, 54)
-				})
-			end
+		        Tween:Tween(Button, UIPallet.Tween, {
+		            BackgroundColor3 = State and AccentColor() or Color3.fromRGB(54, 53, 54)
+		        })
+		    end
 		
-			button.MouseButton1Click:Connect(function()
-				toggleapi:Set(not toggleapi.Enabled)
-			end)
+		    Button.MouseButton1Click:Connect(function()
+		        ToggleAPI:Set(not ToggleAPI.Enabled)
+		    end)
 		
-			return toggleapi
+		    return ToggleAPI
 		end
 		
-		local anontoggle = addToggle(uploader, 181)
+		local AnonymousToggle = AddToggle(Uploader, 181)
 		
-		local confirm = makeAction(uploader, 'PUBLISH', true, 289, 120, 534)
-		local cancel = makeAction(uploader, 'CANCEL', false, 289, 80, 454)
-		local uploadclose = addCloseButton(uploader, false, UDim2.new(1, -35, 0, 12))
-		uploadclose.ZIndex = 6
+		local Confirm: TextButton = MakeAction(Uploader, "PUBLISH", true, 289, 120, 534)
+		local Cancel: TextButton = MakeAction(Uploader, "CANCEL", false, 289, 80, 454)
+		local UploadClose: ImageButton = AddCloseButton(Uploader, false, UDim2.new(1, -35, 0, 12))
+		UploadClose.ZIndex = 6
 		
-		local editor = makePanel('Editor', 338, 672)
-		editor.BackgroundColor3 = uipallet.Main
-		local editorside = Instance.new('Frame')
-		editorside.BackgroundColor3 = uipallet.Main
-		editorside.BorderSizePixel = 0
-		editorside.Name = 'Sidebar'
-		editorside.Size = UDim2.fromOffset(224, 338)
-		editorside.ZIndex = 6
-		editorside.Parent = editor
-		addCorner(editorside)
+		local Editor: Frame = MakePanel("Editor", 338, 672)
+		Editor.BackgroundColor3 = UIPallet.Main
+		local EditorSide: Frame = Instance.new("Frame")
+		EditorSide.BackgroundColor3 = UIPallet.Main
+		EditorSide.BorderSizePixel = 0
+		EditorSide.Name = "Sidebar"
+		EditorSide.Size = UDim2.fromOffset(224, 338)
+		EditorSide.ZIndex = 6
+		EditorSide.Parent = Editor
+		AddCorner(EditorSide)
 		
-		local editortitle = uploadtitle:Clone()
-		editortitle.Text = ''
-		editortitle.Parent = editorside
+		local EditorTitle: TextLabel = UploadTitle:Clone()
+		EditorTitle.Text = ""
+		EditorTitle.Parent = EditorSide
 		
-		local editorderived = Instance.new('TextButton')
-		editorderived.AutoButtonColor = false
-		editorderived.BackgroundTransparency = 1
-		editorderived.FontFace = uipallet.FontBold
-		editorderived.Name = 'Derived'
-		editorderived.Position = UDim2.fromOffset(16, 46)
-		editorderived.RichText = true
-		editorderived.Size = UDim2.fromOffset(192, 16)
-		editorderived.Text = ''
-		editorderived.TextColor3 = Color3.fromRGB(140, 140, 140)
-		editorderived.TextSize = 11
-		editorderived.TextTruncate = Enum.TextTruncate.AtEnd
-		editorderived.TextXAlignment = Enum.TextXAlignment.Left
-		editorderived.ZIndex = 7
-		editorderived.Parent = editorside
+		local EditorDerived: TextButton = Instance.new("TextButton")
+		EditorDerived.AutoButtonColor = false
+		EditorDerived.BackgroundTransparency = 1
+		EditorDerived.FontFace = UIPallet.FontBold
+		EditorDerived.Name = "Derived"
+		EditorDerived.Position = UDim2.fromOffset(16, 46)
+		EditorDerived.RichText = true
+		EditorDerived.Size = UDim2.fromOffset(192, 16)
+		EditorDerived.Text = ""
+		EditorDerived.TextColor3 = Color3.fromRGB(140, 140, 140)
+		EditorDerived.TextSize = 11
+		EditorDerived.TextTruncate = Enum.TextTruncate.AtEnd
+		EditorDerived.TextXAlignment = Enum.TextXAlignment.Left
+		EditorDerived.ZIndex = 7
+		EditorDerived.Parent = EditorSide
 		
-		local selectEditorModule
-		local editordetailsrow = addRow(editorside, 'Details', 80, true, function()
-			selectEditorModule(nil)
+		local SelectEditorModule
+		local EditorDetailsRow = AddRow(EditorSide, "Details", 80, true, function()
+		    SelectEditorModule(nil)
 		end)
 		
-		local editorcount = modulecount:Clone()
-		editorcount.Parent = editorside
-		local editormodules = Instance.new('ScrollingFrame')
-		editormodules.BackgroundTransparency = 1
-		editormodules.BorderSizePixel = 0
-		editormodules.CanvasSize = UDim2.new()
-		editormodules.Name = 'Modules'
-		editormodules.Position = UDim2.fromOffset(0, 148)
-		editormodules.ScrollBarThickness = 0
-		editormodules.Size = UDim2.fromOffset(224, 182)
-		editormodules.ZIndex = 7
-		editormodules.Parent = editorside
-		local editormoduleslayout = Instance.new('UIListLayout')
-		editormoduleslayout.Padding = UDim.new(0, 0)
-		editormoduleslayout.SortOrder = Enum.SortOrder.LayoutOrder
-		editormoduleslayout.Parent = editormodules
+		local EditorCount: TextLabel = ModuleCount:Clone()
+		EditorCount.Parent = EditorSide
+		local EditorModules: ScrollingFrame = Instance.new("ScrollingFrame")
+		EditorModules.BackgroundTransparency = 1
+		EditorModules.BorderSizePixel = 0
+		EditorModules.CanvasSize = UDim2.new()
+		EditorModules.Name = "Modules"
+		EditorModules.Position = UDim2.fromOffset(0, 148)
+		EditorModules.ScrollBarThickness = 0
+		EditorModules.Size = UDim2.fromOffset(224, 182)
+		EditorModules.ZIndex = 7
+		EditorModules.Parent = EditorSide
+		local EditorModulesLayout: UIListLayout = Instance.new("UIListLayout")
+		EditorModulesLayout.Padding = UDim.new(0, 0)
+		EditorModulesLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		EditorModulesLayout.Parent = EditorModules
 		
-		local editorsettings = Instance.new('Frame')
-		editorsettings.BackgroundTransparency = 1
-		editorsettings.Name = 'Settings'
-		editorsettings.Size = UDim2.fromScale(1, 1)
-		editorsettings.ZIndex = 6
-		editorsettings.Parent = editor
+		local EditorSettings: Frame = Instance.new("Frame")
+		EditorSettings.BackgroundTransparency = 1
+		EditorSettings.Name = "Settings"
+		EditorSettings.Size = UDim2.fromScale(1, 1)
+		EditorSettings.ZIndex = 6
+		EditorSettings.Parent = Editor
 		
-		addCaption(editorsettings, 'DESCRIPTION', 24)
-		local editordesc = addInput(editorsettings, 'Add Description (optional)', 42)
-		addCaption(editorsettings, 'PREFERENCES', 90)
+		AddCaption(EditorSettings, "DESCRIPTION", 24)
+		local EditorDescription: TextBox = AddInput(EditorSettings, "Add Description (optional)", 42)
+		AddCaption(EditorSettings, "PREFERENCES", 90)
 		
-		local editoranonlabel = anonlabel:Clone()
-		editoranonlabel.Position = UDim2.fromOffset(244, 114)
-		editoranonlabel.Parent = editorsettings
-		local editoranon = addToggle(editorsettings, 115)
+		local EditorAnonymousLabel: TextLabel = AnonymousLabel:Clone()
+		EditorAnonymousLabel.Position = UDim2.fromOffset(244, 114)
+		EditorAnonymousLabel.Parent = EditorSettings
+		local EditorAnonymous = AddToggle(EditorSettings, 115)
 		
-		addCaption(editorsettings, 'STATS', 162)
+		AddCaption(EditorSettings, "STATS", 162)
 		
-		local editorstats = Instance.new('TextLabel')
-		editorstats.BackgroundTransparency = 1
-		editorstats.FontFace = uipallet.Font
-		editorstats.Position = UDim2.fromOffset(244, 180)
-		editorstats.Size = UDim2.fromOffset(412, 20)
-		editorstats.Text = ''
-		editorstats.TextColor3 = uipallet.Text
-		editorstats.TextSize = 13
-		editorstats.TextXAlignment = Enum.TextXAlignment.Left
-		editorstats.ZIndex = 6
-		editorstats.Parent = editorsettings
+		local EditorStats: TextLabel = Instance.new("TextLabel")
+		EditorStats.BackgroundTransparency = 1
+		EditorStats.FontFace = UIPallet.Font
+		EditorStats.Position = UDim2.fromOffset(244, 180)
+		EditorStats.Size = UDim2.fromOffset(412, 20)
+		EditorStats.Text = ""
+		EditorStats.TextColor3 = UIPallet.Text
+		EditorStats.TextSize = 13
+		EditorStats.TextXAlignment = Enum.TextXAlignment.Left
+		EditorStats.ZIndex = 6
+		EditorStats.Parent = EditorSettings
 		
-		local editormoduletitle = moduletitle:Clone()
-		editormoduletitle.Parent = editor
+		local EditorModuleTitle: TextLabel = ModuleTitle:Clone()
+		EditorModuleTitle.Parent = Editor
 		
-		local editoroptions = Instance.new('ScrollingFrame')
-		editoroptions.BackgroundTransparency = 1
-		editoroptions.BorderSizePixel = 0
-		editoroptions.CanvasSize = UDim2.new()
-		editoroptions.Name = 'Options'
-		editoroptions.Position = UDim2.fromOffset(244, 52)
-		editoroptions.ScrollBarThickness = 0
-		editoroptions.Size = UDim2.fromOffset(412, 212)
-		editoroptions.Visible = false
-		editoroptions.ZIndex = 6
-		editoroptions.Parent = editor
-		local editoroptionslayout = Instance.new('UIListLayout')
-		editoroptionslayout.Padding = UDim.new(0, 0)
-		editoroptionslayout.SortOrder = Enum.SortOrder.LayoutOrder
-		editoroptionslayout.Parent = editoroptions
+		local EditorOptions: ScrollingFrame = Instance.new("ScrollingFrame")
+		EditorOptions.BackgroundTransparency = 1
+		EditorOptions.BorderSizePixel = 0
+		EditorOptions.CanvasSize = UDim2.new()
+		EditorOptions.Name = "Options"
+		EditorOptions.Position = UDim2.fromOffset(244, 52)
+		EditorOptions.ScrollBarThickness = 0
+		EditorOptions.Size = UDim2.fromOffset(412, 212)
+		EditorOptions.Visible = false
+		EditorOptions.ZIndex = 6
+		EditorOptions.Parent = Editor
+		local EditorOptionsLayout: UIListLayout = Instance.new("UIListLayout")
+		EditorOptionsLayout.Padding = UDim.new(0, 0)
+		EditorOptionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		EditorOptionsLayout.Parent = EditorOptions
 		
-		local update = makeAction(editor, 'UPDATE', true, 289, 120, 534)
-		local editorcancel = makeAction(editor, 'CANCEL', false, 289, 80, 454)
-		local editorremove = makeAction(editor, 'REMOVE', false, 289, 100, 254)
-		editorremove.BackgroundTransparency = 1
-		editorremove.TextColor3 = vapecolors.Danger
-		editorremove.TextXAlignment = Enum.TextXAlignment.Left
-		local editorclose = addCloseButton(editor, false, UDim2.new(1, -35, 0, 12))
-		editorclose.ZIndex = 6
+		local Update: TextButton = MakeAction(Editor, "UPDATE", true, 289, 120, 534)
+		local EditorCancel: TextButton = MakeAction(Editor, "CANCEL", false, 289, 80, 454)
+		local EditorRemove: TextButton = MakeAction(Editor, "REMOVE", false, 289, 100, 254)
+		EditorRemove.BackgroundTransparency = 1
+		EditorRemove.TextColor3 = VapeColors.Danger
+		EditorRemove.TextXAlignment = Enum.TextXAlignment.Left
+		local EditorClose: ImageButton = AddCloseButton(Editor, false, UDim2.new(1, -35, 0, 12))
+		EditorClose.ZIndex = 6
 		
-		local sourcemenu, sourcecatcher, sourceaction
+		local SourceMenu, SourceCatcher, SourceAction
 		
-		local function setSourceMenu(state)
-			if not sourcemenu then return end
-			sourcemenu.Visible = state
-			sourcecatcher.Visible = state
+		local function SetSourceMenu(State: boolean)
+		    if not SourceMenu then return end
+		    SourceMenu.Visible = State
+		    SourceCatcher.Visible = State
 		end
 		
-		local function showPanel(panel)
-			overlay.Visible = panel ~= nil
-			details.Visible = panel == details
-			uploader.Visible = panel == uploader
-			editor.Visible = panel == editor
-			setSourceMenu(false)
+		local function ShowPanel(Panel: Frame?)
+		    Overlay.Visible = Panel ~= nil
+		    Details.Visible = Panel == Details
+		    Uploader.Visible = Panel == Uploader
+		    Editor.Visible = Panel == Editor
+		    SetSourceMenu(false)
 		end
 		
-		local editing
-		local editorsource
-		local openEditor
-		local selected
-		local dislikes = {}
-		local voting = false
+		local Editing
+		local EditorSource: string?
+		local OpenEditor
+		local Selected
+		local Dislikes: {[string]: boolean} = {}
+		local Voting: boolean = false
 		
-		local function paintThumb(thumb, tint)
-		
-			tween:Tween(thumb, uipallet.Tween, {
-				ImageColor3 = tint
-			})
+		local function PaintThumb(Thumb: ImageLabel, Tint: Color3)
+		    Tween:Tween(Thumb, UIPallet.Tween, {
+		        ImageColor3 = Tint
+		    })
 		end
 		
-		local function renderVotes(entry)
-			likesvalue.Text = tostring(entry.likes or 0)
-			paintThumb(likethumb, entry.liked and accentColor() or vapecolors.Icon)
-			paintThumb(dislikethumb, dislikes[entry.filename] and Color3.fromRGB(255, 89, 94) or vapecolors.Icon)
+		local function RenderVotes(Entry)
+		    LikesValue.Text = tostring(Entry.likes or 0)
+		    PaintThumb(LikeThumb, Entry.liked and AccentColor() or VapeColors.Icon)
+		    PaintThumb(DislikeThumb, Dislikes[Entry.filename] and Color3.fromRGB(255, 89, 94) or VapeColors.Icon)
 		end
 		
-		local function sendLike(entry, wanted)
-			local liked, likes = entry.liked, entry.likes or 0
-			entry.liked = wanted
-			entry.likes = math.max(likes + (wanted and 1 or -1), 0)
-			voting = true
-			renderVotes(entry)
+		local function SendLike(Entry, Wanted: boolean)
+		    local Liked, Likes = Entry.liked, Entry.likes or 0
+		    Entry.liked = Wanted
+		    Entry.likes = math.max(Likes + (Wanted and 1 or -1), 0)
+		    Voting = true
+		    RenderVotes(Entry)
 		
-			task.spawn(function()
-				local res = request({
-					Url = '',
-					Method = 'POST',
-					Headers = {
-						['Content-Type'] = 'application/json'
-					},
-					Body = httpService:JSONEncode({
-						key = license.Key or '_key',
-						filename = entry.filename,
-						like = wanted
-					})
-				})
-				voting = false
+		    task.spawn(function()
+		        local Response = request({
+		            Url = "https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/configs/like",
+		            Method = "POST",
+		            Headers = {
+		                ["Content-Type"] = "application/json"
+		            },
+		            Body = HttpService:JSONEncode({
+		                key = License.Key or "_key",
+		                filename = Entry.filename,
+		                like = Wanted
+		            })
+		        })
+		        Voting = false
 		
-				if res and res.Body then
-					local body = httpService:JSONDecode(httpService:JSONDecode(res.Body).response)
-					entry.liked = body.liked == true
-					entry.likes = math.max(likes + ((entry.liked and 1 or 0) - (liked and 1 or 0)), 0)
-				else
-					entry.liked, entry.likes = liked, likes
-					vape:CreateNotification('KingVape', `Failed to {wanted and 'like' or 'unlike'} "{entry.Name}"`, 8, 'warning')
-				end
+		        if Response and Response.Body then
+		            local Body = HttpService:JSONDecode(HttpService:JSONDecode(Response.Body).response)
+		            Entry.liked = Body.liked == true
+		            Entry.likes = math.max(Likes + ((Entry.liked and 1 or 0) - (Liked and 1 or 0)), 0)
+		        else
+		            Entry.liked, Entry.likes = Liked, Likes
+		            vape:CreateNotification("Cat", `Failed to {Wanted and "like" or "unlike"} "{Entry.Name}"`, 8, "warning")
+		        end
 		
-				if selected == entry then
-					renderVotes(entry)
-				end
-			end)
+		        if Selected == Entry then
+		            RenderVotes(Entry)
+		        end
+		    end)
 		end
 		
-		local function addCard(entry)
-			local name = entry.Name
-			local author = entry.Author
+		local function AddCard(Entry)
+		    local Name: string = Entry.Name
+		    local Author: string = Entry.Author
 		
-			local card = Instance.new('TextButton')
-			card.AutoButtonColor = false
-			card.BackgroundColor3 = vapecolors.Panel
-			card.Name = name
-			card.Text = ''
-			card.Parent = children
-			addCorner(card, UDim.new(0, 4))
-			local stroke = Instance.new('UIStroke')
-			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			stroke.Color = vapecolors.Panel
-			stroke.Thickness = 2
-			stroke.Parent = card
-			local label = Instance.new('TextLabel')
-			label.BackgroundTransparency = 1
-			label.FontFace = uipallet.FontBold
-			label.Position = UDim2.fromOffset(16, 16)
-			label.Size = UDim2.fromOffset(100, 20)
-			label.Text = name
-			label.TextColor3 = vapecolors.Primary
-			label.TextSize = 14
-			label.TextWrapped = true
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.TextYAlignment = Enum.TextYAlignment.Top
-			label.Parent = card
-			local authorlabel = Instance.new('TextLabel')
-			authorlabel.BackgroundTransparency = 1
-			authorlabel.FontFace = uipallet.Font
-			authorlabel.Position = UDim2.fromOffset(16, 42)
-			authorlabel.Size = UDim2.fromOffset(124, 16)
-			authorlabel.Text = author
-			authorlabel.TextColor3 = vapecolors.Muted
-			authorlabel.TextSize = 12
-			authorlabel.TextTruncate = Enum.TextTruncate.AtEnd
-			authorlabel.TextXAlignment = Enum.TextXAlignment.Left
-			authorlabel.Parent = card
-			local likes = tostring(entry.likes or 0)
-			local pill = Instance.new('Frame')
-			pill.BackgroundColor3 = Color3.fromRGB(44, 42, 44)
-			pill.BorderSizePixel = 0
-			pill.Position = UDim2.fromOffset(16, 108)
-			pill.Size = UDim2.fromOffset(38 + getfontbounds(likes, 11, uipallet.FontBold).X, 20)
-			pill.Parent = card
-			addCorner(pill, UDim.new(0, 9))
-			local pillthumb = addThumb(pill, false)
-			pillthumb.Position = UDim2.fromOffset(16, 9)
-			pillthumb.Size = UDim2.fromOffset(12, 10)
-			pillthumb.ZIndex = 2
-			local pilltext = Instance.new('TextLabel')
-			pilltext.BackgroundTransparency = 1
-			pilltext.FontFace = uipallet.FontBold
-			pilltext.Position = UDim2.fromOffset(29, 0)
-			pilltext.Size = UDim2.new(1, -29, 1, 0)
-			pilltext.Text = likes
-			pilltext.TextColor3 = vapecolors.Muted
-			pilltext.TextSize = 11
-			pilltext.TextXAlignment = Enum.TextXAlignment.Left
-			pilltext.ZIndex = 2
-			pilltext.Parent = pill
+		    local Card: TextButton = Instance.new("TextButton")
+		    Card.AutoButtonColor = false
+		    Card.BackgroundColor3 = VapeColors.Panel
+		    Card.Name = Name
+		    Card.Text = ""
+		    Card.Parent = Children
+		    AddCorner(Card, UDim.new(0, 4))
+		    local Stroke: UIStroke = Instance.new("UIStroke")
+		    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		    Stroke.Color = VapeColors.Panel
+		    Stroke.Thickness = 2
+		    Stroke.Parent = Card
+		    local Label: TextLabel = Instance.new("TextLabel")
+		    Label.BackgroundTransparency = 1
+		    Label.FontFace = UIPallet.FontBold
+		    Label.Position = UDim2.fromOffset(16, 16)
+		    Label.Size = UDim2.fromOffset(100, 20)
+		    Label.Text = Name
+		    Label.TextColor3 = VapeColors.Primary
+		    Label.TextSize = 14
+		    Label.TextWrapped = true
+		    Label.TextXAlignment = Enum.TextXAlignment.Left
+		    Label.TextYAlignment = Enum.TextYAlignment.Top
+		    Label.Parent = Card
+		    local AuthorLabel: TextLabel = Instance.new("TextLabel")
+		    AuthorLabel.BackgroundTransparency = 1
+		    AuthorLabel.FontFace = UIPallet.Font
+		    AuthorLabel.Position = UDim2.fromOffset(16, 42)
+		    AuthorLabel.Size = UDim2.fromOffset(124, 16)
+		    AuthorLabel.Text = Author
+		    AuthorLabel.TextColor3 = VapeColors.Muted
+		    AuthorLabel.TextSize = 12
+		    AuthorLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		    AuthorLabel.TextXAlignment = Enum.TextXAlignment.Left
+		    AuthorLabel.Parent = Card
+		    local Likes: string = tostring(Entry.likes or 0)
+		    local Pill: Frame = Instance.new("Frame")
+		    Pill.BackgroundColor3 = Color3.fromRGB(44, 42, 44)
+		    Pill.BorderSizePixel = 0
+		    Pill.Position = UDim2.fromOffset(16, 108)
+		    Pill.Size = UDim2.fromOffset(38 + GetFontBounds(Likes, 11, UIPallet.FontBold).X, 20)
+		    Pill.Parent = Card
+		    AddCorner(Pill, UDim.new(0, 9))
+		    local PillThumb: ImageLabel = AddThumb(Pill, false)
+		    PillThumb.Position = UDim2.fromOffset(16, 9)
+		    PillThumb.Size = UDim2.fromOffset(12, 10)
+		    PillThumb.ZIndex = 2
+		    local PillText: TextLabel = Instance.new("TextLabel")
+		    PillText.BackgroundTransparency = 1
+		    PillText.FontFace = UIPallet.FontBold
+		    PillText.Position = UDim2.fromOffset(29, 0)
+		    PillText.Size = UDim2.new(1, -29, 1, 0)
+		    PillText.Text = Likes
+		    PillText.TextColor3 = VapeColors.Muted
+		    PillText.TextSize = 11
+		    PillText.TextXAlignment = Enum.TextXAlignment.Left
+		    PillText.ZIndex = 2
+		    PillText.Parent = Pill
 		
-			card.MouseEnter:Connect(function()
-				tween:Tween(card, uipallet.Tween, {
-					BackgroundColor3 = Color3.fromRGB(35, 34, 35)
-				})
+		    Card.MouseEnter:Connect(function()
+		        Tween:Tween(Card, UIPallet.Tween, {
+		            BackgroundColor3 = Color3.fromRGB(35, 34, 35)
+		        })
 		
-				tweenService:Create(stroke, uipallet.Tween, {Color = Color3.fromRGB(43, 42, 43)}):Play()
-			end)
-			card.MouseLeave:Connect(function()
-				tween:Tween(card, uipallet.Tween, {
-					BackgroundColor3 = vapecolors.Panel
-				})
+		        TweenService:Create(Stroke, UIPallet.Tween, {Color = Color3.fromRGB(43, 42, 43)}):Play()
+		    end)
+		    Card.MouseLeave:Connect(function()
+		        Tween:Tween(Card, UIPallet.Tween, {
+		            BackgroundColor3 = VapeColors.Panel
+		        })
 		
-				tweenService:Create(stroke, uipallet.Tween, {Color = vapecolors.Panel}):Play()
-			end)
-			card.MouseButton1Click:Connect(function()
-				selected = entry
-				detailname.Text = name
-				detailauthor.Text = `By {author}`
-				applyAvatar(avatar, entry.discord_pfp)
-				created.Text = `Created: {entry.Uploaded and os.date('%b %d, %Y', entry.Uploaded) or 'unknown'}`
-				updatedvalue.Text = relativeDays(entry.Uploaded)
-				downloadsvalue.Text = tostring(entry.downloads or 0)
-				renderVotes(entry)
-				detaildesc.Text = (entry.description and entry.description ~= '' and entry.description ~= 'unknown') and entry.description or 'No description provided'
+		        TweenService:Create(Stroke, UIPallet.Tween, {Color = VapeColors.Panel}):Play()
+		    end)
+		    Card.MouseButton1Click:Connect(function()
+		        Selected = Entry
+		        DetailName.Text = Name
+		        DetailAuthor.Text = `By {Author}`
+		        ApplyAvatar(Avatar, Entry.discord_pfp)
+		        Created.Text = `Created: {Entry.Uploaded and os.date("%b %d, %Y", Entry.Uploaded) or "unknown"}`
+		        UpdatedValue.Text = RelativeDays(Entry.Uploaded)
+		        DownloadsValue.Text = tostring(Entry.downloads or 0)
+		        RenderVotes(Entry)
+		        DetailDescription.Text = (Entry.description and Entry.description ~= "" and Entry.description ~= "unknown") and Entry.description or "No description provided"
 		
-				clearList(modulelist)
+		        ClearList(ModuleList)
 		
-				local active = {}
-				local decoded = entry.config and select(2, pcall(httpService.JSONDecode, httpService, entry.config))
-				for i, v in (type(decoded) == 'table' and decoded.Modules or {}) do
-					if type(v) == 'table' and v.Enabled then
-						table.insert(active, tostring(i))
-					end
-				end
-				table.sort(active)
+		        local Active: {string} = {}
+		        local Decoded = Entry.config and select(2, pcall(HttpService.JSONDecode, HttpService, Entry.config))
+		        for ModuleName: any, v: any in (type(Decoded) == "table" and Decoded.Modules or {}) do
+		            if type(v) == "table" and v.Enabled then
+		                table.insert(Active, tostring(ModuleName))
+		            end
+		        end
+		        table.sort(Active)
 		
-				modulecount.Text = `<font color="rgb(255,255,255)">{#active}</font> AFFECTED MODULES`
+		        ModuleCount.Text = `<font color="rgb(255,255,255)">{#Active}</font> AFFECTED MODULES`
 		
-				local rows = {}
-				local function selectRow(chosen)
-					for i, v in rows do
-						local on = i == chosen
-						v.BackgroundTransparency = on and 0 or 1
-						v.TextLabel.TextColor3 = on and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
-					end
-					detailsrow.BackgroundTransparency = chosen and 1 or 0
-					detailsrow.TextLabel.TextColor3 = chosen and Color3.fromRGB(171, 171, 171) or Color3.new(1, 1, 1)
+		        local Rows = {}
+		        local function SelectRow(Chosen: string?)
+		            for ModuleName: string, Row: TextButton in Rows do
+		                local IsChosen: boolean = ModuleName == Chosen
+		                Row.BackgroundTransparency = IsChosen and 0 or 1
+		                Row.TextLabel.TextColor3 = IsChosen and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
+		            end
+		            DetailsRow.BackgroundTransparency = Chosen and 1 or 0
+		            DetailsRow.TextLabel.TextColor3 = Chosen and Color3.fromRGB(171, 171, 171) or Color3.new(1, 1, 1)
 		
-					if not chosen then
-						showDetails(false)
-						return
-					end
+		            if not Chosen then
+		                ShowDetails(false)
+		                return
+		            end
 		
-					moduletitle.Text = chosen
-					clearList(optionlist)
+		            ModuleTitle.Text = Chosen
+		            ClearList(OptionList)
 		
-					local options = decoded.Modules[chosen].Options or {}
-					local names = {}
-					for i in options do
-						table.insert(names, tostring(i))
-					end
-					table.sort(names)
-					for i, v in names do
-						addOptionRow(optionlist, v, options[v], i)
-					end
-					optionlist.CanvasSize = UDim2.fromOffset(0, #names * 30)
-					showDetails(true)
-				end
+		            local Options = Decoded.Modules[Chosen].Options or {}
+		            local Names: {string} = {}
+		            for OptionName: any in Options do
+		                table.insert(Names, tostring(OptionName))
+		            end
+		            table.sort(Names)
+		            for i: number, OptionName: string in Names do
+		                AddOptionRow(OptionList, OptionName, Options[OptionName], i)
+		            end
+		            OptionList.CanvasSize = UDim2.fromOffset(0, #Names * 30)
+		            ShowDetails(true)
+		        end
 		
-				selectModule = selectRow
-				for i, v in active do
-					rows[v] = addRow(modulelist, v, 0, false, function()
-						selectRow(v)
-					end, i)
-				end
-				modulelist.CanvasSize = UDim2.fromOffset(0, #active * 36)
-				selectRow(nil)
+		        SelectModule = SelectRow
+		        for i: number, ModuleName: string in Active do
+		            Rows[ModuleName] = AddRow(ModuleList, ModuleName, 0, false, function()
+		                SelectRow(ModuleName)
+		            end, i)
+		        end
+		        ModuleList.CanvasSize = UDim2.fromOffset(0, #Active * 36)
+		        SelectRow(nil)
 		
-				showPanel(details)
-			end)
+		        ShowPanel(Details)
+		    end)
 		
-			table.insert(component.Cards, card)
+		    table.insert(Component.Cards, Card)
 		end
 		
-		local function clearCards()
-			for _, v in component.Cards do
-				v:Destroy()
-			end
-			table.clear(component.Cards)
+		local function ClearCards()
+		    for _, v: Frame in Component.Cards do
+		        v:Destroy()
+		    end
+		    table.clear(Component.Cards)
 		end
 		
-		local function showSkeletons()
-			clearCards()
-			empty.Visible = false
+		local function ShowSkeletons()
+		    ClearCards()
+		    Empty.Visible = false
 		
-			for _ = 1, 6 do
-				local card = Instance.new('Frame')
-				card.BackgroundColor3 = vapecolors.Panel
-				card.Parent = children
-				addCorner(card, UDim.new(0, 4))
+		    for _ = 1, 6 do
+		        local Card: Frame = Instance.new("Frame")
+		        Card.BackgroundColor3 = VapeColors.Panel
+		        Card.Parent = Children
+		        AddCorner(Card, UDim.new(0, 4))
 		
-				for _, v in {{120, 20, 10, 10}, {60, 20, 10, 34}, {50, 20, 15, 108}} do
-					local bar = Instance.new('Frame')
-					bar.BackgroundColor3 = vapecolors.Raised
-					bar.BorderSizePixel = 0
-					bar.Position = UDim2.fromOffset(v[3], v[4])
-					bar.Size = UDim2.fromOffset(v[1], v[2])
-					bar.Parent = card
-					addCorner(bar, UDim.new(0, 3))
-				end
+		        for _, v: {number} in {{120, 20, 10, 10}, {60, 20, 10, 34}, {50, 20, 15, 108}} do
+		            local Bar: Frame = Instance.new("Frame")
+		            Bar.BackgroundColor3 = VapeColors.Raised
+		            Bar.BorderSizePixel = 0
+		            Bar.Position = UDim2.fromOffset(v[3], v[4])
+		            Bar.Size = UDim2.fromOffset(v[1], v[2])
+		            Bar.Parent = Card
+		            AddCorner(Bar, UDim.new(0, 3))
+		        end
 		
-				table.insert(component.Cards, card)
-			end
+		        table.insert(Component.Cards, Card)
+		    end
 		end
 		
-		local function addOwned(entry, order)
-			local row = Instance.new('TextButton')
-			row.AutoButtonColor = false
-			row.BackgroundColor3 = vapecolors.Panel
-			row.BorderSizePixel = 0
-			row.LayoutOrder = order
-			row.Name = entry.Name
-			row.Size = UDim2.fromOffset(184, 36)
-			row.Text = ''
-			row.Parent = owned
-			addCorner(row, UDim.new(0, 3))
-			local label = Instance.new('TextLabel')
-			label.BackgroundTransparency = 1
-			label.FontFace = uipallet.Font
-			label.Position = UDim2.fromOffset(14, 0)
-			label.Size = UDim2.fromOffset(156, 36)
-			label.Text = entry.Name
-			label.TextColor3 = vapecolors.Secondary
-			label.TextSize = 14
-			label.TextTruncate = Enum.TextTruncate.AtEnd
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.Parent = row
+		local function AddOwned(Entry, Order: number)
+		    local Row: TextButton = Instance.new("TextButton")
+		    Row.AutoButtonColor = false
+		    Row.BackgroundColor3 = VapeColors.Panel
+		    Row.BorderSizePixel = 0
+		    Row.LayoutOrder = Order
+		    Row.Name = Entry.Name
+		    Row.Size = UDim2.fromOffset(184, 36)
+		    Row.Text = ""
+		    Row.Parent = Owned
+		    AddCorner(Row, UDim.new(0, 3))
+		    local Label: TextLabel = Instance.new("TextLabel")
+		    Label.BackgroundTransparency = 1
+		    Label.FontFace = UIPallet.Font
+		    Label.Position = UDim2.fromOffset(14, 0)
+		    Label.Size = UDim2.fromOffset(156, 36)
+		    Label.Text = Entry.Name
+		    Label.TextColor3 = VapeColors.Secondary
+		    Label.TextSize = 14
+		    Label.TextTruncate = Enum.TextTruncate.AtEnd
+		    Label.TextXAlignment = Enum.TextXAlignment.Left
+		    Label.Parent = Row
 		
-			row.MouseEnter:Connect(function()
-				tween:Tween(row, uipallet.Tween, {
-					BackgroundColor3 = vapecolors.Raised
-				})
+		    Row.MouseEnter:Connect(function()
+		        Tween:Tween(Row, UIPallet.Tween, {
+		            BackgroundColor3 = VapeColors.Raised
+		        })
 		
-				label.TextColor3 = vapecolors.Primary
-			end)
-			row.MouseLeave:Connect(function()
-				tween:Tween(row, uipallet.Tween, {
-					BackgroundColor3 = vapecolors.Panel
-				})
+		        Label.TextColor3 = VapeColors.Primary
+		    end)
+		    Row.MouseLeave:Connect(function()
+		        Tween:Tween(Row, UIPallet.Tween, {
+		            BackgroundColor3 = VapeColors.Panel
+		        })
 		
-				label.TextColor3 = vapecolors.Secondary
-			end)
-			row.MouseButton1Click:Connect(function()
-				openEditor(entry)
-			end)
+		        Label.TextColor3 = VapeColors.Secondary
+		    end)
+		    Row.MouseButton1Click:Connect(function()
+		        OpenEditor(Entry)
+		    end)
 		
-			table.insert(component.Owned, row)
+		    table.insert(Component.Owned, Row)
 		end
 		
-		local function renderOwned()
-			for _, v in component.Owned do
-				v:Destroy()
-			end
-			table.clear(component.Owned)
+		local function RenderOwned()
+		    for _, v: TextButton in Component.Owned do
+		        v:Destroy()
+		    end
+		    table.clear(Component.Owned)
 		
-			local count = 0
-			for _, v in component.Configs do
-				if v.mine then
-					count += 1
-					addOwned(v, count)
-				end
-			end
+		    local Count: number = 0
+		    for _, v: any in Component.Configs do
+		        if v.mine then
+		            Count += 1
+		            AddOwned(v, Count)
+		        end
+		    end
 		
-			ownedempty.Visible = count == 0 and not component.Collapsed
-			owned.CanvasSize = UDim2.fromOffset(0, count * 40)
+		    OwnedEmpty.Visible = Count == 0 and not Component.Collapsed
+		    Owned.CanvasSize = UDim2.fromOffset(0, Count * 40)
 		end
 		
-		local function render()
-			clearCards()
+		local function Render()
+		    ClearCards()
 		
-			local filtered = {}
-			local query = component.Search:lower()
-			for _, v in component.Configs do
-				local name = v.Name:lower()
-				local author = v.Author:lower()
-				if query == '' or name:find(query, 1, true) or author:find(query, 1, true) then
-					table.insert(filtered, v)
-				end
-			end
+		    local Filtered = {}
+		    local Query: string = Component.Search:lower()
+		    for _, v: any in Component.Configs do
+		        local Name: string = v.Name:lower()
+		        local Author: string = v.Author:lower()
+		        if Query == "" or Name:find(Query, 1, true) or Author:find(Query, 1, true) then
+		            table.insert(Filtered, v)
+		        end
+		    end
 		
-			table.sort(filtered, sorts[component.Sort])
-			for _, v in filtered do
-				addCard(v)
-			end
-			empty.Visible = #filtered == 0
+		    table.sort(Filtered, Sorts[Component.Sort])
+		    for _, v: any in Filtered do
+		        AddCard(v)
+		    end
+		    Empty.Visible = #Filtered == 0
 		end
 		
-		local function refresh()
-			showSkeletons()
+		local function Refresh()
+		    ShowSkeletons()
 		
-			local res = request({
-				Url = '',
-				Method = 'POST',
-				Headers = {
-					['Content-Type'] = 'application/json'
-				},
-				Body = httpService:JSONEncode({key = license.Key or '_key'})
-			})
-			local payload = res and res.Body and httpService:JSONDecode(httpService:JSONDecode(res.Body).response)
-			local configs = payload and payload.configs
-			table.clear(component.Configs)
-			component.Viewer = payload and payload.viewer
+		    local Response = request({
+		        Url = "https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/configs/get",
+		        Method = "POST",
+		        Headers = {
+		            ["Content-Type"] = "application/json"
+		        },
+		        Body = HttpService:JSONEncode({key = License.Key or "_key"})
+		    })
+		    local Payload = Response and Response.Body and HttpService:JSONDecode(HttpService:JSONDecode(Response.Body).response)
+		    local Configs = Payload and Payload.configs
+		    table.clear(Component.Configs)
+		    Component.Viewer = Payload and Payload.viewer
 		
-			if configs then
-				for _, v in configs do
-					if v.config_name then
-						v.Uploaded = parseTimestamp(v.uploaded_at)
-						v.Name, v.Author = parseFilename(v)
-						v.likes = tonumber(v.likes) or 0
-						v.liked = v.liked == true
-						v.mine = v.mine == true
-						table.insert(component.Configs, v)
-					end
-				end
-			end
-			renderOwned()
-			render()
+		    if Configs then
+		        for _, v: any in Configs do
+		            if v.config_name then
+		                v.Uploaded = ParseTimestamp(v.uploaded_at)
+		                v.Name, v.Author = ParseFilename(v)
+		                v.likes = tonumber(v.likes) or 0
+		                v.liked = v.liked == true
+		                v.mine = v.mine == true
+		                table.insert(Component.Configs, v)
+		            end
+		        end
+		    end
+		    RenderOwned()
+		    Render()
 		end
 		
-		component.Refresh = refresh
+		Component.Refresh = Refresh
 		
-		local function addSort(name, label, order)
-			local text = label:upper()
-			local selected = component.Sort == name
-			local button = Instance.new('TextButton')
-			button.AutoButtonColor = false
-			button.BackgroundColor3 = selected and accentColor() or uipallet.Main
-			button.FontFace = uipallet.FontBold
-			button.LayoutOrder = order
-			button.Name = name
-			button.Size = UDim2.fromOffset(getfontbounds(text, 11, uipallet.FontBold).X + 30, 28)
-			button.Text = text
-			button.TextColor3 = selected and accentTextColor() or vapecolors.Muted
-			button.TextSize = 11
-			button.Parent = sortframe
-			button:SetAttribute('Accent', selected)
-			addCorner(button, UDim.new(0, 14))
-			table.insert(component.Accents, button)
+		local function AddSort(Name: string, Label: string, Order: number)
+		    local Text: string = Label:upper()
+		    local IsSelected: boolean = Component.Sort == Name
+		    local Button: TextButton = Instance.new("TextButton")
+		    Button.AutoButtonColor = false
+		    Button.BackgroundColor3 = IsSelected and AccentColor() or UIPallet.Main
+		    Button.FontFace = UIPallet.FontBold
+		    Button.LayoutOrder = Order
+		    Button.Name = Name
+		    Button.Size = UDim2.fromOffset(GetFontBounds(Text, 11, UIPallet.FontBold).X + 30, 28)
+		    Button.Text = Text
+		    Button.TextColor3 = IsSelected and AccentTextColor() or VapeColors.Muted
+		    Button.TextSize = 11
+		    Button.Parent = SortFrame
+		    Button:SetAttribute("Accent", IsSelected)
+		    AddCorner(Button, UDim.new(0, 14))
+		    table.insert(Component.Accents, Button)
 		
-			button.MouseEnter:Connect(function()
-				if component.Sort ~= name then
-					tween:Tween(button, uipallet.Tween, {
-						BackgroundColor3 = vapecolors.Outline
-					})
-				end
-			end)
-			button.MouseLeave:Connect(function()
-				if component.Sort ~= name then
-					tween:Tween(button, uipallet.Tween, {
-						BackgroundColor3 = uipallet.Main
-					})
-				end
-			end)
-			button.MouseButton1Click:Connect(function()
-				component.Sort = name
-				for _, v in sortframe:GetChildren() do
-					if v:IsA('TextButton') then
-						local on = v.Name == name
-						v:SetAttribute('Accent', on)
-						v.BackgroundColor3 = on and accentColor() or uipallet.Main
-						v.TextColor3 = on and accentTextColor() or vapecolors.Muted
-					end
-				end
-				render()
-			end)
+		    Button.MouseEnter:Connect(function()
+		        if Component.Sort ~= Name then
+		            Tween:Tween(Button, UIPallet.Tween, {
+		                BackgroundColor3 = VapeColors.Outline
+		            })
+		        end
+		    end)
+		    Button.MouseLeave:Connect(function()
+		        if Component.Sort ~= Name then
+		            Tween:Tween(Button, UIPallet.Tween, {
+		                BackgroundColor3 = UIPallet.Main
+		            })
+		        end
+		    end)
+		    Button.MouseButton1Click:Connect(function()
+		        Component.Sort = Name
+		        for _, v: Instance in SortFrame:GetChildren() do
+		            if v:IsA("TextButton") then
+		                local IsActive: boolean = v.Name == Name
+		                v:SetAttribute("Accent", IsActive)
+		                v.BackgroundColor3 = IsActive and AccentColor() or UIPallet.Main
+		                v.TextColor3 = IsActive and AccentTextColor() or VapeColors.Muted
+		            end
+		        end
+		        Render()
+		    end)
 		end
 		
-		addSort('rated', 'Top Rated', 1)
-		addSort('downloaded', 'Most Downloaded', 2)
-		addSort('newest', 'Newest', 3)
+		AddSort("rated", "Top Rated", 1)
+		AddSort("downloaded", "Most Downloaded", 2)
+		AddSort("newest", "Newest", 3)
 		
-		for _, v in {detailclose, uploadclose, cancel, overlay} do
-			v.MouseButton1Click:Connect(showPanel)
+		for _, v: GuiButton in {DetailClose, UploadClose, Cancel, Overlay} do
+		    v.MouseButton1Click:Connect(ShowPanel)
 		end
 		
-		sourcecatcher = Instance.new('TextButton')
-		sourcecatcher.AutoButtonColor = false
-		sourcecatcher.BackgroundTransparency = 1
-		sourcecatcher.Name = 'CreateFromCatcher'
-		sourcecatcher.Size = UDim2.fromScale(1, 1)
-		sourcecatcher.Text = ''
-		sourcecatcher.Visible = false
-		sourcecatcher.ZIndex = 8
-		sourcecatcher.Parent = window
-		sourcemenu = Instance.new('Frame')
-		sourcemenu.Active = true
-		sourcemenu.BackgroundColor3 = accentColor()
-		sourcemenu.BorderSizePixel = 0
-		sourcemenu.Name = 'CreateFrom'
-		sourcemenu.Position = UDim2.fromOffset(96, 60)
-		sourcemenu.Size = UDim2.fromOffset(216, 60)
-		sourcemenu.Visible = false
-		sourcemenu.ZIndex = 9
-		sourcemenu.Parent = window
-		addCorner(sourcemenu)
-		table.insert(component.Accents, sourcemenu)
+		SourceCatcher = Instance.new("TextButton")
+		SourceCatcher.AutoButtonColor = false
+		SourceCatcher.BackgroundTransparency = 1
+		SourceCatcher.Name = "CreateFromCatcher"
+		SourceCatcher.Size = UDim2.fromScale(1, 1)
+		SourceCatcher.Text = ""
+		SourceCatcher.Visible = false
+		SourceCatcher.ZIndex = 8
+		SourceCatcher.Parent = Window
+		SourceMenu = Instance.new("Frame")
+		SourceMenu.Active = true
+		SourceMenu.BackgroundColor3 = AccentColor()
+		SourceMenu.BorderSizePixel = 0
+		SourceMenu.Name = "CreateFrom"
+		SourceMenu.Position = UDim2.fromOffset(96, 60)
+		SourceMenu.Size = UDim2.fromOffset(216, 60)
+		SourceMenu.Visible = false
+		SourceMenu.ZIndex = 9
+		SourceMenu.Parent = Window
+		AddCorner(SourceMenu)
+		table.insert(Component.Accents, SourceMenu)
 		
-		local sourcetitle = Instance.new('TextLabel')
-		sourcetitle.BackgroundTransparency = 1
-		sourcetitle.FontFace = uipallet.FontSemiBold
-		sourcetitle.Position = UDim2.fromOffset(0, 14)
-		sourcetitle.Size = UDim2.new(1, 0, 0, 20)
-		sourcetitle.Text = 'Create from...'
-		sourcetitle.TextColor3 = accentTextColor()
-		sourcetitle.TextSize = 14
-		sourcetitle.ZIndex = 10
-		sourcetitle.Parent = sourcemenu
+		local SourceTitle: TextLabel = Instance.new("TextLabel")
+		SourceTitle.BackgroundTransparency = 1
+		SourceTitle.FontFace = UIPallet.FontSemiBold
+		SourceTitle.Position = UDim2.fromOffset(0, 14)
+		SourceTitle.Size = UDim2.new(1, 0, 0, 20)
+		SourceTitle.Text = "Create from..."
+		SourceTitle.TextColor3 = AccentTextColor()
+		SourceTitle.TextSize = 14
+		SourceTitle.ZIndex = 10
+		SourceTitle.Parent = SourceMenu
 		
-		local sourcelist = Instance.new('ScrollingFrame')
-		sourcelist.BackgroundTransparency = 1
-		sourcelist.BorderSizePixel = 0
-		sourcelist.CanvasSize = UDim2.new()
-		sourcelist.Position = UDim2.fromOffset(0, 40)
-		sourcelist.ScrollBarThickness = 0
-		sourcelist.Size = UDim2.fromOffset(216, 20)
-		sourcelist.ZIndex = 10
-		sourcelist.Parent = sourcemenu
-		local sourcelayout = Instance.new('UIListLayout')
-		sourcelayout.Padding = UDim.new(0, 0)
-		sourcelayout.SortOrder = Enum.SortOrder.LayoutOrder
-		sourcelayout.Parent = sourcelist
+		local SourceList: ScrollingFrame = Instance.new("ScrollingFrame")
+		SourceList.BackgroundTransparency = 1
+		SourceList.BorderSizePixel = 0
+		SourceList.CanvasSize = UDim2.new()
+		SourceList.Position = UDim2.fromOffset(0, 40)
+		SourceList.ScrollBarThickness = 0
+		SourceList.Size = UDim2.fromOffset(216, 20)
+		SourceList.ZIndex = 10
+		SourceList.Parent = SourceMenu
+		local SourceLayout: UIListLayout = Instance.new("UIListLayout")
+		SourceLayout.Padding = UDim.new(0, 0)
+		SourceLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		SourceLayout.Parent = SourceList
 		
-		local function profileSource(profile)
-			if not profile then
-				vape:Save(vape.Profile)
-			end
+		local function ProfileSource(Profile: string?)
+		    if not Profile then
+		        vape:Save(vape.Profile)
+		    end
 		
-			local path = 'kingvape/profiles/'..(profile or vape.Profile)..vape.Place..'.txt'
-			return isfile(path) and readfile(path) or nil
+		    local FilePath: string = `kingvape/profiles/{Profile or vape.Profile}{vape.Place}.txt`
+		    return isfile(FilePath) and readfile(FilePath) or nil
 		end
 		
-		local function openUploader(profile)
-			setSourceMenu(false)
-			namebox.Text = ''
-			descbox.Text = ''
-			anontoggle:Set(false)
-			derived.Text = `DERIVED FROM <font color="rgb(255,255,255)">{profile or 'Current settings'}</font>`
+		local function OpenUploader(Profile: string?)
+		    SetSourceMenu(false)
+		    NameBox.Text = ""
+		    DescriptionBox.Text = ""
+		    AnonymousToggle:Set(false)
+		    Derived.Text = `DERIVED FROM <font color="rgb(255,255,255)">{Profile or "Current settings"}</font>`
 		
-			uploadsource = profileSource(profile)
-			fillModules(uploadmodules, uploadcount, uploadsource)
-			showPanel(uploader)
+		    UploadSource = ProfileSource(Profile)
+		    FillModules(UploadModules, UploadCount, UploadSource)
+		    ShowPanel(Uploader)
 		end
 		
-		local editorrows, editordecoded = {}, nil
+		local EditorRows, EditorDecoded = {}, nil
 		
-		function selectEditorModule(chosen)
-			for i, v in editorrows do
-				local on = i == chosen
-				v.BackgroundTransparency = on and 0 or 1
-				v.TextLabel.TextColor3 = on and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
-			end
-			editordetailsrow.BackgroundTransparency = chosen and 1 or 0
-			editordetailsrow.TextLabel.TextColor3 = chosen and Color3.fromRGB(171, 171, 171) or Color3.new(1, 1, 1)
+		function SelectEditorModule(Chosen: string?)
+		    for ModuleName: string, Row: TextButton in EditorRows do
+		        local IsChosen: boolean = ModuleName == Chosen
+		        Row.BackgroundTransparency = IsChosen and 0 or 1
+		        Row.TextLabel.TextColor3 = IsChosen and Color3.new(1, 1, 1) or Color3.fromRGB(171, 171, 171)
+		    end
+		    EditorDetailsRow.BackgroundTransparency = Chosen and 1 or 0
+		    EditorDetailsRow.TextLabel.TextColor3 = Chosen and Color3.fromRGB(171, 171, 171) or Color3.new(1, 1, 1)
 		
-			editorsettings.Visible = not chosen
-			editormoduletitle.Visible = chosen ~= nil
-			editoroptions.Visible = chosen ~= nil
+		    EditorSettings.Visible = not Chosen
+		    EditorModuleTitle.Visible = Chosen ~= nil
+		    EditorOptions.Visible = Chosen ~= nil
 		
-			if not chosen then return end
+		    if not Chosen then return end
 		
-			editormoduletitle.Text = chosen
-			clearList(editoroptions)
+		    EditorModuleTitle.Text = Chosen
+		    ClearList(EditorOptions)
 		
-			local options = editordecoded.Modules[chosen].Options or {}
-			local names = {}
-			for i in options do
-				table.insert(names, tostring(i))
-			end
-			table.sort(names)
-			for i, v in names do
-				addOptionRow(editoroptions, v, options[v], i)
-			end
-			editoroptions.CanvasSize = UDim2.fromOffset(0, #names * 30)
+		    local Options = EditorDecoded.Modules[Chosen].Options or {}
+		    local Names: {string} = {}
+		    for OptionName: any in Options do
+		        table.insert(Names, tostring(OptionName))
+		    end
+		    table.sort(Names)
+		    for i: number, OptionName: string in Names do
+		        AddOptionRow(EditorOptions, OptionName, Options[OptionName], i)
+		    end
+		    EditorOptions.CanvasSize = UDim2.fromOffset(0, #Names * 30)
 		end
 		
-		local function setEditorModules(source)
-			editordecoded, editorrows = fillModules(editormodules, editorcount, source, selectEditorModule)
-			selectEditorModule(nil)
+		local function SetEditorModules(Source: string?)
+		    EditorDecoded, EditorRows = FillModules(EditorModules, EditorCount, Source, SelectEditorModule)
+		    SelectEditorModule(nil)
 		end
 		
-		local function setEditorSource(profile)
-			setSourceMenu(false)
-			editorsource = profileSource(profile)
-			editorderived.Text = `DERIVED FROM <font color="rgb(255,255,255)">{profile or 'Current settings'}</font>`
-			setEditorModules(editorsource)
+		local function SetEditorSource(Profile: string?)
+		    SetSourceMenu(false)
+		    EditorSource = ProfileSource(Profile)
+		    EditorDerived.Text = `DERIVED FROM <font color="rgb(255,255,255)">{Profile or "Current settings"}</font>`
+		    SetEditorModules(EditorSource)
 		end
 		
-		function openEditor(entry)
-			editing = entry
-			editorsource = nil
-			editortitle.Text = entry.Name
-			editordesc.Text = (entry.description ~= 'unknown' and entry.description) or ''
-			editorderived.Text = 'DERIVED FROM <font color="rgb(255,255,255)">Published copy</font>'
-			editorstats.Text = `{entry.likes or 0} positive reviews    {entry.downloads or 0} downloads`
-			editoranon:Set(entry.discord_username == 'unknown')
+		function OpenEditor(Entry)
+		    Editing = Entry
+		    EditorSource = nil
+		    EditorTitle.Text = Entry.Name
+		    EditorDescription.Text = (Entry.description ~= "unknown" and Entry.description) or ""
+		    EditorDerived.Text = 'DERIVED FROM <font color="rgb(255,255,255)">Published copy</font>'
+		    EditorStats.Text = `{Entry.likes or 0} positive reviews    {Entry.downloads or 0} downloads`
+		    EditorAnonymous:Set(Entry.discord_username == "unknown")
 		
-			setEditorModules(entry.config)
-			showPanel(editor)
+		    SetEditorModules(Entry.config)
+		    ShowPanel(Editor)
 		end
 		
-		local function addSource(text, profile, order)
-			local row = Instance.new('TextButton')
-			row.AutoButtonColor = true
-			row.BackgroundColor3 = accentColor()
-			row.BorderSizePixel = 0
-			row.LayoutOrder = order
-			row.Size = UDim2.fromOffset(216, 30)
-			row.Text = ''
-			row.ZIndex = 10
-			row.Parent = sourcelist
-			local plus = Instance.new('TextLabel')
-			plus.BackgroundTransparency = 1
-			plus.FontFace = uipallet.Font
-			plus.Position = UDim2.fromOffset(16, 0)
-			plus.Size = UDim2.fromOffset(20, 30)
-			plus.Text = '+'
-			plus.TextColor3 = accentTextColor()
-			plus.TextSize = 16
-			plus.ZIndex = 11
-			plus.Parent = row
-			local label = Instance.new('TextLabel')
-			label.BackgroundTransparency = 1
-			label.FontFace = uipallet.Font
-			label.Position = UDim2.fromOffset(40, 0)
-			label.Size = UDim2.fromOffset(160, 30)
-			label.Text = text
-			label.TextColor3 = accentTextColor()
-			label.TextSize = 13
-			label.TextTruncate = Enum.TextTruncate.AtEnd
-			label.TextXAlignment = Enum.TextXAlignment.Left
-			label.ZIndex = 11
-			label.Parent = row
-			row.MouseButton1Click:Connect(function()
-				sourceaction(profile)
-			end)
+		local function AddSource(Text: string, Profile: string?, Order: number)
+		    local Row: TextButton = Instance.new("TextButton")
+		    Row.AutoButtonColor = true
+		    Row.BackgroundColor3 = AccentColor()
+		    Row.BorderSizePixel = 0
+		    Row.LayoutOrder = Order
+		    Row.Size = UDim2.fromOffset(216, 30)
+		    Row.Text = ""
+		    Row.ZIndex = 10
+		    Row.Parent = SourceList
+		    local Plus: TextLabel = Instance.new("TextLabel")
+		    Plus.BackgroundTransparency = 1
+		    Plus.FontFace = UIPallet.Font
+		    Plus.Position = UDim2.fromOffset(16, 0)
+		    Plus.Size = UDim2.fromOffset(20, 30)
+		    Plus.Text = "+"
+		    Plus.TextColor3 = AccentTextColor()
+		    Plus.TextSize = 16
+		    Plus.ZIndex = 11
+		    Plus.Parent = Row
+		    local Label: TextLabel = Instance.new("TextLabel")
+		    Label.BackgroundTransparency = 1
+		    Label.FontFace = UIPallet.Font
+		    Label.Position = UDim2.fromOffset(40, 0)
+		    Label.Size = UDim2.fromOffset(160, 30)
+		    Label.Text = Text
+		    Label.TextColor3 = AccentTextColor()
+		    Label.TextSize = 13
+		    Label.TextTruncate = Enum.TextTruncate.AtEnd
+		    Label.TextXAlignment = Enum.TextXAlignment.Left
+		    Label.ZIndex = 11
+		    Label.Parent = Row
+		    Row.MouseButton1Click:Connect(function()
+		        SourceAction(Profile)
+		    end)
 		
-			return row
+		    return Row
 		end
 		
-		local function showSourceMenu(action, title, x, y)
-			sourceaction = action
+		local function ShowSourceMenu(Action, MenuTitle: string, X: number, Y: number)
+		    SourceAction = Action
 		
-			for _, v in sourcelist:GetChildren() do
-				if v:IsA('TextButton') or v:IsA('TextLabel') then
-					v:Destroy()
-				end
-			end
+		    for _, v: Instance in SourceList:GetChildren() do
+		        if v:IsA("TextButton") or v:IsA("TextLabel") then
+		            v:Destroy()
+		        end
+		    end
 		
-			sourcetitle.Text = title
-			sourcetitle.TextColor3 = accentTextColor()
-			addSource('Current settings', nil, 1)
+		    SourceTitle.Text = MenuTitle
+		    SourceTitle.TextColor3 = AccentTextColor()
+		    AddSource("Current settings", nil, 1)
 		
-			local caption = Instance.new('TextLabel')
-			caption.BackgroundTransparency = 1
-			caption.FontFace = uipallet.FontBold
-			caption.LayoutOrder = 2
-			caption.Size = UDim2.fromOffset(216, 24)
-			caption.Text = '      PRIVATE PROFILES'
-			caption.TextColor3 = accentTextColor()
-			caption.TextSize = 11
-			caption.TextTransparency = 0.35
-			caption.TextXAlignment = Enum.TextXAlignment.Left
-			caption.ZIndex = 11
-			caption.Parent = sourcelist
+		    local Caption: TextLabel = Instance.new("TextLabel")
+		    Caption.BackgroundTransparency = 1
+		    Caption.FontFace = UIPallet.FontBold
+		    Caption.LayoutOrder = 2
+		    Caption.Size = UDim2.fromOffset(216, 24)
+		    Caption.Text = "      PRIVATE PROFILES"
+		    Caption.TextColor3 = AccentTextColor()
+		    Caption.TextSize = 11
+		    Caption.TextTransparency = 0.35
+		    Caption.TextXAlignment = Enum.TextXAlignment.Left
+		    Caption.ZIndex = 11
+		    Caption.Parent = SourceList
 		
-			local count = 0
-			for _, v in vape.Categories.Profiles.List do
-				count += 1
-				addSource(v.Name, v.Name, 2 + count)
-			end
+		    local Count: number = 0
+		    for _, v: any in vape.Categories.Profiles.List do
+		        Count += 1
+		        AddSource(v.Name, v.Name, 2 + Count)
+		    end
 		
-			local height = 30 + 24 + count * 30
-			sourcelist.CanvasSize = UDim2.fromOffset(0, height)
-			sourcelist.Size = UDim2.fromOffset(216, math.min(height, 210))
-			sourcemenu.Position = UDim2.fromOffset(x, y)
-			sourcemenu.Size = UDim2.fromOffset(216, 40 + math.min(height, 210) + 10)
-			setSourceMenu(true)
+		    local Height: number = 30 + 24 + Count * 30
+		    SourceList.CanvasSize = UDim2.fromOffset(0, Height)
+		    SourceList.Size = UDim2.fromOffset(216, math.min(Height, 210))
+		    SourceMenu.Position = UDim2.fromOffset(X, Y)
+		    SourceMenu.Size = UDim2.fromOffset(216, 40 + math.min(Height, 210) + 10)
+		    SetSourceMenu(true)
 		end
 		
-		local loading = false
+		local Loading: boolean = false
 		
-		close.MouseButton1Click:Connect(function()
-			window.Visible = false
-			clickgui.Visible = true
+		Close.MouseButton1Click:Connect(function()
+		    Window.Visible = false
+		    ClickGUI.Visible = true
 		end)
 		
-		collapse.MouseButton1Click:Connect(function()
-			setCollapsed(not component.Collapsed)
+		Collapse.MouseButton1Click:Connect(function()
+		    SetCollapsed(not Component.Collapsed)
 		end)
 		
-		collapse.MouseEnter:Connect(function()
-			collapseicon.ImageColor3 = vapecolors.IconHover
+		Collapse.MouseEnter:Connect(function()
+		    CollapseIcon.ImageColor3 = VapeColors.IconHover
 		end)
 		
-		collapse.MouseLeave:Connect(function()
-			collapseicon.ImageColor3 = vapecolors.Icon
+		Collapse.MouseLeave:Connect(function()
+		    CollapseIcon.ImageColor3 = VapeColors.Icon
 		end)
 		
-		confirm.MouseButton1Click:Connect(function()
-			if namebox.Text == '' then
-				vape:CreateNotification('KingVape', 'No profile name provided', 5, 'warning')
-				return
-			end
+		Confirm.MouseButton1Click:Connect(function()
+		    if NameBox.Text == "" then
+		        vape:CreateNotification("Cat", "No profile name provided", 5, "warning")
+		        return
+		    end
 		
-			if not uploadsource then
-				vape:CreateNotification('KingVape', 'That profile has no saved settings yet', 8, 'warning')
-				return
-			end
+		    if not UploadSource then
+		        vape:CreateNotification("Cat", "That profile has no saved settings yet", 8, "warning")
+		        return
+		    end
 		
-			showPanel(nil)
-			vape:CreateNotification('KingVape', 'Publishing profile', 5, 'info')
+		    ShowPanel(nil)
+		    vape:CreateNotification("Cat", "Publishing profile", 5, "info")
 		
-			local res = request({
-				Url = '',
-				Method = 'POST',
-				Headers = {
-					['Content-Type'] = 'application/json'
-				},
-				Body = httpService:JSONEncode({
-					key = license.Key or '_key',
-					config_name = namebox.Text,
-					config = uploadsource,
-					description = descbox.Text,
-					anonymous = anontoggle.Enabled
-				})
-			})
+		    local Response = request({
+		        Url = "https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/configs/set",
+		        Method = "POST",
+		        Headers = {
+		            ["Content-Type"] = "application/json"
+		        },
+		        Body = HttpService:JSONEncode({
+		            key = License.Key or "_key",
+		            config_name = NameBox.Text,
+		            config = UploadSource,
+		            description = DescriptionBox.Text,
+		            anonymous = AnonymousToggle.Enabled
+		        })
+		    })
 		
-			if res and res.Body then
-				vape:CreateNotification('KingVape', `Published "{namebox.Text}"`, 10, 'info')
-				refresh()
-			else
-				vape:CreateNotification('KingVape', 'Failed to publish profile', 10, 'warning')
-			end
+		    if Response and Response.StatusCode and Response.StatusCode >= 200 and Response.StatusCode < 300 then
+		        vape:CreateNotification("Cat", `Published "{NameBox.Text}"`, 10, "info")
+		        Refresh()
+		    else
+		        local Decoded = Response and Response.Body and select(2, pcall(HttpService.JSONDecode, HttpService, Response.Body))
+		        local Reason = type(Decoded) == "table" and type(Decoded.errors) == "table" and type(Decoded.errors[1]) == "table" and select(2, next(Decoded.errors[1]))
+		        vape:CreateNotification("Cat", Reason and `Failed to publish profile: {Reason}` or "Failed to publish profile", 10, "warning")
+		    end
 		end)
 		
-		dislike.MouseButton1Click:Connect(function()
-			if voting or not selected or not selected.filename then return end
-			local entry = selected
-			local disliked = not dislikes[entry.filename]
-			dislikes[entry.filename] = disliked or nil
+		Dislike.MouseButton1Click:Connect(function()
+		    if Voting or not Selected or not Selected.filename then return end
+		    local Entry = Selected
+		    local Disliked: boolean = not Dislikes[Entry.filename]
+		    Dislikes[Entry.filename] = Disliked or nil
 		
-			if disliked and entry.liked then
-				sendLike(entry, false)
-				return
-			end
-			renderVotes(entry)
+		    if Disliked and Entry.liked then
+		        SendLike(Entry, false)
+		        return
+		    end
+		    RenderVotes(Entry)
 		end)
 		
-		download.MouseButton1Click:Connect(function()
-			if not selected then return end
-			local entry = selected
-			local content = entry.config or (entry.metadata and entry.metadata.content)
-			if not content then
-				vape:CreateNotification('KingVape', `Could not fetch "{entry.Name}"`, 8, 'warning')
-				return
-			end
+		Download.MouseButton1Click:Connect(function()
+		    if not Selected then return end
+		    local Entry = Selected
+		    local Content = Entry.config or (Entry.metadata and Entry.metadata.content)
+		    if not Content then
+		        vape:CreateNotification("Cat", `Could not fetch "{Entry.Name}"`, 8, "warning")
+		        return
+		    end
 		
-			local profile = `{entry.Name} (@{entry.Author})`
-			local profiles = vape.Categories.Profiles
-			if not profiles:GetValue(profile) then
-				profiles:CreateProfile(profile)
-			end
+		    local Profile: string = `{Entry.Name} (@{Entry.Author})`
+		    local Profiles = vape.Categories.Profiles
+		    if not Profiles:GetValue(Profile) then
+		        Profiles:CreateProfile(Profile)
+		    end
 		
-			vape:Save(profile)
-			writefile('kingvape/profiles/'..profile..vape.Place..'.txt', content)
-			vape:Load(true, profile)
-			profiles:ChangeValue()
-			showPanel(nil)
-			vape:CreateNotification('KingVape', `Downloaded "{entry.Name}" by {entry.Author}`, 8, 'info')
+		    vape:Save(Profile)
+		    writefile(`kingvape/profiles/{Profile}{vape.Place}.txt`, Content)
+		    vape:Load(true, Profile)
+		    Profiles:ChangeValue()
+		    ShowPanel(nil)
+		    vape:CreateNotification("Cat", `Downloaded "{Entry.Name}" by {Entry.Author}`, 8, "info")
 		end)
 		
-		editorcancel.MouseButton1Click:Connect(function()
-			showPanel(nil)
+		EditorCancel.MouseButton1Click:Connect(function()
+		    ShowPanel(nil)
 		end)
 		
-		editorclose.MouseButton1Click:Connect(function()
-			showPanel(nil)
+		EditorClose.MouseButton1Click:Connect(function()
+		    ShowPanel(nil)
 		end)
 		
-		editorderived.MouseButton1Click:Connect(function()
-			showSourceMenu(setEditorSource, 'Update from...', 43, 96)
+		EditorDerived.MouseButton1Click:Connect(function()
+		    ShowSourceMenu(SetEditorSource, "Update from...", 43, 96)
 		end)
 		
-		editorremove.MouseButton1Click:Connect(function()
-			if not editing then return end
-			local entry = editing
+		EditorRemove.MouseButton1Click:Connect(function()
+		    if not Editing then return end
+		    local Entry = Editing
 		
-			showPanel(nil)
-			local res = request({
-				Url = '',
-				Method = 'POST',
-				Headers = {
-					['Content-Type'] = 'application/json'
-				},
-				Body = httpService:JSONEncode({
-					key = license.Key or '_key',
-					config_name = entry.config_name
-				})
-			})
-			local body = res and res.Body and httpService:JSONDecode(httpService:JSONDecode(res.Body).response)
+		    ShowPanel(nil)
+		    local Response = request({
+		        Url = "https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/configs/delete",
+		        Method = "POST",
+		        Headers = {
+		            ["Content-Type"] = "application/json"
+		        },
+		        Body = HttpService:JSONEncode({
+		            key = License.Key or "_key",
+		            config_name = Entry.config_name
+		        })
+		    })
+		    local Body = Response and Response.Body and HttpService:JSONDecode(HttpService:JSONDecode(Response.Body).response)
 		
-			if body and body.success then
-				vape:CreateNotification('KingVape', `Removed "{entry.Name}"`, 8, 'info')
-				refresh()
-			else
-				vape:CreateNotification('KingVape', `Failed to remove "{entry.Name}"`, 8, 'warning')
-			end
+		    if Body and Body.success then
+		        vape:CreateNotification("Cat", `Removed "{Entry.Name}"`, 8, "info")
+		        Refresh()
+		    else
+		        vape:CreateNotification("Cat", `Failed to remove "{Entry.Name}"`, 8, "warning")
+		    end
 		end)
 		
-		gridlayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		GridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			children.CanvasSize = UDim2.fromOffset(0, gridlayout.AbsoluteContentSize.Y / scale.Scale)
+		    Children.CanvasSize = UDim2.fromOffset(0, GridLayout.AbsoluteContentSize.Y / Scale.Scale)
 		end)
 		
-		like.MouseButton1Click:Connect(function()
-			if voting or not selected or not selected.filename then return end
-			local entry = selected
-			dislikes[entry.filename] = nil
-			sendLike(entry, not entry.liked)
+		Like.MouseButton1Click:Connect(function()
+		    if Voting or not Selected or not Selected.filename then return end
+		    local Entry = Selected
+		    Dislikes[Entry.filename] = nil
+		    SendLike(Entry, not Entry.liked)
 		end)
 		
-		publish.MouseButton1Click:Connect(function()
-			showSourceMenu(openUploader, 'Create from...', 57, 77)
+		Publish.MouseButton1Click:Connect(function()
+		    ShowSourceMenu(OpenUploader, "Create from...", 57, 77)
 		end)
 		
-		searchbox:GetPropertyChangedSignal('Text'):Connect(function()
-			component.Search = searchbox.Text
-			render()
+		SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		    Component.Search = SearchBox.Text
+		    Render()
 		end)
 		
-		sourcecatcher.MouseButton1Click:Connect(function()
-			local mouse = inputService:GetMouseLocation() - guiService:GetGuiInset()
-			local origin, size = sourcemenu.AbsolutePosition, sourcemenu.AbsoluteSize
-			if mouse.X >= origin.X and mouse.X <= origin.X + size.X and mouse.Y >= origin.Y and mouse.Y <= origin.Y + size.Y then
-				return
-			end
-			setSourceMenu(false)
+		SourceCatcher.MouseButton1Click:Connect(function()
+		    local MousePosition: Vector2 = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+		    local Origin, Size = SourceMenu.AbsolutePosition, SourceMenu.AbsoluteSize
+		    if MousePosition.X >= Origin.X and MousePosition.X <= Origin.X + Size.X and MousePosition.Y >= Origin.Y and MousePosition.Y <= Origin.Y + Size.Y then
+		        return
+		    end
+		    SetSourceMenu(false)
 		end)
 		
-		update.MouseButton1Click:Connect(function()
-			if not editing then return end
-			local entry = editing
-			local content = editorsource or entry.config
+		Update.MouseButton1Click:Connect(function()
+		    if not Editing then return end
+		    local Entry = Editing
+		    local Content = EditorSource or Entry.config
 		
-			if not content then
-				vape:CreateNotification('KingVape', `Could not read the settings for "{entry.Name}"`, 8, 'warning')
-				return
-			end
+		    if not Content then
+		        vape:CreateNotification("Cat", `Could not read the settings for "{Entry.Name}"`, 8, "warning")
+		        return
+		    end
 		
-			showPanel(nil)
-			vape:CreateNotification('KingVape', `Updating "{entry.Name}"`, 5, 'info')
+		    ShowPanel(nil)
+		    vape:CreateNotification("Cat", `Updating "{Entry.Name}"`, 5, "info")
 		
-			local res = request({
-				Url = '',
-				Method = 'POST',
-				Headers = {
-					['Content-Type'] = 'application/json'
-				},
-				Body = httpService:JSONEncode({
-					key = license.Key or '_key',
-					config_name = entry.config_name,
-					config = content,
-					description = editordesc.Text,
-					anonymous = editoranon.Enabled
-				})
-			})
+		    local Response = request({
+		        Url = "https://raw.githubusercontent.com/zxcbest957-pixel/KingVape-V3/main/configs/set",
+		        Method = "POST",
+		        Headers = {
+		            ["Content-Type"] = "application/json"
+		        },
+		        Body = HttpService:JSONEncode({
+		            key = License.Key or "_key",
+		            config_name = Entry.config_name,
+		            config = Content,
+		            description = EditorDescription.Text,
+		            anonymous = EditorAnonymous.Enabled
+		        })
+		    })
 		
-			if res and res.Body then
-				vape:CreateNotification('KingVape', `Updated "{entry.Name}"`, 10, 'info')
-				refresh()
-			else
-				vape:CreateNotification('KingVape', `Failed to update "{entry.Name}"`, 10, 'warning')
-			end
+		    if Response and Response.StatusCode and Response.StatusCode >= 200 and Response.StatusCode < 300 then
+		        vape:CreateNotification("Cat", `Updated "{Entry.Name}"`, 10, "info")
+		        Refresh()
+		    else
+		        vape:CreateNotification("Cat", `Failed to update "{Entry.Name}"`, 10, "warning")
+		    end
 		end)
 		
-		window:GetPropertyChangedSignal('Visible'):Connect(function()
-			vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-			if window.Visible and not loading then
-				loading = true
-				task.spawn(function()
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		Window:GetPropertyChangedSignal("Visible"):Connect(function()
+		    vape:UpdateGUI(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		    if Window.Visible and not Loading then
+		        Loading = true
+		        task.spawn(function()
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					refresh()
-					loading = false
-				end)
-			end
+		            Refresh()
+		            Loading = false
+		        end)
+		    end
 		end)
 		
-		showPanel(nil)
-		vape.PublicProfiles = component
+		ShowPanel(nil)
+		vape.PublicProfiles = Component
 		
-		return component
+		return Component
 	end,
-	SearchBar = function(props, children, api)
-		local component = {
-			Type = 'SearchBar'
+	SearchBar = function(Props, Children, API)
+		local Component = {
+		    Type = "SearchBar"
 		}
 		
-		local search = Instance.new('Frame')
-		search.AnchorPoint = Vector2.new(0.5, 0)
-		search.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		search.Name = 'Search'
-		search.Position = UDim2.new(0.5, 0, 0, 13)
-		search.Size = UDim2.fromOffset(220, 37)
-		search.Parent = clickgui
-		component.Object = search
-		addBlur(search)
-		addCorner(search)
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('kingvape/assets/new/search.png')
-		icon.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		icon.Position = UDim2.new(1, -25, 0, 11)
-		icon.Size = UDim2.fromOffset(14, 14)
-		icon.Parent = search
-		local legiticon = Instance.new('ImageButton')
-		legiticon.BackgroundTransparency = 1
-		legiticon.Image = getvapeasset('kingvape/assets/new/legit_switch.png')
-		legiticon.Name = 'Legit'
-		legiticon.Position = UDim2.fromOffset(8, 11)
-		legiticon.Size = UDim2.fromOffset(29, 16)
-		legiticon.Parent = search
-		local v4logo = vape.Categories.Main.Object.VapeLogo.V4Logo
-		listenProperty(v4logo, legiticon, 'ImageColor3', legiticon)
-		local legitdivider = Instance.new('Frame')
-		legitdivider.BackgroundColor3 = color.Light(uipallet.Main, 0.14)
-		legitdivider.BorderSizePixel = 0
-		legitdivider.Name = 'LegitDivider'
-		legitdivider.Position = UDim2.fromOffset(43, 13)
-		legitdivider.Size = UDim2.fromOffset(2, 12)
-		legitdivider.Parent = search
-		local box = Instance.new('TextBox')
-		box.BackgroundTransparency = 1
-		box.ClearTextOnFocus = false
-		box.FontFace = uipallet.Font
-		box.PlaceholderText = ''
-		box.Position = UDim2.fromOffset(50, 0)
-		box.Size = UDim2.new(1, -50, 0, 37)
-		box.Text = ''
-		box.TextColor3 = uipallet.Text
-		box.TextSize = 12
-		box.TextXAlignment = Enum.TextXAlignment.Left
-		box.Parent = search
-		local children = Instance.new('ScrollingFrame')
-		children.BackgroundTransparency = 1
-		children.BorderSizePixel = 0
-		children.CanvasSize = UDim2.new()
-		children.Position = UDim2.fromOffset(0, 34)
-		children.ScrollBarThickness = 2
-		children.ScrollBarImageTransparency = 0.75
-		children.Size = UDim2.new(1, 0, 1, -37)
-		children.Parent = search
-		local divider = Instance.new('Frame')
-		divider.BackgroundColor3 = Color3.new(1, 1, 1)
-		divider.BackgroundTransparency = 0.928
-		divider.BorderSizePixel = 0
-		divider.Position = UDim2.fromOffset(0, 33)
-		divider.Size = UDim2.new(1, 0, 0, 1)
-		divider.Visible = false
-		divider.Parent = search
-		local stroke = Instance.new('UIStroke')
-		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		stroke.Color = Color3.fromRGB(85, 85, 85)
-		stroke.Transparency = 0.8
-		stroke.Parent = search
-		local windowlist = Instance.new('UIListLayout')
-		windowlist.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		windowlist.SortOrder = Enum.SortOrder.LayoutOrder
-		windowlist.Parent = children
-		local legitreturn = Instance.new('TextButton')
-		legitreturn.AnchorPoint = Vector2.new(0.5, 0)
-		legitreturn.AutoButtonColor = false
-		legitreturn.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		legitreturn.Name = 'LegitReturn'
-		legitreturn.Position = UDim2.new(0.5, 0, 0, 13)
-		legitreturn.Size = UDim2.fromOffset(44, 32)
-		legitreturn.Text = ''
-		legitreturn.Visible = false
-		legitreturn.Parent = scaledgui
-		component.LegitReturn = legitreturn
-		addBlur(legitreturn)
-		addCorner(legitreturn)
-		addTooltip(legitreturn, 'Return to cheat mode')
-		local legitreturnstroke = Instance.new('UIStroke')
-		legitreturnstroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		legitreturnstroke.Color = Color3.fromRGB(85, 85, 85)
-		legitreturnstroke.Transparency = 0.8
-		legitreturnstroke.Parent = legitreturn
-		local legitreturnicon = Instance.new('ImageLabel')
-		legitreturnicon.BackgroundTransparency = 1
-		legitreturnicon.Image = getvapeasset('kingvape/assets/new/cheat_switch.png')
-		legitreturnicon.Name = 'Icon'
-		legitreturnicon.Position = UDim2.fromOffset(8, 9)
-		legitreturnicon.Size = UDim2.fromOffset(29, 15)
-		legitreturnicon.Parent = legitreturn
-		listenProperty(v4logo, legitreturnicon, 'ImageColor3', legitreturnicon)
+		local Search: Frame = Instance.new("Frame")
+		Search.AnchorPoint = Vector2.new(0.5, 0)
+		Search.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		Search.Name = "Search"
+		Search.Position = UDim2.new(0.5, 0, 0, 13)
+		Search.Size = UDim2.fromOffset(220, 37)
+		Search.Parent = ClickGUI
+		Component.Object = Search
+		AddBlur(Search)
+		AddCorner(Search)
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = GetVapeAsset("kingvape/assets/new/search.png")
+		Icon.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Icon.Position = UDim2.new(1, -25, 0, 11)
+		Icon.Size = UDim2.fromOffset(14, 14)
+		Icon.Parent = Search
+		local LegitIcon: ImageButton = Instance.new("ImageButton")
+		LegitIcon.BackgroundTransparency = 1
+		LegitIcon.Image = GetVapeAsset("kingvape/assets/new/legit_switch.png")
+		LegitIcon.Name = "Legit"
+		LegitIcon.Position = UDim2.fromOffset(8, 11)
+		LegitIcon.Size = UDim2.fromOffset(29, 16)
+		LegitIcon.Parent = Search
+		local V4Logo: ImageLabel = vape.Categories.Main.Object.VapeLogo.V4Logo
+		ListenProperty(V4Logo, LegitIcon, "ImageColor3", LegitIcon)
+		local LegitDivider: Frame = Instance.new("Frame")
+		LegitDivider.BackgroundColor3 = Color.Light(UIPallet.Main, 0.14)
+		LegitDivider.BorderSizePixel = 0
+		LegitDivider.Name = "LegitDivider"
+		LegitDivider.Position = UDim2.fromOffset(43, 13)
+		LegitDivider.Size = UDim2.fromOffset(2, 12)
+		LegitDivider.Parent = Search
+		local SearchBox: TextBox = Instance.new("TextBox")
+		SearchBox.BackgroundTransparency = 1
+		SearchBox.ClearTextOnFocus = false
+		SearchBox.FontFace = UIPallet.Font
+		SearchBox.PlaceholderText = ""
+		SearchBox.Position = UDim2.fromOffset(50, 0)
+		SearchBox.Size = UDim2.new(1, -50, 0, 37)
+		SearchBox.Text = ""
+		SearchBox.TextColor3 = UIPallet.Text
+		SearchBox.TextSize = 12
+		SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+		SearchBox.Parent = Search
+		local Children: ScrollingFrame = Instance.new("ScrollingFrame")
+		Children.BackgroundTransparency = 1
+		Children.BorderSizePixel = 0
+		Children.CanvasSize = UDim2.new()
+		Children.Position = UDim2.fromOffset(0, 34)
+		Children.ScrollBarThickness = 2
+		Children.ScrollBarImageTransparency = 0.75
+		Children.Size = UDim2.new(1, 0, 1, -37)
+		Children.Parent = Search
+		local Divider: Frame = Instance.new("Frame")
+		Divider.BackgroundColor3 = Color3.new(1, 1, 1)
+		Divider.BackgroundTransparency = 0.928
+		Divider.BorderSizePixel = 0
+		Divider.Position = UDim2.fromOffset(0, 33)
+		Divider.Size = UDim2.new(1, 0, 0, 1)
+		Divider.Visible = false
+		Divider.Parent = Search
+		local Stroke: UIStroke = Instance.new("UIStroke")
+		Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		Stroke.Color = Color3.fromRGB(85, 85, 85)
+		Stroke.Transparency = 0.8
+		Stroke.Parent = Search
+		local WindowList: UIListLayout = Instance.new("UIListLayout")
+		WindowList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		WindowList.SortOrder = Enum.SortOrder.LayoutOrder
+		WindowList.Parent = Children
+		local LegitReturn: TextButton = Instance.new("TextButton")
+		LegitReturn.AnchorPoint = Vector2.new(0.5, 0)
+		LegitReturn.AutoButtonColor = false
+		LegitReturn.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		LegitReturn.Name = "LegitReturn"
+		LegitReturn.Position = UDim2.new(0.5, 0, 0, 13)
+		LegitReturn.Size = UDim2.fromOffset(44, 32)
+		LegitReturn.Text = ""
+		LegitReturn.Visible = false
+		LegitReturn.Parent = ScaledGUI
+		Component.LegitReturn = LegitReturn
+		AddBlur(LegitReturn)
+		AddCorner(LegitReturn)
+		AddTooltip(LegitReturn, "Return to cheat mode")
+		local LegitReturnStroke: UIStroke = Instance.new("UIStroke")
+		LegitReturnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		LegitReturnStroke.Color = Color3.fromRGB(85, 85, 85)
+		LegitReturnStroke.Transparency = 0.8
+		LegitReturnStroke.Parent = LegitReturn
+		local LegitReturnIcon: ImageLabel = Instance.new("ImageLabel")
+		LegitReturnIcon.BackgroundTransparency = 1
+		LegitReturnIcon.Image = GetVapeAsset("kingvape/assets/new/cheat_switch.png")
+		LegitReturnIcon.Name = "Icon"
+		LegitReturnIcon.Position = UDim2.fromOffset(8, 9)
+		LegitReturnIcon.Size = UDim2.fromOffset(29, 15)
+		LegitReturnIcon.Parent = LegitReturn
+		ListenProperty(V4Logo, LegitReturnIcon, "ImageColor3", LegitReturnIcon)
 		
-		box:GetPropertyChangedSignal('Text'):Connect(function()
-			for _, obj in children:GetChildren() do
-				if obj:IsA('TextButton') then
-					obj:Destroy()
-				end
-			end
+		SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		    for _, Object: Instance in Children:GetChildren() do
+		        if Object:IsA("TextButton") then
+		            Object:Destroy()
+		        end
+		    end
 		
-			if box.Text == '' then return end
+		    if SearchBox.Text == "" then return end
 		
-			local order = 0
+		    local Order: number = 0
 		
-			for name, module in vape.Modules do
-				if name:lower():find(box.Text:lower()) then
-					local button = module.Object:Clone()
-					local options
-					order += 1
-					button.Bind:Destroy()
-					button.Indicators.Favorite:Destroy()
-					button.LayoutOrder = order * 2
+		    for Name: string, Module: any in vape.Modules do
+		        if Name:lower():find(SearchBox.Text:lower(), 1, true) then
+		            local Button = Module.Object:Clone()
+		            local Options
+		            Order += 1
+		            Button.Bind:Destroy()
+		            Button.Indicators.Favorite:Destroy()
+		            Button.LayoutOrder = Order * 2
 		
-					local function toggleOptions()
-						if not options then
-							options = buildOptionsView(module, children, button.LayoutOrder + 1)
-						end
+		            local function ToggleOptions()
+		                if not Options then
+		                    Options = BuildOptionsView(Module, Children, Button.LayoutOrder + 1)
+		                end
 		
-						options.Visible = not options.Visible
-					end
+		                Options.Visible = not Options.Visible
+		            end
 		
-					button.Dots.MouseButton1Click:Connect(toggleOptions)
+		            Button.Dots.MouseButton1Click:Connect(ToggleOptions)
 		
-					button.Dots.MouseButton2Click:Connect(toggleOptions)
+		            Button.Dots.MouseButton2Click:Connect(ToggleOptions)
 		
-					button.Destroying:Once(function()
-						if options then
-							options:Destroy()
-						end
-					end)
+		            Button.Destroying:Once(function()
+		                if Options then
+		                    Options:Destroy()
+		                end
+		            end)
 		
-					button.MouseButton1Click:Connect(function()
-						module:Toggle()
-					end)
+		            Button.MouseButton1Click:Connect(function()
+		                Module:Toggle()
+		            end)
 		
-					button.MouseButton2Click:Connect(toggleOptions)
+		            Button.MouseButton2Click:Connect(ToggleOptions)
 		
-					for _, prop in {'Text', 'TextColor3', 'BackgroundColor3'} do
-						listenProperty(module.Object, button, prop, button)
-					end
+		            for _, Property: string in {"Text", "TextColor3", "BackgroundColor3"} do
+		                ListenProperty(Module.Object, Button, Property, Button)
+		            end
 		
-					listenProperty(module.Object.UIGradient, button.UIGradient, 'Color', button)
-					listenProperty(module.Object.UIGradient, button.UIGradient, 'Enabled', button)
-					listenProperty(module.Object.Dots.Dots, button.Dots.Dots, 'ImageColor3', button)
+		            ListenProperty(Module.Object.UIGradient, Button.UIGradient, "Color", Button)
+		            ListenProperty(Module.Object.UIGradient, Button.UIGradient, "Enabled", Button)
+		            ListenProperty(Module.Object.Dots.Dots, Button.Dots.Dots, "ImageColor3", Button)
 		
-					button.Parent = children
-				end
-			end
+		            Button.Parent = Children
+		        end
+		    end
 		end)
 		
-		children:GetPropertyChangedSignal('CanvasPosition'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		Children:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			divider.Visible = children.CanvasPosition.Y > 10 and children.Visible
+		    Divider.Visible = Children.CanvasPosition.Y > 10 and Children.Visible
 		end)
 		
-		legiticon.MouseButton1Click:Connect(function()
-			clickgui.Visible = false
-			vape.Legit.Window.Visible = true
-			vape.Legit.Window.Position = UDim2.new(0.5, -350, 0.5, -194)
+		LegitIcon.MouseButton1Click:Connect(function()
+		    ClickGUI.Visible = false
+		    vape.Legit.Window.Visible = true
+		    vape.Legit.Window.Position = UDim2.new(0.5, -350, 0.5, -194)
 		end)
 		
-		legiticon.MouseEnter:Connect(function()
-			tween:Tween(legiticon, uipallet.Tween, {
-				ImageColor3 = color.Light(v4logo.ImageColor3, 0.45)
-			})
+		LegitIcon.MouseEnter:Connect(function()
+		    Tween:Tween(LegitIcon, UIPallet.Tween, {
+		        ImageColor3 = Color.Light(V4Logo.ImageColor3, 0.45)
+		    })
 		end)
 		
-		legiticon.MouseLeave:Connect(function()
-			tween:Tween(legiticon, uipallet.Tween, {
-				ImageColor3 = v4logo.ImageColor3
-			})
+		LegitIcon.MouseLeave:Connect(function()
+		    Tween:Tween(LegitIcon, UIPallet.Tween, {
+		        ImageColor3 = V4Logo.ImageColor3
+		    })
 		end)
 		
-		legitreturn.MouseButton1Click:Connect(function()
-			vape.Legit.Window.Visible = false
-			clickgui.Visible = true
+		LegitReturn.MouseButton1Click:Connect(function()
+		    vape.Legit.Window.Visible = false
+		    ClickGUI.Visible = true
 		end)
 		
-		legitreturn.MouseEnter:Connect(function()
-			tween:Tween(legitreturnicon, uipallet.Tween, {
-				ImageColor3 = color.Light(v4logo.ImageColor3, 0.45)
-			})
+		LegitReturn.MouseEnter:Connect(function()
+		    Tween:Tween(LegitReturnIcon, UIPallet.Tween, {
+		        ImageColor3 = Color.Light(V4Logo.ImageColor3, 0.45)
+		    })
 		end)
 		
-		legitreturn.MouseLeave:Connect(function()
-			tween:Tween(legitreturnicon, uipallet.Tween, {
-				ImageColor3 = v4logo.ImageColor3
-			})
+		LegitReturn.MouseLeave:Connect(function()
+		    Tween:Tween(LegitReturnIcon, UIPallet.Tween, {
+		        ImageColor3 = V4Logo.ImageColor3
+		    })
 		end)
 		
-		if vape.Legit and vape.Legit.Window then
-			vape:Clean(vape.Legit.Window:GetPropertyChangedSignal('Visible'):Connect(function()
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
+		vape:Clean(vape.Legit.Window:GetPropertyChangedSignal("Visible"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-				legitreturn.Visible = vape.Legit.Window.Visible
-			end))
-		end
+		    LegitReturn.Visible = vape.Legit.Window.Visible
+		end))
 		
-		windowlist:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		WindowList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			children.CanvasSize = UDim2.fromOffset(0, windowlist.AbsoluteContentSize.Y / scale.Scale)
-			search.Size = UDim2.fromOffset(220, math.min(37 + windowlist.AbsoluteContentSize.Y / scale.Scale, 437))
+		    Children.CanvasSize = UDim2.fromOffset(0, WindowList.AbsoluteContentSize.Y / Scale.Scale)
+		    Search.Size = UDim2.fromOffset(220, math.min(37 + WindowList.AbsoluteContentSize.Y / Scale.Scale, 437))
 		end)
 		
-		return component
+		return Component
 	end,
-	SettingsPane = function(props, children, api)
-		local component = {
-			Buttons = {},
-			Options = {},
-			Parent = api.Parent or children,
-			Type = 'SettingsPane'
+	SettingsPane = function(Props, Children, API)
+		local Component = {
+		    Buttons = {},
+		    Options = {},
+		    Parent = API.Parent or Children,
+		    Type = "SettingsPane"
 		}
 		
-		local pane = Instance.new('TextButton')
-		pane.AutoButtonColor = false
-		pane.BackgroundColor3 = props.Main and color.Dark(uipallet.Main, 0.02) or uipallet.Main
-		pane.Size = UDim2.fromScale(1, 1)
-		pane.Text = ''
-		pane.Visible = false
-		pane.Parent = component.Parent
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Name = 'Title'
-		title.Size = UDim2.new(1, -36, 0, 20)
-		title.Position = UDim2.fromOffset(math.abs(title.Size.X.Offset), 11)
-		title.Text = props.Name
-		title.TextColor3 = uipallet.Text
-		title.TextSize = 13
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = pane
-		local close = addCloseButton(pane, true)
-		local back = Instance.new('ImageButton')
-		back.BackgroundTransparency = 1
-		back.Image = getvapeasset('kingvape/assets/new/backmini.png')
-		back.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		back.Position = UDim2.fromOffset(12, 14)
-		back.Size = UDim2.fromOffset(14, 14)
-		back.Parent = pane
-		addCorner(pane)
-		local settingschildren = Instance.new('Frame')
-		settingschildren.BackgroundColor3 = uipallet.Main
-		settingschildren.BorderSizePixel = 0
-		settingschildren.Name = 'Children'
-		settingschildren.Position = UDim2.fromOffset(0, 41)
-		settingschildren.Size = UDim2.new(1, 0, 1, -57)
-		settingschildren.Parent = pane
-		local divider = Instance.new('Frame')
-		divider.BackgroundColor3 = Color3.new(1, 1, 1)
-		divider.BackgroundTransparency = 0.928
-		divider.BorderSizePixel = 0
-		divider.Name = 'Divider'
-		divider.Size = UDim2.new(1, 0, 0, 1)
-		divider.Parent = settingschildren
-		local listlayout = Instance.new('UIListLayout')
-		listlayout.SortOrder = Enum.SortOrder.LayoutOrder
-		listlayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-		listlayout.Parent = settingschildren
-		if props.Main then
-			local versionlabel = Instance.new('TextLabel')
-			versionlabel.BackgroundTransparency = 1
-			versionlabel.FontFace = uipallet.Font
-			versionlabel.Name = 'Version'
-			versionlabel.Position = UDim2.new(0, 0, 1, -16)
-			versionlabel.Size = UDim2.new(1, 0, 0, 16)
-			versionlabel.Text = 'Vape '..vape.Version..' '..(
-				isfile('kingvape/profiles/commit.txt') and readfile('kingvape/profiles/commit.txt'):sub(1, 6) or ''
-			)..' '
-			versionlabel.TextColor3 = color.Dark(uipallet.Text, 0.43)
-			versionlabel.TextSize = 10
-			versionlabel.TextXAlignment = Enum.TextXAlignment.Right
-			versionlabel.Parent = pane
+		local Pane: TextButton = Instance.new("TextButton")
+		Pane.AutoButtonColor = false
+		Pane.BackgroundColor3 = Props.Main and Color.Dark(UIPallet.Main, 0.02) or UIPallet.Main
+		Pane.Size = UDim2.fromScale(1, 1)
+		Pane.Text = ""
+		Pane.Visible = false
+		Pane.Parent = Component.Parent
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Name = "Title"
+		Title.Size = UDim2.new(1, -36, 0, 20)
+		Title.Position = UDim2.fromOffset(math.abs(Title.Size.X.Offset), 11)
+		Title.Text = Props.Name
+		Title.TextColor3 = UIPallet.Text
+		Title.TextSize = 13
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Pane
+		local Close: ImageButton = AddCloseButton(Pane, true)
+		local Back: ImageButton = Instance.new("ImageButton")
+		Back.BackgroundTransparency = 1
+		Back.Image = GetVapeAsset("kingvape/assets/new/backmini.png")
+		Back.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Back.Position = UDim2.fromOffset(12, 14)
+		Back.Size = UDim2.fromOffset(14, 14)
+		Back.Parent = Pane
+		AddCorner(Pane)
+		local SettingsChildren: Frame = Instance.new("Frame")
+		SettingsChildren.BackgroundColor3 = UIPallet.Main
+		SettingsChildren.BorderSizePixel = 0
+		SettingsChildren.Name = "Children"
+		SettingsChildren.Position = UDim2.fromOffset(0, 41)
+		SettingsChildren.Size = UDim2.new(1, 0, 1, -57)
+		SettingsChildren.Parent = Pane
+		local Divider: Frame = Instance.new("Frame")
+		Divider.BackgroundColor3 = Color3.new(1, 1, 1)
+		Divider.BackgroundTransparency = 0.928
+		Divider.BorderSizePixel = 0
+		Divider.Name = "Divider"
+		Divider.Size = UDim2.new(1, 0, 0, 1)
+		Divider.Parent = SettingsChildren
+		local ListLayout: UIListLayout = Instance.new("UIListLayout")
+		ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		ListLayout.Parent = SettingsChildren
+		if Props.Main then
+		    local VersionLabel: TextLabel = Instance.new("TextLabel")
+		    VersionLabel.BackgroundTransparency = 1
+		    VersionLabel.FontFace = UIPallet.Font
+		    VersionLabel.Name = "Version"
+		    VersionLabel.Position = UDim2.new(0, 0, 1, -16)
+		    VersionLabel.Size = UDim2.new(1, 0, 0, 16)
+		    VersionLabel.Text = `Vape {vape.Version} {isfile("kingvape/profiles/commit.txt") and readfile("kingvape/profiles/commit.txt"):sub(1, 6) or ""} `
+		    VersionLabel.TextColor3 = Color.Dark(UIPallet.Text, 0.43)
+		    VersionLabel.TextSize = 10
+		    VersionLabel.TextXAlignment = Enum.TextXAlignment.Right
+		    VersionLabel.Parent = Pane
 		else
-			api:CreateGUIButton({
-				Name = props.Name,
-				Function = function()
-					pane.Visible = true
-				end
-			})
+		    API:CreateGUIButton({
+		        Name = Props.Name,
+		        Function = function()
+		            Pane.Visible = true
+		        end
+		    })
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			vape:LoadOptions(self, data)
+		    vape:LoadOptions(self, Data)
 		end
 		
-		function component:Save(data)
-			data[props.Name] = vape:SaveOptions(self)
+		function Component:Save(Data)
+		    Data[Props.Name] = vape:SaveOptions(self)
 		end
 		
-		for index, comp in components do
-			component['Create'..index] = function(_, props)
-				local option = comp(props, settingschildren, component)
-				yieldBuild()
+		for ComponentName: string, Constructor: (...any) -> ...any in Components do
+		    Component[`Create{ComponentName}`] = function(_, Properties)
+		        local Option = Constructor(Properties, SettingsChildren, Component)
+		        YieldBuild()
 		
-				return option
-			end
+		        return Option
+		    end
 		end
 		
-		back.MouseEnter:Connect(function()
-			back.ImageColor3 = uipallet.Text
+		Back.MouseEnter:Connect(function()
+		    Back.ImageColor3 = UIPallet.Text
 		end)
 		
-		back.MouseLeave:Connect(function()
-			back.ImageColor3 = color.Light(uipallet.Main, 0.37)
+		Back.MouseLeave:Connect(function()
+		    Back.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
 		end)
 		
-		back.MouseButton1Click:Connect(function()
-			pane.Visible = false
+		Back.MouseButton1Click:Connect(function()
+		    Pane.Visible = false
 		end)
 		
-		close.MouseButton1Click:Connect(function()
-			pane.Visible = false
+		Close.MouseButton1Click:Connect(function()
+		    Pane.Visible = false
 		end)
 		
-		listlayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			pane.Size = UDim2.new(1, 0, 0, math.max(45 + listlayout.AbsoluteContentSize.Y, component.Parent.AbsoluteSize.Y) / scale.Scale)
+		    Pane.Size = UDim2.new(1, 0, 0, math.max(45 + ListLayout.AbsoluteContentSize.Y, Component.Parent.AbsoluteSize.Y) / Scale.Scale)
 		end)
 		
-		component.Object = pane
-		vape.Settings[props.Name] = component
+		Component.Object = Pane
+		vape.Settings[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	Slider = function(props, children, api)
-		local component = {
-			Decimal = props.Decimal or 1,
-			Default = props.Default or props.Min,
-			Index = getTableSize(api.Options),
-			Max = props.Max,
-			Min = props.Min,
-			Suffix = props.Suffix,
-			Type = 'Slider',
-			Value = props.Default or props.Min,
+	Slider = function(Props, Children, API)
+		local Component = {
+		    Decimal = Props.Decimal or 1,
+		    Default = Props.Default or Props.Min,
+		    Index = GetTableSize(API.Options),
+		    Max = Props.Max,
+		    Min = Props.Min,
+		    Suffix = Props.Suffix,
+		    Type = "Slider",
+		    Value = Props.Default or Props.Min,
 		}
 		
-		local slider = Instance.new('TextButton')
-		slider.AutoButtonColor = false
-		slider.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-		slider.BorderSizePixel = 0
-		slider.Size = UDim2.new(1, 0, 0, 50)
-		slider.Text = ''
-		slider.Visible = props.Visible == nil or props.Visible
-		slider.Parent = children
-		component.Object = slider
-		addTooltip(slider, props.Tooltip)
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(10, 2)
-		title.Size = UDim2.fromOffset(60, 30)
-		title.Text = props.Name
-		title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		title.TextSize = 11
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = slider
-		local valuelabel = Instance.new('TextButton')
-		valuelabel.BackgroundTransparency = 1
-		valuelabel.FontFace = uipallet.Font
-		valuelabel.Position = UDim2.new(1, -69, 0, 9)
-		valuelabel.Size = UDim2.fromOffset(60, 15)
-		valuelabel.Text = component.Value..(props.Suffix and ' '..(type(props.Suffix) == 'function' and props.Suffix(component.Value) or props.Suffix) or '')
-		valuelabel.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		valuelabel.TextSize = 11
-		valuelabel.TextXAlignment = Enum.TextXAlignment.Right
-		valuelabel.Parent = slider
-		local custombox = Instance.new('TextBox')
-		custombox.BackgroundTransparency = 1
-		custombox.ClearTextOnFocus = false
-		custombox.FontFace = uipallet.Font
-		custombox.Position = valuelabel.Position
-		custombox.Size = valuelabel.Size
-		custombox.Text = component.Value
-		custombox.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		custombox.TextSize = 11
-		custombox.TextXAlignment = Enum.TextXAlignment.Right
-		custombox.Visible = false
-		custombox.Parent = slider
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-		holder.BorderSizePixel = 0
-		holder.Position = UDim2.fromOffset(10, 37)
-		holder.Size = UDim2.new(1, -20, 0, 2)
-		holder.Parent = slider
-		local fill = Instance.new('Frame')
-		fill.BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-		fill.BorderSizePixel = 0
-		fill.Size = UDim2.fromScale(math.clamp((component.Value - props.Min) / props.Max, 0.04, 0.96), 1)
-		fill.Parent = holder
-		local knobholder = Instance.new('Frame')
-		knobholder.AnchorPoint = Vector2.new(0.5, 0.5)
-		knobholder.BackgroundColor3 = slider.BackgroundColor3
-		knobholder.BorderSizePixel = 0
-		knobholder.Position = UDim2.fromScale(1, 0.5)
-		knobholder.Size = UDim2.fromOffset(24, 4)
-		knobholder.Parent = fill
-		local knob = Instance.new('Frame')
-		knob.AnchorPoint = Vector2.new(0.5, 0.5)
-		knob.BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
-		knob.Position = UDim2.fromScale(0.5, 0.5)
-		knob.Size = UDim2.fromOffset(14, 14)
-		knob.Parent = knobholder
-		addCorner(knob, UDim.new(1, 0))
-		props.Function = props.Function or function() end
-		props.Decimal = props.Decimal or 1
+		local Slider: TextButton = Instance.new("TextButton")
+		Slider.AutoButtonColor = false
+		Slider.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		Slider.BorderSizePixel = 0
+		Slider.Size = UDim2.new(1, 0, 0, 50)
+		Slider.Text = ""
+		Slider.Visible = Props.Visible == nil or Props.Visible
+		Slider.Parent = Children
+		Component.Object = Slider
+		AddTooltip(Slider, Props.Tooltip)
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Position = UDim2.fromOffset(10, 2)
+		Title.Size = UDim2.fromOffset(60, 30)
+		Title.Text = Props.Name
+		Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Title.TextSize = 11
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Slider
+		local ValueLabel: TextButton = Instance.new("TextButton")
+		ValueLabel.BackgroundTransparency = 1
+		ValueLabel.FontFace = UIPallet.Font
+		ValueLabel.Position = UDim2.new(1, -69, 0, 9)
+		ValueLabel.Size = UDim2.fromOffset(60, 15)
+		ValueLabel.Text = `{Component.Value}{Props.Suffix and ` {type(Props.Suffix) == "function" and Props.Suffix(Component.Value) or Props.Suffix}` or ""}`
+		ValueLabel.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		ValueLabel.TextSize = 11
+		ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+		ValueLabel.Parent = Slider
+		local CustomBox: TextBox = Instance.new("TextBox")
+		CustomBox.BackgroundTransparency = 1
+		CustomBox.ClearTextOnFocus = false
+		CustomBox.FontFace = UIPallet.Font
+		CustomBox.Position = ValueLabel.Position
+		CustomBox.Size = ValueLabel.Size
+		CustomBox.Text = Component.Value
+		CustomBox.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		CustomBox.TextSize = 11
+		CustomBox.TextXAlignment = Enum.TextXAlignment.Right
+		CustomBox.Visible = false
+		CustomBox.Parent = Slider
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		Holder.BorderSizePixel = 0
+		Holder.Position = UDim2.fromOffset(10, 37)
+		Holder.Size = UDim2.new(1, -20, 0, 2)
+		Holder.Parent = Slider
+		local Fill: Frame = Instance.new("Frame")
+		Fill.BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		Fill.BorderSizePixel = 0
+		Fill.Size = UDim2.fromScale(math.clamp((Component.Value - Props.Min) / (Props.Max - Props.Min), 0.04, 0.96), 1)
+		Fill.Parent = Holder
+		local KnobHolder: Frame = Instance.new("Frame")
+		KnobHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+		KnobHolder.BackgroundColor3 = Slider.BackgroundColor3
+		KnobHolder.BorderSizePixel = 0
+		KnobHolder.Position = UDim2.fromScale(1, 0.5)
+		KnobHolder.Size = UDim2.fromOffset(24, 4)
+		KnobHolder.Parent = Fill
+		local Knob: Frame = Instance.new("Frame")
+		Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+		Knob.BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		Knob.Position = UDim2.fromScale(0.5, 0.5)
+		Knob.Size = UDim2.fromOffset(14, 14)
+		Knob.Parent = KnobHolder
+		AddCorner(Knob, UDim.new(1, 0))
+		Props.Function = Props.Function or function() end
+		Props.Decimal = Props.Decimal or 1
 		
-		function component:Color(hue, sat, val, isRainbow)
-			fill.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
-			knob.BackgroundColor3 = fill.BackgroundColor3
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    Fill.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(Hue, Sat, Val)
+		    Knob.BackgroundColor3 = Fill.BackgroundColor3
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			local newValue = data.Value == data.Max and data.Max ~= self.Max and self.Max or data.Value
-			if type(newValue) == 'number' then
-				newValue = math.clamp(newValue, self.Min, self.Max)
-			end
+		    local NewValue = Data.Value == Data.Max and Data.Max ~= self.Max and self.Max or Data.Value
+		    if type(NewValue) == "number" then
+		        NewValue = math.clamp(NewValue, self.Min, self.Max)
+		    end
 		
-			if self.Value ~= newValue then
-				self:SetValue(newValue, nil, true)
-			end
+		    if self.Value ~= NewValue then
+		        self:SetValue(NewValue, nil, true)
+		    end
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Value = self.Value,
-				Max = self.Max
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Value = self.Value,
+		        Max = self.Max
+		    }
 		end
 		
-		function component:SetValue(value, position, wasReleased)
-			if not isFinite(value) then
-				return
-			end
+		function Component:SetValue(Value: number, Position: number?, WasReleased: boolean?)
+		    if not IsFinite(Value) then
+		        return
+		    end
 		
-			tween:Tween(fill, uipallet.Tween, {
-				Size = UDim2.fromScale(math.clamp(position or math.clamp(value / props.Max, 0, 1), 0.04, 0.96), 1)
-			})
+		    Tween:Tween(Fill, UIPallet.Tween, {
+		        Size = UDim2.fromScale(math.clamp(Position or math.clamp((Value - Props.Min) / (Props.Max - Props.Min), 0, 1), 0.04, 0.96), 1)
+		    })
 		
-			if self.Value ~= value or wasReleased then
-				self.Value = value
-				valuelabel.Text = self.Value..(props.Suffix and ' '..(type(props.Suffix) == 'function' and props.Suffix(self.Value) or props.Suffix) or '')
-				vape:QueueSave()
-				props.Function(value, wasReleased)
-			end
+		    if self.Value ~= Value or WasReleased then
+		        self.Value = Value
+		        ValueLabel.Text = `{self.Value}{Props.Suffix and ` {type(Props.Suffix) == "function" and Props.Suffix(self.Value) or Props.Suffix}` or ""}`
+		        vape:QueueSave()
+		        Props.Function(Value, WasReleased)
+		    end
 		end
 		
-		slider.InputBegan:Connect(function(input)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		Slider.InputBegan:Connect(function(Input: InputObject)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if
-				(input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch)
-				and (input.Position.Y - slider.AbsolutePosition.Y) > (20 * scale.Scale)
-			then
-				local newPosition = math.clamp((input.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1)
-				local lastPosition = newPosition
+		    if
+		        (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
+		        and (Input.Position.Y - Slider.AbsolutePosition.Y) > (20 * Scale.Scale)
+		    then
+		        local NewPosition: number = math.clamp((Input.Position.X - Holder.AbsolutePosition.X) / Holder.AbsoluteSize.X, 0, 1)
+		        local LastPosition: number = NewPosition
 		
-				local releaseConnection
-				local moveConnection = inputService.InputChanged:Connect(function(newInput)
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		        local ReleaseConnection
+		        local MoveConnection: RBXScriptConnection = UserInputService.InputChanged:Connect(function(NewInput: InputObject)
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					if newInput.UserInputType == (input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
-						local newPosition = math.clamp((newInput.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1)
-						component:SetValue(math.floor((props.Min + (props.Max - props.Min) * newPosition) * props.Decimal) / props.Decimal, newPosition)
-						lastPosition = newPosition
-					end
-				end)
+		            if NewInput.UserInputType == (Input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
+		                local NewPosition: number = math.clamp((NewInput.Position.X - Holder.AbsolutePosition.X) / Holder.AbsoluteSize.X, 0, 1)
+		                Component:SetValue(math.floor((Props.Min + (Props.Max - Props.Min) * NewPosition) * Props.Decimal) / Props.Decimal, NewPosition)
+		                LastPosition = NewPosition
+		            end
+		        end)
 		
-				releaseConnection = input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						moveConnection:Disconnect()
-						releaseConnection:Disconnect()
-						component:SetValue(component.Value, lastPosition, true)
-					end
-				end)
+		        ReleaseConnection = Input.Changed:Connect(function()
+		            if Input.UserInputState == Enum.UserInputState.End then
+		                MoveConnection:Disconnect()
+		                ReleaseConnection:Disconnect()
+		                Component:SetValue(Component.Value, LastPosition, true)
+		            end
+		        end)
 		
-				component:SetValue(math.floor((props.Min + (props.Max - props.Min) * newPosition) * props.Decimal) / props.Decimal, newPosition)
-			end
+		        Component:SetValue(math.floor((Props.Min + (Props.Max - Props.Min) * NewPosition) * Props.Decimal) / Props.Decimal, NewPosition)
+		    end
 		end)
 		
-		slider.MouseEnter:Connect(function()
-			tween:Tween(knob, uipallet.Tween, {
-				Size = UDim2.fromOffset(16, 16)
-			})
+		Slider.MouseEnter:Connect(function()
+		    Tween:Tween(Knob, UIPallet.Tween, {
+		        Size = UDim2.fromOffset(16, 16)
+		    })
 		end)
 		
-		slider.MouseLeave:Connect(function()
-			tween:Tween(knob, uipallet.Tween, {
-				Size = UDim2.fromOffset(14, 14)
-			})
+		Slider.MouseLeave:Connect(function()
+		    Tween:Tween(Knob, UIPallet.Tween, {
+		        Size = UDim2.fromOffset(14, 14)
+		    })
 		end)
 		
-		valuelabel.MouseButton1Click:Connect(function()
-			valuelabel.Visible = false
-			custombox.Visible = true
-			custombox.Text = component.Value
-			custombox:CaptureFocus()
+		ValueLabel.MouseButton1Click:Connect(function()
+		    ValueLabel.Visible = false
+		    CustomBox.Visible = true
+		    CustomBox.Text = Component.Value
+		    CustomBox:CaptureFocus()
 		end)
 		
-		custombox.FocusLost:Connect(function(enter)
-			valuelabel.Visible = true
-			custombox.Visible = false
+		CustomBox.FocusLost:Connect(function(Enter: boolean)
+		    ValueLabel.Visible = true
+		    CustomBox.Visible = false
 		
-			if enter and tonumber(custombox.Text) then
-				component:SetValue(tonumber(custombox.Text), nil, true)
-			end
+		    if Enter and tonumber(CustomBox.Text) then
+		        Component:SetValue(tonumber(CustomBox.Text), nil, true)
+		    end
 		end)
 		
-		api.Options[props.Name] = component
+		API.Options[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	Targets = function(props, children, api)
-		local component = {
-			Default = {
-				Players = props.Players and true or false,
-				NPCs = props.NPCs and true or false,
-				Invisible = props.Invisible and true or false,
-				Walls = props.Walls and true or false,
-				Priority = 'Players'
-			},
-			Index = getTableSize(api.Options),
-			Type = 'Targets'
+	Targets = function(Props, Children, API)
+		local Component = {
+		    Default = {
+		        Players = Props.Players and true or false,
+		        NPCs = Props.NPCs and true or false,
+		        Invisible = Props.Invisible and true or false,
+		        Walls = Props.Walls and true or false,
+		        Priority = "Players"
+		    },
+		    Index = GetTableSize(API.Options),
+		    Type = "Targets"
 		}
 		
-		local targets = Instance.new('TextButton')
-		targets.AutoButtonColor = false
-		targets.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-		targets.BorderSizePixel = 0
-		targets.Size = UDim2.new(1, 0, 0, 50)
-		targets.Text = ''
-		targets.Visible = props.Visible == nil or props.Visible
-		targets.Parent = children
-		component.Object = targets
-		addTooltip(targets, props.Tooltip)
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-		holder.Position = UDim2.fromOffset(10, 4)
-		holder.Size = UDim2.new(1, -20, 1, -9)
-		holder.Parent = targets
-		addCorner(holder, UDim.new(0, 4))
-		local button = Instance.new('TextButton')
-		button.AutoButtonColor = false
-		button.BackgroundColor3 = uipallet.Main
-		button.Position = UDim2.fromOffset(1, 1)
-		button.Size = UDim2.new(1, -2, 1, -2)
-		button.Text = ''
-		button.Parent = holder
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(5, 6)
-		title.Size = UDim2.new(1, -5, 0, 15)
-		title.Text = 'Target:'
-		title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		title.TextSize = 15
-		title.TextTruncate = Enum.TextTruncate.AtEnd
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = button
-		local items = Instance.new('TextLabel')
-		items.BackgroundTransparency = 1
-		items.FontFace = uipallet.Font
-		items.Position = UDim2.fromOffset(5, 21)
-		items.Size = UDim2.new(1, -5, 0, 15)
-		items.Text = 'Ignore none'
-		items.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		items.TextSize = 11
-		items.TextTruncate = Enum.TextTruncate.AtEnd
-		items.TextXAlignment = Enum.TextXAlignment.Left
-		items.Parent = button
-		addCorner(button, UDim.new(0, 4))
-		local iconholder = Instance.new('Frame')
-		iconholder.BackgroundTransparency = 1
-		iconholder.Position = UDim2.fromOffset(52, 8)
-		iconholder.Size = UDim2.fromOffset(65, 12)
-		iconholder.Parent = button
-		local layout = Instance.new('UIListLayout')
-		layout.FillDirection = Enum.FillDirection.Horizontal
-		layout.Padding = UDim.new(0, 6)
-		layout.Parent = iconholder
-		local targetswindow = Instance.new('TextButton')
-		targetswindow.AutoButtonColor = false
-		targetswindow.BackgroundColor3 = uipallet.Main
-		targetswindow.BorderSizePixel = 0
-		targetswindow.Position = UDim2.fromOffset(456, 139)
-		targetswindow.Size = UDim2.fromOffset(220, 145)
-		targetswindow.Text = ''
-		targetswindow.Visible = false
-		targetswindow.Parent = clickgui
-		component.Window = targetswindow
-		addBlur(targetswindow)
-		addCorner(targetswindow)
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('kingvape/assets/new/aim.png')
-		icon.Position = UDim2.fromOffset(10, 15)
-		icon.Size = UDim2.fromOffset(18, 12)
-		icon.Parent = targetswindow
-		local windowtitle = Instance.new('TextLabel')
-		windowtitle.BackgroundTransparency = 1
-		windowtitle.FontFace = uipallet.Font
-		windowtitle.Size = UDim2.new(1, -36, 0, 20)
-		windowtitle.Position = UDim2.fromOffset(math.abs(windowtitle.Size.X.Offset), 11)
-		windowtitle.Text = 'Target settings'
-		windowtitle.TextColor3 = uipallet.Text
-		windowtitle.TextSize = 13
-		windowtitle.TextXAlignment = Enum.TextXAlignment.Left
-		windowtitle.Parent = targetswindow
-		local close = addCloseButton(targetswindow)
-		props.Function = props.Function or function() end
+		local Targets: TextButton = Instance.new("TextButton")
+		Targets.AutoButtonColor = false
+		Targets.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		Targets.BorderSizePixel = 0
+		Targets.Size = UDim2.new(1, 0, 0, 50)
+		Targets.Text = ""
+		Targets.Visible = Props.Visible == nil or Props.Visible
+		Targets.Parent = Children
+		Component.Object = Targets
+		AddTooltip(Targets, Props.Tooltip)
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		Holder.Position = UDim2.fromOffset(10, 4)
+		Holder.Size = UDim2.new(1, -20, 1, -9)
+		Holder.Parent = Targets
+		AddCorner(Holder, UDim.new(0, 4))
+		local Button: TextButton = Instance.new("TextButton")
+		Button.AutoButtonColor = false
+		Button.BackgroundColor3 = UIPallet.Main
+		Button.Position = UDim2.fromOffset(1, 1)
+		Button.Size = UDim2.new(1, -2, 1, -2)
+		Button.Text = ""
+		Button.Parent = Holder
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Position = UDim2.fromOffset(5, 6)
+		Title.Size = UDim2.new(1, -5, 0, 15)
+		Title.Text = "Target:"
+		Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Title.TextSize = 15
+		Title.TextTruncate = Enum.TextTruncate.AtEnd
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Button
+		local Items: TextLabel = Instance.new("TextLabel")
+		Items.BackgroundTransparency = 1
+		Items.FontFace = UIPallet.Font
+		Items.Position = UDim2.fromOffset(5, 21)
+		Items.Size = UDim2.new(1, -5, 0, 15)
+		Items.Text = "Ignore none"
+		Items.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Items.TextSize = 11
+		Items.TextTruncate = Enum.TextTruncate.AtEnd
+		Items.TextXAlignment = Enum.TextXAlignment.Left
+		Items.Parent = Button
+		AddCorner(Button, UDim.new(0, 4))
+		local IconHolder: Frame = Instance.new("Frame")
+		IconHolder.BackgroundTransparency = 1
+		IconHolder.Position = UDim2.fromOffset(52, 8)
+		IconHolder.Size = UDim2.fromOffset(65, 12)
+		IconHolder.Parent = Button
+		local Layout: UIListLayout = Instance.new("UIListLayout")
+		Layout.FillDirection = Enum.FillDirection.Horizontal
+		Layout.Padding = UDim.new(0, 6)
+		Layout.Parent = IconHolder
+		local TargetsWindow: TextButton = Instance.new("TextButton")
+		TargetsWindow.AutoButtonColor = false
+		TargetsWindow.BackgroundColor3 = UIPallet.Main
+		TargetsWindow.BorderSizePixel = 0
+		TargetsWindow.Position = UDim2.fromOffset(456, 139)
+		TargetsWindow.Size = UDim2.fromOffset(220, 145)
+		TargetsWindow.Text = ""
+		TargetsWindow.Visible = false
+		TargetsWindow.Parent = ClickGUI
+		Component.Window = TargetsWindow
+		AddBlur(TargetsWindow)
+		AddCorner(TargetsWindow)
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = GetVapeAsset("kingvape/assets/new/aim.png")
+		Icon.Position = UDim2.fromOffset(10, 15)
+		Icon.Size = UDim2.fromOffset(18, 12)
+		Icon.Parent = TargetsWindow
+		local WindowTitle: TextLabel = Instance.new("TextLabel")
+		WindowTitle.BackgroundTransparency = 1
+		WindowTitle.FontFace = UIPallet.Font
+		WindowTitle.Size = UDim2.new(1, -36, 0, 20)
+		WindowTitle.Position = UDim2.fromOffset(math.abs(WindowTitle.Size.X.Offset), 11)
+		WindowTitle.Text = "Target settings"
+		WindowTitle.TextColor3 = UIPallet.Text
+		WindowTitle.TextSize = 13
+		WindowTitle.TextXAlignment = Enum.TextXAlignment.Left
+		WindowTitle.Parent = TargetsWindow
+		local Close: ImageButton = AddCloseButton(TargetsWindow)
+		Props.Function = Props.Function or function() end
 		
-		function component:Color(hue, sat, val, isRainbow)
-			if targetswindow.Visible then
-				holder.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
-			end
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    if TargetsWindow.Visible then
+		        Holder.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(Hue, Sat, Val)
+		    end
 		
-			if self.Players.Enabled then
-				tween:Cancel(self.Players.Object.Frame)
-				self.Players.Object.Frame.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-			end
+		    if self.Players.Enabled then
+		        Tween:Cancel(self.Players.Object.Frame)
+		        self.Players.Object.Frame.BackgroundColor3 = Color3.fromHSV(Hue, Sat, Val)
+		    end
 		
-			if self.NPCs.Enabled then
-				tween:Cancel(self.NPCs.Object.Frame)
-				self.NPCs.Object.Frame.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-			end
+		    if self.NPCs.Enabled then
+		        Tween:Cancel(self.NPCs.Object.Frame)
+		        self.NPCs.Object.Frame.BackgroundColor3 = Color3.fromHSV(Hue, Sat, Val)
+		    end
 		
-			if self.Invisible.Enabled then
-				tween:Cancel(self.Invisible.Object.Holder)
-				self.Invisible.Object.Holder.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-			end
+		    if self.Invisible.Enabled then
+		        Tween:Cancel(self.Invisible.Object.Holder)
+		        self.Invisible.Object.Holder.BackgroundColor3 = Color3.fromHSV(Hue, Sat, Val)
+		    end
 		
-			if self.Walls.Enabled then
-				tween:Cancel(self.Walls.Object.Holder)
-				self.Walls.Object.Holder.BackgroundColor3 = Color3.fromHSV(hue, sat, val)
-			end
+		    if self.Walls.Enabled then
+		        Tween:Cancel(self.Walls.Object.Holder)
+		        self.Walls.Object.Holder.BackgroundColor3 = Color3.fromHSV(Hue, Sat, Val)
+		    end
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if self.Players.Enabled ~= data.Players then
-				self.Players:Toggle()
-			end
+		    if self.Players.Enabled ~= Data.Players then
+		        self.Players:Toggle()
+		    end
 		
-			if self.NPCs.Enabled ~= data.NPCs then
-				self.NPCs:Toggle()
-			end
+		    if self.NPCs.Enabled ~= Data.NPCs then
+		        self.NPCs:Toggle()
+		    end
 		
-			if self.Invisible.Enabled ~= data.Invisible then
-				self.Invisible:Toggle()
-			end
+		    if self.Invisible.Enabled ~= Data.Invisible then
+		        self.Invisible:Toggle()
+		    end
 		
-			if self.Walls.Enabled ~= data.Walls then
-				self.Walls:Toggle()
-			end
+		    if self.Walls.Enabled ~= Data.Walls then
+		        self.Walls:Toggle()
+		    end
 		
-			if data.Priority and self.Priority.Value ~= data.Priority then
-				self.Priority:SetValue(data.Priority)
-			end
+		    if Data.Priority and self.Priority.Value ~= Data.Priority then
+		        self.Priority:SetValue(Data.Priority)
+		    end
 		end
 		
-		function component:Save(data)
-			data.Targets = {
-				Players = self.Players.Enabled,
-				NPCs = self.NPCs.Enabled,
-				Invisible = self.Invisible.Enabled,
-				Walls = self.Walls.Enabled,
-				Priority = self.Priority.Value
-			}
+		function Component:Save(Data)
+		    Data.Targets = {
+		        Players = self.Players.Enabled,
+		        NPCs = self.NPCs.Enabled,
+		        Invisible = self.Invisible.Enabled,
+		        Walls = self.Walls.Enabled,
+		        Priority = self.Priority.Value
+		    }
 		end
 		
-		function component:UpdateText()
-			local newText = {}
+		function Component:UpdateText()
+		    local NewText: {string} = {}
 		
-			if self.Players.Enabled then
-				table.insert(newText, 'Players')
-			end
+		    if self.Players.Enabled then
+		        table.insert(NewText, "Players")
+		    end
 		
-			if self.NPCs.Enabled then
-				table.insert(newText, 'NPCs')
-			end
+		    if self.NPCs.Enabled then
+		        table.insert(NewText, "NPCs")
+		    end
 		
-			title.Text = 'Target: '..(#newText > 0 and table.concat(newText, ', ') or 'Nothing')
-			title.TextColor3 = #newText > 0 and uipallet.Text or Color3.fromRGB(255, 90, 90)
+		    Title.Text = `Target: {#NewText > 0 and table.concat(NewText, ", ") or "Nothing"}`
+		    Title.TextColor3 = #NewText > 0 and UIPallet.Text or Color3.fromRGB(255, 90, 90)
 		end
 		
-		component.Players = components.TargetsButton({
-			Position = UDim2.fromOffset(11, 45),
-			Icon = getvapeasset('kingvape/assets/new/players.png'),
-			IconSize = UDim2.fromOffset(16, 16),
-			IconParent = iconholder,
-			Targets = component,
-			Tooltip = 'Target players',
-			Function = props.Function
-		}, targetswindow, iconholder)
+		Component.Players = Components.TargetsButton({
+		    Position = UDim2.fromOffset(11, 45),
+		    Icon = GetVapeAsset("kingvape/assets/new/players.png"),
+		    IconSize = UDim2.fromOffset(16, 16),
+		    IconParent = IconHolder,
+		    Targets = Component,
+		    Tooltip = "Target players",
+		    Function = Props.Function
+		}, TargetsWindow, IconHolder)
 		
-		component.NPCs = components.TargetsButton({
-			Position = UDim2.fromOffset(112, 45),
-			Icon = getvapeasset('kingvape/assets/new/npcs.png'),
-			IconSize = UDim2.fromOffset(12, 16),
-			IconParent = iconholder,
-			Targets = component,
-			Tooltip = 'Target NPCs',
-			Function = props.Function
-		}, targetswindow, iconholder)
+		Component.NPCs = Components.TargetsButton({
+		    Position = UDim2.fromOffset(112, 45),
+		    Icon = GetVapeAsset("kingvape/assets/new/npcs.png"),
+		    IconSize = UDim2.fromOffset(12, 16),
+		    IconParent = IconHolder,
+		    Targets = Component,
+		    Tooltip = "Target NPCs",
+		    Function = Props.Function
+		}, TargetsWindow, IconHolder)
 		
-		component.Invisible = components.Toggle({
-			Name = 'Ignore invisible',
-			Function = function()
-				local newText = {}
+		Component.Invisible = Components.Toggle({
+		    Name = "Ignore invisible",
+		    Function = function()
+		        local NewText: {string} = {}
 		
-				if component.Invisible.Enabled then
-					table.insert(newText, 'invisible')
-				end
+		        if Component.Invisible.Enabled then
+		            table.insert(NewText, "invisible")
+		        end
 		
-				if component.Walls.Enabled then
-					table.insert(newText, 'behind walls')
-				end
+		        if Component.Walls.Enabled then
+		            table.insert(NewText, "behind walls")
+		        end
 		
-				items.Text = 'Ignore '..(#newText > 0 and table.concat(newText, ', ') or 'none')
-				props.Function()
-			end
-		}, targetswindow, {Options = {}})
-		component.Invisible.Object.Position = UDim2.fromOffset(0, 81)
+		        Items.Text = `Ignore {#NewText > 0 and table.concat(NewText, ", ") or "none"}`
+		        Props.Function()
+		    end
+		}, TargetsWindow, {Options = {}})
+		Component.Invisible.Object.Position = UDim2.fromOffset(0, 81)
 		
-		component.Walls = components.Toggle({
-			Name = 'Ignore behind walls',
-			Function = function()
-				local newText = {}
+		Component.Walls = Components.Toggle({
+		    Name = "Ignore behind walls",
+		    Function = function()
+		        local NewText: {string} = {}
 		
-				if component.Invisible.Enabled then
-					table.insert(newText, 'invisible')
-				end
+		        if Component.Invisible.Enabled then
+		            table.insert(NewText, "invisible")
+		        end
 		
-				if component.Walls.Enabled then
-					table.insert(newText, 'behind walls')
-				end
+		        if Component.Walls.Enabled then
+		            table.insert(NewText, "behind walls")
+		        end
 		
-				items.Text = 'Ignore '..(#newText > 0 and table.concat(newText, ', ') or 'none')
-				props.Function()
-			end
-		}, targetswindow, {Options = {}})
-		component.Walls.Object.Position = UDim2.fromOffset(0, 111)
+		        Items.Text = `Ignore {#NewText > 0 and table.concat(NewText, ", ") or "none"}`
+		        Props.Function()
+		    end
+		}, TargetsWindow, {Options = {}})
+		Component.Walls.Object.Position = UDim2.fromOffset(0, 111)
 		
-		component.Priority = components.Dropdown({
-			Name = 'Priority',
-			List = {'Players', 'NPCs', 'None', 'Closest', 'Farthest', 'Lowest health', 'Highest health', 'Crosshair'},
-			Function = props.Function,
-			Tooltip = 'Which target gets picked first when more than one is in range\nPlayers / NPCs - that kind wins, the modules own sorting breaks the tie\nClosest / Farthest - by range\nLowest / Highest health - finish someone off, or go for the healthy one\nCrosshair - whoever is nearest the middle of your screen'
-		}, targetswindow, {Options = {}})
-		component.Priority.Object.Position = UDim2.fromOffset(0, 141)
-		targetswindow.Size = UDim2.fromOffset(220, 145 + component.Priority.Object.Size.Y.Offset)
+		Component.Priority = Components.Dropdown({
+		    Name = "Priority",
+		    List = {"Players", "NPCs", "None", "Closest", "Farthest", "Lowest health", "Highest health", "Crosshair"},
+		    Function = Props.Function,
+		    Tooltip = "Which target gets picked first when more than one is in range\nPlayers / NPCs - that kind wins, the modules own sorting breaks the tie\nClosest / Farthest - by range\nLowest / Highest health - finish someone off, or go for the healthy one\nCrosshair - whoever is nearest the middle of your screen"
+		}, TargetsWindow, {Options = {}})
+		Component.Priority.Object.Position = UDim2.fromOffset(0, 141)
+		TargetsWindow.Size = UDim2.fromOffset(220, 145 + Component.Priority.Object.Size.Y.Offset)
 		
-		component.Priority.Object:GetPropertyChangedSignal('Size'):Connect(function()
-			targetswindow.Size = UDim2.fromOffset(220, 145 + component.Priority.Object.Size.Y.Offset)
+		Component.Priority.Object:GetPropertyChangedSignal("Size"):Connect(function()
+		    TargetsWindow.Size = UDim2.fromOffset(220, 145 + Component.Priority.Object.Size.Y.Offset)
 		end)
 		
-		if props.Players then
-			component.Players:Toggle()
+		if Props.Players then
+		    Component.Players:Toggle()
 		end
 		
-		if props.NPCs then
-			component.NPCs:Toggle()
+		if Props.NPCs then
+		    Component.NPCs:Toggle()
 		end
 		
-		if props.Invisible then
-			component.Invisible:Toggle()
+		if Props.Invisible then
+		    Component.Invisible:Toggle()
 		end
 		
-		if props.Walls then
-			component.Walls:Toggle()
+		if Props.Walls then
+		    Component.Walls:Toggle()
 		end
 		
-		close.MouseButton1Click:Connect(function()
-			targetswindow.Visible = false
+		Close.MouseButton1Click:Connect(function()
+		    TargetsWindow.Visible = false
 		end)
 		
-		button.MouseButton1Click:Connect(function()
-			targetswindow.Visible = not targetswindow.Visible
-			tween:Cancel(holder)
+		Button.MouseButton1Click:Connect(function()
+		    TargetsWindow.Visible = not TargetsWindow.Visible
+		    Tween:Cancel(Holder)
 		
-			holder.BackgroundColor3 = targetswindow.Visible and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or color.Light(uipallet.Main, 0.37)
+		    Holder.BackgroundColor3 = TargetsWindow.Visible and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or Color.Light(UIPallet.Main, 0.37)
 		end)
 		
-		targets.MouseEnter:Connect(function()
-			if not targetswindow.Visible then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.37)
-				})
-			end
+		Targets.MouseEnter:Connect(function()
+		    if not TargetsWindow.Visible then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.37)
+		        })
+		    end
 		end)
 		
-		targets.MouseLeave:Connect(function()
-			if not targetswindow.Visible then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-				})
-			end
+		Targets.MouseLeave:Connect(function()
+		    if not TargetsWindow.Visible then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		        })
+		    end
 		end)
 		
-		targets:GetPropertyChangedSignal('AbsolutePosition'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		Targets:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			local actualPosition = (targets.AbsolutePosition + Vector2.new(0, 60)) / scale.Scale
-			targetswindow.Position = UDim2.fromOffset(actualPosition.X + 223, actualPosition.Y)
+		    local ActualPosition: Vector2 = (Targets.AbsolutePosition + Vector2.new(0, 60)) / Scale.Scale
+		    TargetsWindow.Position = UDim2.fromOffset(ActualPosition.X + 223, ActualPosition.Y)
 		end)
 		
-		api.Options.Targets = component
+		API.Options.Targets = Component
 		
-		return component
+		return Component
 	end,
-	TargetsButton = function(props, children, api)
-		local component = {
-			Enabled = false,
-			Type = 'TargetsButton'
+	TargetsButton = function(Props, Children, API)
+		local Component = {
+		    Enabled = false,
+		    Type = "TargetsButton"
 		}
 		
-		local targetsbutton = Instance.new('TextButton')
-		targetsbutton.AutoButtonColor = false
-		targetsbutton.BackgroundColor3 = color.Light(uipallet.Main, 0.05)
-		targetsbutton.Position = props.Position
-		targetsbutton.Size = UDim2.fromOffset(98, 31)
-		targetsbutton.Text = ''
-		targetsbutton.Visible = props.Visible == nil or props.Visible
-		targetsbutton.Parent = children
-		component.Object = targetsbutton
-		addCorner(targetsbutton)
-		addTooltip(targetsbutton, props.Tooltip)
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = uipallet.Main
-		holder.Position = UDim2.fromOffset(1, 1)
-		holder.Size = UDim2.new(1, -2, 1, -2)
-		holder.Parent = targetsbutton
-		addCorner(holder)
-		local icon = Instance.new('ImageLabel')
-		icon.AnchorPoint = Vector2.new(0.5, 0.5)
-		icon.BackgroundTransparency = 1
-		icon.Image = props.Icon
-		icon.ImageColor3 = color.Light(uipallet.Main, 0.37)
-		icon.Position = UDim2.fromScale(0.5, 0.5)
-		icon.Size = props.IconSize
-		icon.Parent = holder
-		props.Function = props.Function or function() end
+		local TargetsButton: TextButton = Instance.new("TextButton")
+		TargetsButton.AutoButtonColor = false
+		TargetsButton.BackgroundColor3 = Color.Light(UIPallet.Main, 0.05)
+		TargetsButton.Position = Props.Position
+		TargetsButton.Size = UDim2.fromOffset(98, 31)
+		TargetsButton.Text = ""
+		TargetsButton.Visible = Props.Visible == nil or Props.Visible
+		TargetsButton.Parent = Children
+		Component.Object = TargetsButton
+		AddCorner(TargetsButton)
+		AddTooltip(TargetsButton, Props.Tooltip)
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = UIPallet.Main
+		Holder.Position = UDim2.fromOffset(1, 1)
+		Holder.Size = UDim2.new(1, -2, 1, -2)
+		Holder.Parent = TargetsButton
+		AddCorner(Holder)
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		Icon.BackgroundTransparency = 1
+		Icon.Image = Props.Icon
+		Icon.ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		Icon.Position = UDim2.fromScale(0.5, 0.5)
+		Icon.Size = Props.IconSize
+		Icon.Parent = Holder
+		Props.Function = Props.Function or function() end
 		
-		function component:Toggle()
-			self.Enabled = not self.Enabled
+		function Component:Toggle()
+		    self.Enabled = not self.Enabled
 		
-			tween:Tween(holder, uipallet.Tween, {
-				BackgroundColor3 = self.Enabled and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or uipallet.Main
-			})
+		    Tween:Tween(Holder, UIPallet.Tween, {
+		        BackgroundColor3 = self.Enabled and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or UIPallet.Main
+		    })
 		
-			tween:Tween(icon, uipallet.Tween, {
-				ImageColor3 = self.Enabled and Color3.new(1, 1, 1) or color.Light(uipallet.Main, 0.37)
-			})
+		    Tween:Tween(Icon, UIPallet.Tween, {
+		        ImageColor3 = self.Enabled and Color3.new(1, 1, 1) or Color.Light(UIPallet.Main, 0.37)
+		    })
 		
-			props.Targets:UpdateText()
-			vape:QueueSave()
-			props.Function(self.Enabled)
+		    Props.Targets:UpdateText()
+		    vape:QueueSave()
+		    Props.Function(self.Enabled)
 		end
 		
-		targetsbutton.MouseEnter:Connect(function()
-			if not component.Enabled then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value - 0.25)
-				})
+		TargetsButton.MouseEnter:Connect(function()
+		    if not Component.Enabled then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value - 0.25)
+		        })
 		
-				tween:Tween(icon, uipallet.Tween, {
-					ImageColor3 = Color3.new(1, 1, 1)
-				})
-			end
+		        Tween:Tween(Icon, UIPallet.Tween, {
+		            ImageColor3 = Color3.new(1, 1, 1)
+		        })
+		    end
 		end)
 		
-		targetsbutton.MouseLeave:Connect(function()
-			if not component.Enabled then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = uipallet.Main
-				})
+		TargetsButton.MouseLeave:Connect(function()
+		    if not Component.Enabled then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = UIPallet.Main
+		        })
 		
-				tween:Tween(icon, uipallet.Tween, {
-					ImageColor3 = color.Light(uipallet.Main, 0.37)
-				})
-			end
+		        Tween:Tween(Icon, UIPallet.Tween, {
+		            ImageColor3 = Color.Light(UIPallet.Main, 0.37)
+		        })
+		    end
 		end)
 		
-		targetsbutton.MouseButton1Click:Connect(function()
-			component:Toggle()
+		TargetsButton.MouseButton1Click:Connect(function()
+		    Component:Toggle()
 		end)
 		
-		return component
+		return Component
 	end,
-	TextBox = function(props, children, api)
-		local component = {
-			Index = 0,
-			Type = 'TextBox',
-			Value = props.Default or ''
+	TextBox = function(Props, Children, API)
+		local Component = {
+		    Index = 0,
+		    Type = "TextBox",
+		    Value = Props.Default or ""
 		}
 		
-		local textbox = Instance.new('TextButton')
-		textbox.AutoButtonColor = false
-		textbox.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-		textbox.BorderSizePixel = 0
-		textbox.Size = UDim2.new(1, 0, 0, 58)
-		textbox.Text = ''
-		textbox.Visible = props.Visible == nil or props.Visible
-		textbox.Parent = children
-		component.Object = textbox
-		addTooltip(textbox, props.Tooltip)
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(10, 3)
-		title.Size = UDim2.new(1, -10, 0, 20)
-		title.Text = props.Name
-		title.TextColor3 = uipallet.Text
-		title.TextSize = 12
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = textbox
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-		holder.Position = UDim2.fromOffset(10, 23)
-		holder.Size = UDim2.new(1, -20, 0, 29)
-		holder.Parent = textbox
-		addCorner(holder, UDim.new(0, 4))
-		local inputbox = Instance.new('TextBox')
-		inputbox.BackgroundTransparency = 1
-		inputbox.ClearTextOnFocus = false
-		inputbox.FontFace = uipallet.Font
-		inputbox.PlaceholderColor3 = color.Dark(uipallet.Text, 0.31)
-		inputbox.PlaceholderText = props.Placeholder or 'Click to set'
-		inputbox.Position = UDim2.fromOffset(8, 0)
-		inputbox.Size = UDim2.new(1, -8, 1, 0)
-		inputbox.Text = props.Default or ''
-		inputbox.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		inputbox.TextSize = 12
-		inputbox.TextXAlignment = Enum.TextXAlignment.Left
-		inputbox.Parent = holder
-		props.Function = props.Function or function() end
+		local TextBox: TextButton = Instance.new("TextButton")
+		TextBox.AutoButtonColor = false
+		TextBox.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		TextBox.BorderSizePixel = 0
+		TextBox.Size = UDim2.new(1, 0, 0, 58)
+		TextBox.Text = ""
+		TextBox.Visible = Props.Visible == nil or Props.Visible
+		TextBox.Parent = Children
+		Component.Object = TextBox
+		AddTooltip(TextBox, Props.Tooltip)
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Position = UDim2.fromOffset(10, 3)
+		Title.Size = UDim2.new(1, -10, 0, 20)
+		Title.Text = Props.Name
+		Title.TextColor3 = UIPallet.Text
+		Title.TextSize = 12
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = TextBox
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		Holder.Position = UDim2.fromOffset(10, 23)
+		Holder.Size = UDim2.new(1, -20, 0, 29)
+		Holder.Parent = TextBox
+		AddCorner(Holder, UDim.new(0, 4))
+		local InputBox: TextBox = Instance.new("TextBox")
+		InputBox.BackgroundTransparency = 1
+		InputBox.ClearTextOnFocus = false
+		InputBox.FontFace = UIPallet.Font
+		InputBox.PlaceholderColor3 = Color.Dark(UIPallet.Text, 0.31)
+		InputBox.PlaceholderText = Props.Placeholder or "Click to set"
+		InputBox.Position = UDim2.fromOffset(8, 0)
+		InputBox.Size = UDim2.new(1, -8, 1, 0)
+		InputBox.Text = Props.Default or ""
+		InputBox.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		InputBox.TextSize = 12
+		InputBox.TextXAlignment = Enum.TextXAlignment.Left
+		InputBox.Parent = Holder
+		Props.Function = Props.Function or function() end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if self.Value ~= data.Value then
-				self:SetValue(data.Value)
-			end
+		    if self.Value ~= Data.Value then
+		        self:SetValue(Data.Value)
+		    end
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Value = self.Value
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Value = self.Value
+		    }
 		end
 		
-		local writing = false
+		local Writing: boolean = false
 		
-		function component:SetValue(val, enter)
-			if writing then return end
+		function Component:SetValue(Val: string, Enter: boolean?)
+		    if Writing then return end
 		
-			writing = true
-			self.Value = val
-			inputbox.Text = val
-			writing = false
-			vape:QueueSave()
-			props.Function(enter)
+		    Writing = true
+		    self.Value = Val
+		    InputBox.Text = Val
+		    Writing = false
+		    vape:QueueSave()
+		    Props.Function(Enter)
 		end
 		
-		textbox.MouseButton1Click:Connect(function()
-			inputbox:CaptureFocus()
+		TextBox.MouseButton1Click:Connect(function()
+		    InputBox:CaptureFocus()
 		end)
 		
-		inputbox.FocusLost:Connect(function(enter)
-			component:SetValue(inputbox.Text, enter)
+		InputBox.FocusLost:Connect(function(Enter: boolean)
+		    Component:SetValue(InputBox.Text, Enter)
 		end)
 		
-		inputbox:GetPropertyChangedSignal('Text'):Connect(function()
-			component:SetValue(inputbox.Text)
+		InputBox:GetPropertyChangedSignal("Text"):Connect(function()
+		    Component:SetValue(InputBox.Text)
 		end)
 		
-		api.Options[props.Name] = component
+		API.Options[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	TextList = function(props, children, api)
-		local component = {
-			Default = props.Default and table.clone(props.Default) or {},
-			Icon = props.Icon,
-			Index = getTableSize(api.Options),
-			List = props.Default and table.clone(props.Default) or {},
-			ListEnabled = props.Default and table.clone(props.Default) or {},
-			Objects = {},
-			Type = 'TextList',
-			Window = {Visible = false}
+	TextList = function(Props, Children, API)
+		local Component = {
+		    Default = Props.Default and table.clone(Props.Default) or {},
+		    Icon = Props.Icon,
+		    Index = GetTableSize(API.Options),
+		    List = Props.Default and table.clone(Props.Default) or {},
+		    ListEnabled = Props.Default and table.clone(Props.Default) or {},
+		    Objects = {},
+		    Type = "TextList",
+		    Window = {Visible = false}
 		}
 		
-		props.Color = props.Color or Color3.fromRGB(5, 134, 105)
-		local textlist = Instance.new('TextButton')
-		textlist.AutoButtonColor = false
-		textlist.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-		textlist.BorderSizePixel = 0
-		textlist.Size = UDim2.new(1, 0, 0, 50)
-		textlist.Text = ''
-		textlist.Visible = props.Visible == nil or props.Visible
-		textlist.Parent = children
-		component.Object = textlist
-		addTooltip(textlist, props.Tooltip)
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-		holder.Position = UDim2.fromOffset(10, 4)
-		holder.Size = UDim2.new(1, -20, 1, -9)
-		holder.Parent = textlist
-		addCorner(holder, UDim.new(0, 4))
-		local button = Instance.new('TextButton')
-		button.AutoButtonColor = false
-		button.BackgroundColor3 = uipallet.Main
-		button.Position = UDim2.fromOffset(1, 1)
-		button.Size = UDim2.new(1, -2, 1, -2)
-		button.Text = ''
-		button.Parent = holder
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('kingvape/assets/new/allowediconmini.png')
-		icon.Position = UDim2.fromOffset(10, 14)
-		icon.Size = UDim2.fromOffset(14, 12)
-		icon.Parent = button
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(35, 6)
-		title.Size = UDim2.new(1, -35, 0, 15)
-		title.Text = props.Name
-		title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		title.TextSize = 15
-		title.TextTruncate = Enum.TextTruncate.AtEnd
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = button
-		local amount = Instance.fromExisting(title)
-		amount.Position = UDim2.fromOffset(0, 6)
-		amount.Size = UDim2.new(1, -13, 0, 15)
-		amount.Text = '0'
-		amount.TextXAlignment = Enum.TextXAlignment.Right
-		amount.Parent = button
-		local items = Instance.fromExisting(title)
-		items.Position = UDim2.fromOffset(35, 21)
-		items.Text = 'None'
-		items.TextColor3 = color.Dark(uipallet.Text, 0.43)
-		items.TextSize = 11
-		items.Parent = button
-		addCorner(button, UDim.new(0, 4))
-		local textlistwindow = Instance.new('TextButton')
-		textlistwindow.AutoButtonColor = false
-		textlistwindow.BackgroundColor3 = uipallet.Main
-		textlistwindow.BorderSizePixel = 0
-		textlistwindow.Position = UDim2.fromOffset(456, 227)
-		textlistwindow.Size = UDim2.fromOffset(220, 85)
-		textlistwindow.Text = ''
-		textlistwindow.Visible = false
-		textlistwindow.Parent = (api and api.Legit and vape.Legit and vape.Legit.Window) or clickgui
-		component.Window = textlistwindow
-		addBlur(textlistwindow)
-		addCorner(textlistwindow)
-		local icon = Instance.new('ImageLabel')
-		icon.BackgroundTransparency = 1
-		icon.Image = getvapeasset('kingvape/assets/new/allowedicon.png')
-		icon.Position = UDim2.fromOffset(10, 13)
-		icon.Size = UDim2.fromOffset(19, 16)
-		icon.Parent = textlistwindow
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(36, 11)
-		title.Size = UDim2.new(1, -36, 0, 20)
-		title.Text = props.Name
-		title.TextColor3 = uipallet.Text
-		title.TextSize = 13
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = textlistwindow
-		local close = addCloseButton(textlistwindow)
-		local boxholder = Instance.new('Frame')
-		boxholder.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-		boxholder.Position = UDim2.fromOffset(10, 45)
-		boxholder.Size = UDim2.fromOffset(200, 31)
-		boxholder.Parent = textlistwindow
-		addCorner(boxholder)
-		local boxinner = Instance.new('Frame')
-		boxinner.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-		boxinner.Position = UDim2.fromOffset(1, 1)
-		boxinner.Size = UDim2.new(1, -2, 1, -2)
-		boxinner.Parent = boxholder
-		addCorner(boxinner)
-		local textbox = Instance.new('TextBox')
-		textbox.BackgroundTransparency = 1
-		textbox.ClearTextOnFocus = false
-		textbox.FontFace = uipallet.Font
-		textbox.PlaceholderText = props.Placeholder or 'Add entry...'
-		textbox.PlaceholderColor3 = Color3.new(0.8, 0.8, 0.8)
-		textbox.Position = UDim2.fromOffset(10, 0)
-		textbox.Size = UDim2.new(1, -35, 1, 0)
-		textbox.Text = ''
-		textbox.TextColor3 = Color3.new(1, 1, 1)
-		textbox.TextSize = 13
-		textbox.TextXAlignment = Enum.TextXAlignment.Left
-		textbox.Parent = boxholder
-		local add = Instance.new('ImageButton')
-		add.BackgroundTransparency = 1
-		add.Image = getvapeasset('kingvape/assets/new/add.png')
-		add.ImageColor3 = props.Color
-		add.ImageTransparency = 0.3
-		add.Position = UDim2.new(1, -26, 0, 8)
-		add.Size = UDim2.fromOffset(16, 16)
-		add.Parent = boxholder
-		props.Function = props.Function or function() end
+		Props.Color = Props.Color or Color3.fromRGB(5, 134, 105)
+		local TextList: TextButton = Instance.new("TextButton")
+		TextList.AutoButtonColor = false
+		TextList.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		TextList.BorderSizePixel = 0
+		TextList.Size = UDim2.new(1, 0, 0, 50)
+		TextList.Text = ""
+		TextList.Visible = Props.Visible == nil or Props.Visible
+		TextList.Parent = Children
+		Component.Object = TextList
+		AddTooltip(TextList, Props.Tooltip)
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		Holder.Position = UDim2.fromOffset(10, 4)
+		Holder.Size = UDim2.new(1, -20, 1, -9)
+		Holder.Parent = TextList
+		AddCorner(Holder, UDim.new(0, 4))
+		local Button: TextButton = Instance.new("TextButton")
+		Button.AutoButtonColor = false
+		Button.BackgroundColor3 = UIPallet.Main
+		Button.Position = UDim2.fromOffset(1, 1)
+		Button.Size = UDim2.new(1, -2, 1, -2)
+		Button.Text = ""
+		Button.Parent = Holder
+		local Icon: ImageLabel = Instance.new("ImageLabel")
+		Icon.BackgroundTransparency = 1
+		Icon.Image = GetVapeAsset("kingvape/assets/new/allowediconmini.png")
+		Icon.Position = UDim2.fromOffset(10, 14)
+		Icon.Size = UDim2.fromOffset(14, 12)
+		Icon.Parent = Button
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Position = UDim2.fromOffset(35, 6)
+		Title.Size = UDim2.new(1, -35, 0, 15)
+		Title.Text = Props.Name
+		Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Title.TextSize = 15
+		Title.TextTruncate = Enum.TextTruncate.AtEnd
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = Button
+		local Amount: TextLabel = Instance.fromExisting(Title)
+		Amount.Position = UDim2.fromOffset(0, 6)
+		Amount.Size = UDim2.new(1, -13, 0, 15)
+		Amount.Text = "0"
+		Amount.TextXAlignment = Enum.TextXAlignment.Right
+		Amount.Parent = Button
+		local Items: TextLabel = Instance.fromExisting(Title)
+		Items.Position = UDim2.fromOffset(35, 21)
+		Items.Text = "None"
+		Items.TextColor3 = Color.Dark(UIPallet.Text, 0.43)
+		Items.TextSize = 11
+		Items.Parent = Button
+		AddCorner(Button, UDim.new(0, 4))
+		local TextListWindow: TextButton = Instance.new("TextButton")
+		TextListWindow.AutoButtonColor = false
+		TextListWindow.BackgroundColor3 = UIPallet.Main
+		TextListWindow.BorderSizePixel = 0
+		TextListWindow.Position = UDim2.fromOffset(456, 227)
+		TextListWindow.Size = UDim2.fromOffset(220, 85)
+		TextListWindow.Text = ""
+		TextListWindow.Visible = false
+		TextListWindow.Parent = API.Legit and vape.Legit.Window or ClickGUI
+		Component.Window = TextListWindow
+		AddBlur(TextListWindow)
+		AddCorner(TextListWindow)
+		local WindowIcon: ImageLabel = Instance.new("ImageLabel")
+		WindowIcon.BackgroundTransparency = 1
+		WindowIcon.Image = GetVapeAsset("kingvape/assets/new/allowedicon.png")
+		WindowIcon.Position = UDim2.fromOffset(10, 13)
+		WindowIcon.Size = UDim2.fromOffset(19, 16)
+		WindowIcon.Parent = TextListWindow
+		local WindowTitle: TextLabel = Instance.new("TextLabel")
+		WindowTitle.BackgroundTransparency = 1
+		WindowTitle.FontFace = UIPallet.Font
+		WindowTitle.Position = UDim2.fromOffset(36, 11)
+		WindowTitle.Size = UDim2.new(1, -36, 0, 20)
+		WindowTitle.Text = Props.Name
+		WindowTitle.TextColor3 = UIPallet.Text
+		WindowTitle.TextSize = 13
+		WindowTitle.TextXAlignment = Enum.TextXAlignment.Left
+		WindowTitle.Parent = TextListWindow
+		local Close: ImageButton = AddCloseButton(TextListWindow)
+		local BoxHolder: Frame = Instance.new("Frame")
+		BoxHolder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		BoxHolder.Position = UDim2.fromOffset(10, 45)
+		BoxHolder.Size = UDim2.fromOffset(200, 31)
+		BoxHolder.Parent = TextListWindow
+		AddCorner(BoxHolder)
+		local BoxInner: Frame = Instance.new("Frame")
+		BoxInner.BackgroundColor3 = Color.Dark(UIPallet.Main, 0.02)
+		BoxInner.Position = UDim2.fromOffset(1, 1)
+		BoxInner.Size = UDim2.new(1, -2, 1, -2)
+		BoxInner.Parent = BoxHolder
+		AddCorner(BoxInner)
+		local InputBox: TextBox = Instance.new("TextBox")
+		InputBox.BackgroundTransparency = 1
+		InputBox.ClearTextOnFocus = false
+		InputBox.FontFace = UIPallet.Font
+		InputBox.PlaceholderText = Props.Placeholder or "Add entry..."
+		InputBox.PlaceholderColor3 = Color3.new(0.8, 0.8, 0.8)
+		InputBox.Position = UDim2.fromOffset(10, 0)
+		InputBox.Size = UDim2.new(1, -35, 1, 0)
+		InputBox.Text = ""
+		InputBox.TextColor3 = Color3.new(1, 1, 1)
+		InputBox.TextSize = 13
+		InputBox.TextXAlignment = Enum.TextXAlignment.Left
+		InputBox.Parent = BoxHolder
+		local AddButton: ImageButton = Instance.new("ImageButton")
+		AddButton.BackgroundTransparency = 1
+		AddButton.Image = GetVapeAsset("kingvape/assets/new/add.png")
+		AddButton.ImageColor3 = Props.Color
+		AddButton.ImageTransparency = 0.3
+		AddButton.Position = UDim2.new(1, -26, 0, 8)
+		AddButton.Size = UDim2.fromOffset(16, 16)
+		AddButton.Parent = BoxHolder
+		Props.Function = Props.Function or function() end
 		
-		function component:Color(hue, sat, val, isRainbow)
-			if textlistwindow.Visible then
-				holder.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
-			end
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    if TextListWindow.Visible then
+		        Holder.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(Hue, Sat, Val)
+		    end
 		end
 		
-		function component:ChangeValue(value)
-			if value then
-				local index = table.find(self.List, value)
-				if index then
-					table.remove(self.List, index)
+		function Component:ChangeValue(Value: string?)
+		    if Value then
+		        local Index: number? = table.find(self.List, Value)
+		        if Index then
+		            table.remove(self.List, Index)
 		
-					index = table.find(self.ListEnabled, value)
-					if index then
-						table.remove(self.ListEnabled, index)
-					end
-				else
-					table.insert(self.List, value)
-					table.insert(self.ListEnabled, value)
-				end
-			end
+		            Index = table.find(self.ListEnabled, Value)
+		            if Index then
+		                table.remove(self.ListEnabled, Index)
+		            end
+		        else
+		            table.insert(self.List, Value)
+		            table.insert(self.ListEnabled, Value)
+		        end
+		    end
 		
-			vape:QueueSave()
-			props.Function(self.List)
-			for _, v in self.Objects do
-				v:Destroy()
-			end
-			table.clear(self.Objects)
-			textlistwindow.Size = UDim2.fromOffset(220, 85 + (#self.List * 35))
-			amount.Text = #self.List
-			items.Text = #self.ListEnabled > 0 and table.concat(self.ListEnabled, ', ') or 'None'
+		    vape:QueueSave()
+		    Props.Function(self.List)
+		    for _, v: TextButton in self.Objects do
+		        v:Destroy()
+		    end
+		    table.clear(self.Objects)
+		    TextListWindow.Size = UDim2.fromOffset(220, 85 + (#self.List * 35))
+		    Amount.Text = #self.List
+		    Items.Text = #self.ListEnabled > 0 and table.concat(self.ListEnabled, ", ") or "None"
 		
-			for index, value in self.List do
-				local isEnabled = table.find(self.ListEnabled, value)
-				local obj = Instance.new('TextButton')
-				obj.AutoButtonColor = false
-				obj.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-				obj.Position = UDim2.fromOffset(10, 47 + (index * 35))
-				obj.Size = UDim2.fromOffset(200, 31)
-				obj.Text = ''
-				obj.Parent = textlistwindow
-				addCorner(obj)
-				local bkg = Instance.new('Frame')
-				bkg.BackgroundColor3 = uipallet.Main
-				bkg.Position = UDim2.fromOffset(1, 1)
-				bkg.Size = UDim2.new(1, -2, 1, -2)
-				bkg.Visible = false
-				bkg.Parent = obj
-				addCorner(bkg)
-				local dot = Instance.new('Frame')
-				dot.BackgroundColor3 = isEnabled and props.Color or color.Light(uipallet.Main, 0.37)
-				dot.Position = UDim2.fromOffset(10, 12)
-				dot.Size = UDim2.fromOffset(10, 11)
-				dot.Parent = obj
-				addCorner(dot, UDim.new(1, 0))
-				local dotin = dot:Clone()
-				dotin.BackgroundColor3 = isEnabled and props.Color or color.Light(uipallet.Main, 0.02)
-				dotin.Position = UDim2.fromOffset(1, 1)
-				dotin.Size = UDim2.fromOffset(8, 9)
-				dotin.Parent = dot
-				local label = Instance.new('TextLabel')
-				label.BackgroundTransparency = 1
-				label.FontFace = uipallet.Font
-				label.Position = UDim2.fromOffset(30, 0)
-				label.Size = UDim2.new(1, -30, 1, 0)
-				label.Text = value
-				label.TextColor3 = color.Dark(uipallet.Text, 0.16)
-				label.TextSize = 15
-				label.TextXAlignment = Enum.TextXAlignment.Left
-				label.Parent = obj
-				local close = Instance.new('ImageButton')
-				close.AutoButtonColor = false
-				close.BackgroundColor3 = Color3.new(1, 1, 1)
-				close.BackgroundTransparency = 1
-				close.Image = getvapeasset('kingvape/assets/new/closetiny.png')
-				close.ImageColor3 = color.Light(uipallet.Text, 0.2)
-				close.ImageTransparency = 0.5
-				close.Position = UDim2.new(1, -27, 0, 8)
-				close.Size = UDim2.fromOffset(18, 17)
-				close.Parent = obj
-				addCorner(close, UDim.new(1, 0))
+		    for i: number, Entry: string in self.List do
+		        local IsEnabled: number? = table.find(self.ListEnabled, Entry)
+		        local Object: TextButton = Instance.new("TextButton")
+		        Object.AutoButtonColor = false
+		        Object.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		        Object.Position = UDim2.fromOffset(10, 47 + (i * 35))
+		        Object.Size = UDim2.fromOffset(200, 31)
+		        Object.Text = ""
+		        Object.Parent = TextListWindow
+		        AddCorner(Object)
+		        local Background: Frame = Instance.new("Frame")
+		        Background.BackgroundColor3 = UIPallet.Main
+		        Background.Position = UDim2.fromOffset(1, 1)
+		        Background.Size = UDim2.new(1, -2, 1, -2)
+		        Background.Visible = false
+		        Background.Parent = Object
+		        AddCorner(Background)
+		        local Dot: Frame = Instance.new("Frame")
+		        Dot.BackgroundColor3 = IsEnabled and Props.Color or Color.Light(UIPallet.Main, 0.37)
+		        Dot.Position = UDim2.fromOffset(10, 12)
+		        Dot.Size = UDim2.fromOffset(10, 11)
+		        Dot.Parent = Object
+		        AddCorner(Dot, UDim.new(1, 0))
+		        local DotInner: Frame = Dot:Clone()
+		        DotInner.BackgroundColor3 = IsEnabled and Props.Color or Color.Light(UIPallet.Main, 0.02)
+		        DotInner.Position = UDim2.fromOffset(1, 1)
+		        DotInner.Size = UDim2.fromOffset(8, 9)
+		        DotInner.Parent = Dot
+		        local Label: TextLabel = Instance.new("TextLabel")
+		        Label.BackgroundTransparency = 1
+		        Label.FontFace = UIPallet.Font
+		        Label.Position = UDim2.fromOffset(30, 0)
+		        Label.Size = UDim2.new(1, -30, 1, 0)
+		        Label.Text = Entry
+		        Label.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		        Label.TextSize = 15
+		        Label.TextXAlignment = Enum.TextXAlignment.Left
+		        Label.Parent = Object
+		        local RemoveButton: ImageButton = Instance.new("ImageButton")
+		        RemoveButton.AutoButtonColor = false
+		        RemoveButton.BackgroundColor3 = Color3.new(1, 1, 1)
+		        RemoveButton.BackgroundTransparency = 1
+		        RemoveButton.Image = GetVapeAsset("kingvape/assets/new/closetiny.png")
+		        RemoveButton.ImageColor3 = Color.Light(UIPallet.Text, 0.2)
+		        RemoveButton.ImageTransparency = 0.5
+		        RemoveButton.Position = UDim2.new(1, -27, 0, 8)
+		        RemoveButton.Size = UDim2.fromOffset(18, 17)
+		        RemoveButton.Parent = Object
+		        AddCorner(RemoveButton, UDim.new(1, 0))
 		
-				close.MouseEnter:Connect(function()
-					close.ImageTransparency = 0.3
-					tween:Tween(close, uipallet.Tween, {
-						BackgroundTransparency = 0.6
-					})
-				end)
+		        RemoveButton.MouseEnter:Connect(function()
+		            RemoveButton.ImageTransparency = 0.3
+		            Tween:Tween(RemoveButton, UIPallet.Tween, {
+		                BackgroundTransparency = 0.6
+		            })
+		        end)
 		
-				close.MouseLeave:Connect(function()
-					close.ImageTransparency = 0.5
-					tween:Tween(close, uipallet.Tween, {
-						BackgroundTransparency = 1
-					})
-				end)
+		        RemoveButton.MouseLeave:Connect(function()
+		            RemoveButton.ImageTransparency = 0.5
+		            Tween:Tween(RemoveButton, UIPallet.Tween, {
+		                BackgroundTransparency = 1
+		            })
+		        end)
 		
-				close.MouseButton1Click:Connect(function()
-					self:ChangeValue(value)
-				end)
+		        RemoveButton.MouseButton1Click:Connect(function()
+		            self:ChangeValue(Entry)
+		        end)
 		
-				obj.MouseEnter:Connect(function()
-					bkg.Visible = true
-				end)
+		        Object.MouseEnter:Connect(function()
+		            Background.Visible = true
+		        end)
 		
-				obj.MouseLeave:Connect(function()
-					bkg.Visible = false
-				end)
+		        Object.MouseLeave:Connect(function()
+		            Background.Visible = false
+		        end)
 		
-				obj.MouseButton1Click:Connect(function()
-					local index = table.find(self.ListEnabled, value)
-					if index then
-						table.remove(self.ListEnabled, index)
-						dot.BackgroundColor3 = color.Light(uipallet.Main, 0.37)
-						dotin.BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-					else
-						table.insert(self.ListEnabled, value)
-						dot.BackgroundColor3 = props.Color
-						dotin.BackgroundColor3 = props.Color
-					end
+		        Object.MouseButton1Click:Connect(function()
+		            local EnabledIndex: number? = table.find(self.ListEnabled, Entry)
+		            if EnabledIndex then
+		                table.remove(self.ListEnabled, EnabledIndex)
+		                Dot.BackgroundColor3 = Color.Light(UIPallet.Main, 0.37)
+		                DotInner.BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		            else
+		                table.insert(self.ListEnabled, Entry)
+		                Dot.BackgroundColor3 = Props.Color
+		                DotInner.BackgroundColor3 = Props.Color
+		            end
 		
-					items.Text = #self.ListEnabled > 0 and table.concat(self.ListEnabled, ', ') or 'None'
-					vape:QueueSave()
-					props.Function()
-				end)
+		            Items.Text = #self.ListEnabled > 0 and table.concat(self.ListEnabled, ", ") or "None"
+		            vape:QueueSave()
+		            Props.Function()
+		        end)
 		
-				table.insert(self.Objects, obj)
-			end
+		        table.insert(self.Objects, Object)
+		    end
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			self.List = data.List or {}
-			self.ListEnabled = data.ListEnabled or {}
-			self:ChangeValue()
+		    self.List = Data.List or {}
+		    self.ListEnabled = Data.ListEnabled or {}
+		    self:ChangeValue()
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				List = self.List,
-				ListEnabled = self.ListEnabled
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        List = self.List,
+		        ListEnabled = self.ListEnabled
+		    }
 		end
 		
-		add.MouseEnter:Connect(function()
-			add.ImageTransparency = 0
+		AddButton.MouseEnter:Connect(function()
+		    AddButton.ImageTransparency = 0
 		end)
 		
-		add.MouseLeave:Connect(function()
-			add.ImageTransparency = 0.3
+		AddButton.MouseLeave:Connect(function()
+		    AddButton.ImageTransparency = 0.3
 		end)
 		
-		add.MouseButton1Click:Connect(function()
-			if not table.find(component.List, textbox.Text) then
-				component:ChangeValue(textbox.Text)
-				textbox.Text = ''
-			end
+		AddButton.MouseButton1Click:Connect(function()
+		    if InputBox.Text ~= "" and not table.find(Component.List, InputBox.Text) then
+		        Component:ChangeValue(InputBox.Text)
+		        InputBox.Text = ""
+		    end
 		end)
 		
-		textbox.FocusLost:Connect(function(enter)
-			if enter and not table.find(component.List, textbox.Text) then
-				component:ChangeValue(textbox.Text)
-				textbox.Text = ''
-			end
+		InputBox.FocusLost:Connect(function(Enter: boolean)
+		    if Enter and InputBox.Text ~= "" and not table.find(Component.List, InputBox.Text) then
+		        Component:ChangeValue(InputBox.Text)
+		        InputBox.Text = ""
+		    end
 		end)
 		
-		textbox.MouseEnter:Connect(function()
-			tween:Tween(boxholder, uipallet.Tween, {
-				BackgroundColor3 = color.Light(uipallet.Main, 0.14)
-			})
+		InputBox.MouseEnter:Connect(function()
+		    Tween:Tween(BoxHolder, UIPallet.Tween, {
+		        BackgroundColor3 = Color.Light(UIPallet.Main, 0.14)
+		    })
 		end)
 		
-		textbox.MouseLeave:Connect(function()
-			tween:Tween(boxholder, uipallet.Tween, {
-				BackgroundColor3 = color.Light(uipallet.Main, 0.02)
-			})
+		InputBox.MouseLeave:Connect(function()
+		    Tween:Tween(BoxHolder, UIPallet.Tween, {
+		        BackgroundColor3 = Color.Light(UIPallet.Main, 0.02)
+		    })
 		end)
 		
-		close.MouseButton1Click:Connect(function()
-			textlistwindow.Visible = false
+		Close.MouseButton1Click:Connect(function()
+		    TextListWindow.Visible = false
 		end)
 		
-		button.MouseButton1Click:Connect(function()
-			textlistwindow.Visible = not textlistwindow.Visible
+		Button.MouseButton1Click:Connect(function()
+		    TextListWindow.Visible = not TextListWindow.Visible
 		
-			tween:Cancel(holder)
-			holder.BackgroundColor3 = textlistwindow.Visible and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or color.Light(uipallet.Main, 0.37)
+		    Tween:Cancel(Holder)
+		    Holder.BackgroundColor3 = TextListWindow.Visible and Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value) or Color.Light(UIPallet.Main, 0.37)
 		end)
 		
-		textlist.MouseEnter:Connect(function()
-			if not textlistwindow.Visible then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.37)
-				})
-			end
+		TextList.MouseEnter:Connect(function()
+		    if not TextListWindow.Visible then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.37)
+		        })
+		    end
 		end)
 		
-		textlist.MouseLeave:Connect(function()
-			if not textlistwindow.Visible then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-				})
-			end
+		TextList.MouseLeave:Connect(function()
+		    if not TextListWindow.Visible then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		        })
+		    end
 		end)
 		
-		textlist:GetPropertyChangedSignal('AbsolutePosition'):Connect(function()
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		TextList:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			local actualPosition = (textlist.AbsolutePosition - ((api and api.Legit and vape.Legit and vape.Legit.Window) and vape.Legit.Window.AbsolutePosition or -guiService:GetGuiInset())) / scale.Scale
-			textlistwindow.Position = UDim2.fromOffset(actualPosition.X + 223, actualPosition.Y)
+		    local ActualPosition: Vector2 = (TextList.AbsolutePosition - (API.Legit and vape.Legit.Window.AbsolutePosition or -GuiService:GetGuiInset())) / Scale.Scale
+		    TextListWindow.Position = UDim2.fromOffset(ActualPosition.X + 223, ActualPosition.Y)
 		end)
 		
-		if props.Default then
-			component:ChangeValue()
+		if Props.Default then
+		    Component:ChangeValue()
 		end
 		
-		api.Options[props.Name] = component
+		API.Options[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	Toggle = function(props, children, api)
-		local component = {
-			Default = props.Default and true or false,
-			Enabled = false,
-			Index = getTableSize(api.Options),
-			Name = props.Name,
-			Type = 'Toggle'
+	Toggle = function(Props, Children, API)
+		local Component = {
+		    Default = Props.Default and true or false,
+		    Enabled = false,
+		    Index = GetTableSize(API.Options),
+		    Name = Props.Name,
+		    Type = "Toggle"
 		}
 		
-		local isHover = false
-		local toggle = Instance.new('TextButton')
-		toggle.AutoButtonColor = false
-		toggle.BackgroundColor3 = color.Dark(children.BackgroundColor3, props.Darker and 0.02 or 0)
-		toggle.BorderSizePixel = 0
-		toggle.FontFace = uipallet.Font
-		toggle.Size = UDim2.new(1, 0, 0, 30)
-		toggle.Text = '          '..props.Name
-		toggle.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		toggle.TextSize = 14
-		toggle.TextXAlignment = Enum.TextXAlignment.Left
-		toggle.Visible = props.Visible == nil or props.Visible
-		toggle.Parent = children
-		component.Object = toggle
-		addTooltip(toggle, props.Tooltip)
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.14)
-		holder.Name = 'Holder'
-		holder.Position = UDim2.new(1, -30, 0, 9)
-		holder.Size = UDim2.fromOffset(22, 12)
-		holder.Parent = toggle
-		addCorner(holder, UDim.new(1, 0))
-		local knob = Instance.new('Frame')
-		knob.BackgroundColor3 = uipallet.Main
-		knob.Position = UDim2.fromOffset(2, 2)
-		knob.Size = UDim2.fromOffset(8, 8)
-		knob.Parent = holder
-		addCorner(knob, UDim.new(1, 0))
-		props.Function = props.Function or function() end
+		local IsHover: boolean = false
+		local Toggle: TextButton = Instance.new("TextButton")
+		Toggle.AutoButtonColor = false
+		Toggle.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		Toggle.BorderSizePixel = 0
+		Toggle.FontFace = UIPallet.Font
+		Toggle.Size = UDim2.new(1, 0, 0, 30)
+		Toggle.Text = `          {Props.Name}`
+		Toggle.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Toggle.TextSize = 14
+		Toggle.TextXAlignment = Enum.TextXAlignment.Left
+		Toggle.Visible = Props.Visible == nil or Props.Visible
+		Toggle.Parent = Children
+		Component.Object = Toggle
+		AddTooltip(Toggle, Props.Tooltip)
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.14)
+		Holder.Name = "Holder"
+		Holder.Position = UDim2.new(1, -30, 0, 9)
+		Holder.Size = UDim2.fromOffset(22, 12)
+		Holder.Parent = Toggle
+		AddCorner(Holder, UDim.new(1, 0))
+		local Knob: Frame = Instance.new("Frame")
+		Knob.BackgroundColor3 = UIPallet.Main
+		Knob.Position = UDim2.fromOffset(2, 2)
+		Knob.Size = UDim2.fromOffset(8, 8)
+		Knob.Parent = Holder
+		AddCorner(Knob, UDim.new(1, 0))
+		Props.Function = Props.Function or function() end
 		
-		function component:Color(hue, sat, val, isRainbow)
-			if self.Enabled then
-				tween:Cancel(holder)
-				holder.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
-			end
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    if self.Enabled then
+		        Tween:Cancel(Holder)
+		        Holder.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(Hue, Sat, Val)
+		    end
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			if self.Enabled ~= (data.Enabled or false) then
-				self:Toggle()
-			end
+		    if self.Enabled ~= (Data.Enabled or false) then
+		        self:Toggle()
+		    end
 		
-			if self.Bind and data.Bind then
-				self.Bind:Load(data.Bind)
-			end
+		    if self.Bind and Data.Bind then
+		        self.Bind:Load(Data.Bind)
+		    end
 		end
 		
-		function component:Save(data)
-			data[props.Name] = {
-				Enabled = self.Enabled
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        Enabled = self.Enabled
+		    }
 		
-			if self.Bind then
-				self.Bind:Save(data[props.Name])
-			end
+		    if self.Bind then
+		        self.Bind:Save(Data[Props.Name])
+		    end
 		end
 		
-		function component:Toggle()
-			local isRainbow = vape.GUIColor.Rainbow and vape.RainbowMode.Value ~= 'Retro'
-			self.Enabled = not self.Enabled
+		function Component:Toggle()
+		    local IsRainbow: boolean = vape.GUIColor.Rainbow and vape.RainbowMode.Value ~= "Retro"
+		    self.Enabled = not self.Enabled
 		
-			tween:Tween(holder, uipallet.Tween, {
-				BackgroundColor3 = self.Enabled and (isRainbow and Color3.fromHSV(vape:Color((vape.GUIColor.Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)) or (isHover and color.Light(uipallet.Main, 0.37) or color.Light(uipallet.Main, 0.14))
-			})
+		    Tween:Tween(Holder, UIPallet.Tween, {
+		        BackgroundColor3 = self.Enabled and (IsRainbow and Color3.fromHSV(vape:Color((vape.GUIColor.Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)) or (IsHover and Color.Light(UIPallet.Main, 0.37) or Color.Light(UIPallet.Main, 0.14))
+		    })
 		
-			tween:Tween(knob, uipallet.Tween, {
-				Position = UDim2.fromOffset(self.Enabled and 12 or 2, 2)
-			})
+		    Tween:Tween(Knob, UIPallet.Tween, {
+		        Position = UDim2.fromOffset(self.Enabled and 12 or 2, 2)
+		    })
 		
-			vape:QueueSave()
-			props.Function(self.Enabled)
+		    vape:QueueSave()
+		    Props.Function(self.Enabled)
 		end
 		
-		toggle.MouseEnter:Connect(function()
-			isHover = true
+		Toggle.MouseEnter:Connect(function()
+		    IsHover = true
 		
-			if not component.Enabled then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.37)
-				})
-			end
+		    if not Component.Enabled then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.37)
+		        })
+		    end
 		end)
 		
-		toggle.MouseLeave:Connect(function()
-			isHover = false
+		Toggle.MouseLeave:Connect(function()
+		    IsHover = false
 		
-			if not component.Enabled then
-				tween:Tween(holder, uipallet.Tween, {
-					BackgroundColor3 = color.Light(uipallet.Main, 0.14)
-				})
-			end
+		    if not Component.Enabled then
+		        Tween:Tween(Holder, UIPallet.Tween, {
+		            BackgroundColor3 = Color.Light(UIPallet.Main, 0.14)
+		        })
+		    end
 		end)
 		
-		toggle.MouseButton1Click:Connect(function()
-			component:Toggle()
+		Toggle.MouseButton1Click:Connect(function()
+		    Component:Toggle()
 		end)
 		
-		if props.Default then
-			component:Toggle()
+		if Props.Default then
+		    Component:Toggle()
 		end
 		
-		api.Options[props.Name] = component
+		API.Options[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
-	TwoSlider = function(props, children, api)
-		props = typeof(props) == 'table' and props or {}
-		if typeof(api) ~= 'table' then
-			api = {Options = {}}
-		elseif typeof(api.Options) ~= 'table' then
-			api.Options = {}
-		end
-		local maxVal = (props.Max and props.Max ~= 0) and props.Max or 100
-		local minVal = props.Min or 0
-		local component = {
-			Decimal = props.Decimal or 1,
-			DefaultMin = props.DefaultMin or minVal,
-			DefaultMax = props.DefaultMax or 10,
-			Index = getTableSize(api.Options),
-			Max = maxVal,
-			Min = minVal,
-			Type = 'TwoSlider',
-			ValueMin = props.DefaultMin or minVal,
-			ValueMax = props.DefaultMax or 10
+	TwoSlider = function(Props, Children, API)
+		local Component = {
+		    Decimal = Props.Decimal or 1,
+		    DefaultMin = Props.DefaultMin or Props.Min,
+		    DefaultMax = Props.DefaultMax or 10,
+		    Index = GetTableSize(API.Options),
+		    Max = Props.Max,
+		    Min = Props.Min,
+		    Type = "TwoSlider",
+		    ValueMin = Props.DefaultMin or Props.Min,
+		    ValueMax = Props.DefaultMax or 10
 		}
 		
-		local twoslider = Instance.new('TextButton')
-		twoslider.AutoButtonColor = false
-		local childBg = (typeof(children) == 'Instance' and children:IsA('GuiObject') and children.BackgroundColor3) or uipallet.Main
-		twoslider.BackgroundColor3 = color.Dark(childBg, props.Darker and 0.02 or 0)
-		twoslider.BorderSizePixel = 0
-		twoslider.Size = UDim2.new(1, 0, 0, 50)
-		twoslider.Text = ''
-		twoslider.Visible = props.Visible == nil or props.Visible
-		twoslider.Parent = children
-		component.Object = twoslider
-		addTooltip(twoslider, props.Tooltip)
-		local title = Instance.new('TextLabel')
-		title.BackgroundTransparency = 1
-		title.FontFace = uipallet.Font
-		title.Position = UDim2.fromOffset(10, 2)
-		title.Size = UDim2.fromOffset(60, 30)
-		title.Text = props.Name or 'TwoSlider'
-		title.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		title.TextSize = 11
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = twoslider
-		local maxvalue = Instance.new('TextButton')
-		maxvalue.BackgroundTransparency = 1
-		maxvalue.FontFace = uipallet.Font
-		maxvalue.Position = UDim2.new(1, -69, 0, 9)
-		maxvalue.Size = UDim2.fromOffset(60, 15)
-		maxvalue.Text = component.ValueMax
-		maxvalue.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		maxvalue.TextSize = 11
-		maxvalue.TextXAlignment = Enum.TextXAlignment.Right
-		maxvalue.Parent = twoslider
-		local minvalue = maxvalue:Clone()
-		minvalue.Position = UDim2.new(1, -125, 0, 9)
-		minvalue.Text = component.ValueMin
-		minvalue.Parent = twoslider
-		local custommax = Instance.new('TextBox')
-		custommax.BackgroundTransparency = 1
-		custommax.ClearTextOnFocus = false
-		custommax.FontFace = uipallet.Font
-		custommax.Position = maxvalue.Position
-		custommax.Size = UDim2.fromOffset(60, 15)
-		custommax.Text = component.ValueMax
-		custommax.TextColor3 = color.Dark(uipallet.Text, 0.16)
-		custommax.TextSize = 11
-		custommax.TextXAlignment = Enum.TextXAlignment.Right
-		custommax.Visible = false
-		custommax.Parent = twoslider
-		local custommin = custommax:Clone()
-		custommin.Position = minvalue.Position
-		custommin.Parent = twoslider
-		local holder = Instance.new('Frame')
-		holder.BackgroundColor3 = color.Light(uipallet.Main, 0.034)
-		holder.BorderSizePixel = 0
-		holder.Position = UDim2.fromOffset(10, 37)
-		holder.Size = UDim2.new(1, -20, 0, 2)
-		holder.Parent = twoslider
-		local gc = vape.GUIColor or {Hue = 0.5, Sat = 1, Value = 1}
-		local fill = Instance.new('Frame')
-		fill.BackgroundColor3 = Color3.fromHSV(gc.Hue, gc.Sat, gc.Value)
-		fill.BorderSizePixel = 0
-		fill.Position = UDim2.fromScale(math.clamp(component.ValueMin / maxVal, 0.04, 0.96), 0)
-		fill.Size = UDim2.fromScale(math.clamp(math.clamp(component.ValueMax / maxVal, 0, 1), 0.04, 0.96) - fill.Position.X.Scale, 1)
-		fill.Parent = holder
-		local knob = Instance.new('Frame')
-		knob.AnchorPoint = Vector2.new(0.5, 0.5)
-		knob.BackgroundColor3 = twoslider.BackgroundColor3
-		knob.BorderSizePixel = 0
-		knob.Position = UDim2.fromScale(0, 0.5)
-		knob.Size = UDim2.fromOffset(16, 4)
-		knob.Parent = fill
-		local knobknob = Instance.new('ImageLabel')
-		knobknob.AnchorPoint = Vector2.new(0.5, 0.5)
-		knobknob.BackgroundTransparency = 1
-		knobknob.Image = getvapeasset('kingvape/assets/new/range.png')
-		knobknob.ImageColor3 = fill.BackgroundColor3
-		knobknob.Position = UDim2.fromScale(0.5, 0.5)
-		knobknob.Size = UDim2.fromOffset(9, 16)
-		knobknob.Parent = knob
-		local knobmax = knob:Clone()
-		knobmax.Position = UDim2.fromScale(1, 0.5)
-		knobmax.Parent = fill
-		local knobmaxknob = knobmax:FindFirstChildOfClass('ImageLabel') or knobmax.ImageLabel
-		if knobmaxknob then knobmaxknob.Rotation = 180 end
-		local arrow = Instance.new('ImageLabel')
-		arrow.BackgroundTransparency = 1
-		arrow.Image = getvapeasset('kingvape/assets/new/rangeindicator.png')
-		arrow.ImageColor3 = color.Light(uipallet.Main, 0.14)
-		arrow.Position = UDim2.new(1, -56, 0, 10)
-		arrow.Size = UDim2.fromOffset(12, 6)
-		arrow.Parent = twoslider
-		props.Function = props.Function or function() end
-		props.Decimal = props.Decimal or 1
-		local random = Random.new()
+		local TwoSlider: TextButton = Instance.new("TextButton")
+		TwoSlider.AutoButtonColor = false
+		TwoSlider.BackgroundColor3 = Color.Dark(Children.BackgroundColor3, Props.Darker and 0.02 or 0)
+		TwoSlider.BorderSizePixel = 0
+		TwoSlider.Size = UDim2.new(1, 0, 0, 50)
+		TwoSlider.Text = ""
+		TwoSlider.Visible = Props.Visible == nil or Props.Visible
+		TwoSlider.Parent = Children
+		Component.Object = TwoSlider
+		AddTooltip(TwoSlider, Props.Tooltip)
+		local Title: TextLabel = Instance.new("TextLabel")
+		Title.BackgroundTransparency = 1
+		Title.FontFace = UIPallet.Font
+		Title.Position = UDim2.fromOffset(10, 2)
+		Title.Size = UDim2.fromOffset(60, 30)
+		Title.Text = Props.Name
+		Title.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		Title.TextSize = 11
+		Title.TextXAlignment = Enum.TextXAlignment.Left
+		Title.Parent = TwoSlider
+		local MaxValue: TextButton = Instance.new("TextButton")
+		MaxValue.BackgroundTransparency = 1
+		MaxValue.FontFace = UIPallet.Font
+		MaxValue.Position = UDim2.new(1, -69, 0, 9)
+		MaxValue.Size = UDim2.fromOffset(60, 15)
+		MaxValue.Text = Component.ValueMax
+		MaxValue.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		MaxValue.TextSize = 11
+		MaxValue.TextXAlignment = Enum.TextXAlignment.Right
+		MaxValue.Parent = TwoSlider
+		local MinValue: TextButton = MaxValue:Clone()
+		MinValue.Position = UDim2.new(1, -125, 0, 9)
+		MinValue.Text = Component.ValueMin
+		MinValue.Parent = TwoSlider
+		local CustomMax: TextBox = Instance.new("TextBox")
+		CustomMax.BackgroundTransparency = 1
+		CustomMax.ClearTextOnFocus = false
+		CustomMax.FontFace = UIPallet.Font
+		CustomMax.Position = MaxValue.Position
+		CustomMax.Size = UDim2.fromOffset(60, 15)
+		CustomMax.Text = Component.ValueMax
+		CustomMax.TextColor3 = Color.Dark(UIPallet.Text, 0.16)
+		CustomMax.TextSize = 11
+		CustomMax.TextXAlignment = Enum.TextXAlignment.Right
+		CustomMax.Visible = false
+		CustomMax.Parent = TwoSlider
+		local CustomMin: TextBox = CustomMax:Clone()
+		CustomMin.Position = MinValue.Position
+		CustomMin.Parent = TwoSlider
+		local Holder: Frame = Instance.new("Frame")
+		Holder.BackgroundColor3 = Color.Light(UIPallet.Main, 0.034)
+		Holder.BorderSizePixel = 0
+		Holder.Position = UDim2.fromOffset(10, 37)
+		Holder.Size = UDim2.new(1, -20, 0, 2)
+		Holder.Parent = TwoSlider
+		local Fill: Frame = Instance.new("Frame")
+		Fill.BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		Fill.BorderSizePixel = 0
+		Fill.Position = UDim2.fromScale(math.clamp((Component.ValueMin - Props.Min) / (Props.Max - Props.Min), 0.04, 0.96), 0)
+		Fill.Size = UDim2.fromScale(math.clamp(math.clamp((Component.ValueMax - Props.Min) / (Props.Max - Props.Min), 0.04, 0.96) - Fill.Position.X.Scale, 0, 1), 1)
+		Fill.Parent = Holder
+		local Knob: Frame = Instance.new("Frame")
+		Knob.AnchorPoint = Vector2.new(0.5, 0.5)
+		Knob.BackgroundColor3 = TwoSlider.BackgroundColor3
+		Knob.BorderSizePixel = 0
+		Knob.Position = UDim2.fromScale(0, 0.5)
+		Knob.Size = UDim2.fromOffset(16, 4)
+		Knob.Parent = Fill
+		local KnobImage: ImageLabel = Instance.new("ImageLabel")
+		KnobImage.AnchorPoint = Vector2.new(0.5, 0.5)
+		KnobImage.BackgroundTransparency = 1
+		KnobImage.Image = GetVapeAsset("kingvape/assets/new/range.png")
+		KnobImage.ImageColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
+		KnobImage.Position = UDim2.fromScale(0.5, 0.5)
+		KnobImage.Size = UDim2.fromOffset(9, 16)
+		KnobImage.Parent = Knob
+		local KnobMax: Frame = Knob:Clone()
+		KnobMax.Position = UDim2.fromScale(1, 0.5)
+		KnobMax.Parent = Fill
+		local KnobMaxImage: ImageLabel = KnobMax.ImageLabel
+		KnobMaxImage.Rotation = 180
+		local Arrow: ImageLabel = Instance.new("ImageLabel")
+		Arrow.BackgroundTransparency = 1
+		Arrow.Image = GetVapeAsset("kingvape/assets/new/rangeindicator.png")
+		Arrow.ImageColor3 = Color.Light(UIPallet.Main, 0.14)
+		Arrow.Position = UDim2.new(1, -56, 0, 10)
+		Arrow.Size = UDim2.fromOffset(12, 6)
+		Arrow.Parent = TwoSlider
+		Props.Function = Props.Function or function() end
+		Props.Decimal = Props.Decimal or 1
+		local RandomGenerator: Random = Random.new()
 		
-		function component:Color(hue, sat, val, isRainbow)
-			fill.BackgroundColor3 = isRainbow and Color3.fromHSV(vape:Color((hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(hue, sat, val)
-			knobknob.ImageColor3 = fill.BackgroundColor3
-			if knobmaxknob then knobmaxknob.ImageColor3 = fill.BackgroundColor3 end
+		function Component:Color(Hue: number, Sat: number, Val: number, IsRainbow: boolean)
+		    Fill.BackgroundColor3 = IsRainbow and Color3.fromHSV(vape:Color((Hue - (self.Index * 0.075)) % 1)) or Color3.fromHSV(Hue, Sat, Val)
+		    KnobImage.ImageColor3 = Fill.BackgroundColor3
+		    KnobMaxImage.ImageColor3 = Fill.BackgroundColor3
 		end
 		
-		function component:GetRandomValue()
-			return random:NextNumber(component.ValueMin, component.ValueMax)
+		function Component:GetRandomValue()
+		    return RandomGenerator:NextNumber(Component.ValueMin, Component.ValueMax)
 		end
 		
-		function component:Load(data)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
-			if typeof(data) ~= 'table' then return end
+		function Component:Load(Data)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			local valueMin = data.ValueMin or self.ValueMin
-			local valueMax = data.ValueMax or self.ValueMax
+		    local ValueMin: number = Data.ValueMin or self.ValueMin
+		    local ValueMax: number = Data.ValueMax or self.ValueMax
 		
-			if self.ValueMin ~= valueMin then
-				self:SetValue(false, valueMin)
-			end
+		    if self.ValueMin ~= ValueMin then
+		        self:SetValue(false, ValueMin)
+		    end
 		
-			if self.ValueMax ~= valueMax then
-				self:SetValue(true, valueMax)
-			end
+		    if self.ValueMax ~= ValueMax then
+		        self:SetValue(true, ValueMax)
+		    end
 		end
 		
-		function component:Save(data)
-			if typeof(data) ~= 'table' then return end
-			local optName = props.Name or ('TwoSlider'..tostring(self.Index))
-			data[optName] = {
-				ValueMin = self.ValueMin,
-				ValueMax = self.ValueMax
-			}
+		function Component:Save(Data)
+		    Data[Props.Name] = {
+		        ValueMin = self.ValueMin,
+		        ValueMax = self.ValueMax
+		    }
 		end
 		
-		function component:SetValue(isMax, value)
-			if not isFinite(value) then
-				return
-			end
+		function Component:SetValue(IsMax: boolean, Value: number)
+		    if not IsFinite(Value) then
+		        return
+		    end
 		
-			self[isMax and 'ValueMax' or 'ValueMin'] = value
-			maxvalue.Text = self.ValueMax
-			minvalue.Text = self.ValueMin
+		    self[IsMax and "ValueMax" or "ValueMin"] = Value
+		    MaxValue.Text = self.ValueMax
+		    MinValue.Text = self.ValueMin
 		
-			local size = math.clamp(math.clamp(self.ValueMin / maxVal, 0, 1), 0.04, 0.96)
-			tween:Tween(fill, TweenInfo.new(0.1), {
-				Position = UDim2.fromScale(size, 0),
-				Size = UDim2.fromScale(math.clamp(math.clamp(self.ValueMax / maxVal, 0.04, 0.96) - size, 0, 1), 1)
-			})
+		    local MinScale: number = math.clamp(math.clamp((self.ValueMin - Props.Min) / (Props.Max - Props.Min), 0, 1), 0.04, 0.96)
+		    Tween:Tween(Fill, TweenInfo.new(0.1), {
+		        Position = UDim2.fromScale(MinScale, 0),
+		        Size = UDim2.fromScale(math.clamp(math.clamp((self.ValueMax - Props.Min) / (Props.Max - Props.Min), 0.04, 0.96) - MinScale, 0, 1), 1)
+		    })
 		
-			vape:QueueSave()
+		    vape:QueueSave()
 		end
 		
-		knob.MouseEnter:Connect(function()
-			tween:Tween(knobknob, uipallet.Tween, {
-				Size = UDim2.fromOffset(11, 18)
-			})
+		Knob.MouseEnter:Connect(function()
+		    Tween:Tween(KnobImage, UIPallet.Tween, {
+		        Size = UDim2.fromOffset(11, 18)
+		    })
 		end)
 		
-		knob.MouseLeave:Connect(function()
-			tween:Tween(knobknob, uipallet.Tween, {
-				Size = UDim2.fromOffset(9, 16)
-			})
+		Knob.MouseLeave:Connect(function()
+		    Tween:Tween(KnobImage, UIPallet.Tween, {
+		        Size = UDim2.fromOffset(9, 16)
+		    })
 		end)
 		
-		knobmax.MouseEnter:Connect(function()
-			if knobmaxknob then
-				tween:Tween(knobmaxknob, uipallet.Tween, {
-					Size = UDim2.fromOffset(11, 18)
-				})
-			end
+		KnobMax.MouseEnter:Connect(function()
+		    Tween:Tween(KnobMaxImage, UIPallet.Tween, {
+		        Size = UDim2.fromOffset(11, 18)
+		    })
 		end)
 		
-		knobmax.MouseLeave:Connect(function()
-			if knobmaxknob then
-				tween:Tween(knobmaxknob, uipallet.Tween, {
-					Size = UDim2.fromOffset(9, 16)
-				})
-			end
+		KnobMax.MouseLeave:Connect(function()
+		    Tween:Tween(KnobMaxImage, UIPallet.Tween, {
+		        Size = UDim2.fromOffset(9, 16)
+		    })
 		end)
 		
-		twoslider.InputBegan:Connect(function(input)
-			if vape.ThreadFix then
-				setthreadidentity(8)
-			end
+		TwoSlider.InputBegan:Connect(function(Input: InputObject)
+		    if vape.ThreadFix then
+		        setthreadidentity(8)
+		    end
 		
-			local curScale = (scale and scale.Scale) or 1
-			if
-				(input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch)
-				and (input.Position.Y - twoslider.AbsolutePosition.Y) > (20 * curScale)
-			then
-				local maxCheck = (input.Position.X - knobmax.AbsolutePosition.X) > -10
-				local newPosition = math.clamp((input.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1)
+		    if
+		        (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
+		        and (Input.Position.Y - TwoSlider.AbsolutePosition.Y) > (20 * Scale.Scale)
+		    then
+		        local MaxCheck: boolean = (Input.Position.X - KnobMax.AbsolutePosition.X) > -10
+		        local NewPosition: number = math.clamp((Input.Position.X - Holder.AbsolutePosition.X) / Holder.AbsoluteSize.X, 0, 1)
 		
-				local releaseConnection
-				local moveConnection = inputService.InputChanged:Connect(function(newInput)
-					if vape.ThreadFix then
-						setthreadidentity(8)
-					end
+		        local ReleaseConnection
+		        local MoveConnection: RBXScriptConnection = UserInputService.InputChanged:Connect(function(NewInput: InputObject)
+		            if vape.ThreadFix then
+		                setthreadidentity(8)
+		            end
 		
-					if newInput.UserInputType == (input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
-						local newPos = math.clamp((newInput.Position.X - holder.AbsolutePosition.X) / holder.AbsoluteSize.X, 0, 1)
-						component:SetValue(maxCheck, math.floor((minVal + (maxVal - minVal) * newPos) * props.Decimal) / props.Decimal, newPos)
-				end
-				end)
+		            if NewInput.UserInputType == (Input.UserInputType == Enum.UserInputType.MouseButton1 and Enum.UserInputType.MouseMovement or Enum.UserInputType.Touch) then
+		                local NewPosition: number = math.clamp((NewInput.Position.X - Holder.AbsolutePosition.X) / Holder.AbsoluteSize.X, 0, 1)
+		                Component:SetValue(MaxCheck, math.floor((Props.Min + (Props.Max - Props.Min) * NewPosition) * Props.Decimal) / Props.Decimal, NewPosition)
+		            end
+		        end)
 		
-				releaseConnection = input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						moveConnection:Disconnect()
-						releaseConnection:Disconnect()
-					end
-				end)
+		        ReleaseConnection = Input.Changed:Connect(function()
+		            if Input.UserInputState == Enum.UserInputState.End then
+		                MoveConnection:Disconnect()
+		                ReleaseConnection:Disconnect()
+		            end
+		        end)
 		
-				component:SetValue(maxCheck, math.floor((minVal + (maxVal - minVal) * newPosition) * props.Decimal) / props.Decimal, newPosition)
-			end
+		        Component:SetValue(MaxCheck, math.floor((Props.Min + (Props.Max - Props.Min) * NewPosition) * Props.Decimal) / Props.Decimal, NewPosition)
+		    end
 		end)
 		
-		maxvalue.MouseButton1Click:Connect(function()
-			maxvalue.Visible = false
-			custommax.Visible = true
-			custommax.Text = component.ValueMax
-			custommax:CaptureFocus()
+		MaxValue.MouseButton1Click:Connect(function()
+		    MaxValue.Visible = false
+		    CustomMax.Visible = true
+		    CustomMax.Text = Component.ValueMax
+		    CustomMax:CaptureFocus()
 		end)
 		
-		minvalue.MouseButton1Click:Connect(function()
-			minvalue.Visible = false
-			custommin.Visible = true
-			custommin.Text = component.ValueMin
-			custommin:CaptureFocus()
+		MinValue.MouseButton1Click:Connect(function()
+		    MinValue.Visible = false
+		    CustomMin.Visible = true
+		    CustomMin.Text = Component.ValueMin
+		    CustomMin:CaptureFocus()
 		end)
 		
-		custommax.FocusLost:Connect(function(enter)
-			maxvalue.Visible = true
-			custommax.Visible = false
+		CustomMax.FocusLost:Connect(function(Enter: boolean)
+		    MaxValue.Visible = true
+		    CustomMax.Visible = false
 		
-			if enter and tonumber(custommax.Text) then
-				component:SetValue(true, tonumber(custommax.Text))
-			end
+		    if Enter and tonumber(CustomMax.Text) then
+		        Component:SetValue(true, tonumber(CustomMax.Text))
+		    end
 		end)
 		
-		custommin.FocusLost:Connect(function(enter)
-			minvalue.Visible = true
-			custommin.Visible = false
+		CustomMin.FocusLost:Connect(function(Enter: boolean)
+		    MinValue.Visible = true
+		    CustomMin.Visible = false
 		
-			if enter and tonumber(custommin.Text) then
-				component:SetValue(false, tonumber(custommin.Text))
-			end
+		    if Enter and tonumber(CustomMin.Text) then
+		        Component:SetValue(false, tonumber(CustomMin.Text))
+		    end
 		end)
 		
-		local optName = props.Name or ('TwoSlider'..tostring(component.Index))
-		if typeof(api) == 'table' then
-			if typeof(api.Options) ~= 'table' then
-				api.Options = {}
-			end
-			api.Options[optName] = component
-		end
+		API.Options[Props.Name] = Component
 		
-		return component
+		return Component
 	end,
 }
 
-vape.Components = setmetatable(components, {
-	__newindex = function(_, index, callback)
-		rawset(components, index, callback)
+vape.Components = setmetatable(Components, {
+    __newindex = function(_, Index: string, Callback)
+        rawset(Components, Index, Callback)
 
-		for _, module in vape.Modules do
-			rawset(module, 'Create'..index, function(_, props)
-				if not props.Module then
-					table.insert(module.OptionSpecs, {Type = index, Settings = props})
-				end
+        for _, Module: any in vape.Modules do
+            rawset(Module, `Create{Index}`, function(_, Properties)
+                if not Properties.Module then
+                    table.insert(Module.OptionSpecs, {Type = Index, Settings = Properties})
+                end
 
-				return callback(props, module.Children, module)
-			end)
-		end
+                return Callback(Properties, Module.Children, Module)
+            end)
+        end
 
-		if vape.Legit then
-			for _, module in vape.Legit.Modules do
-				rawset(module, 'Create'..index, function(_, props)
-					return callback(props, module.Children, module)
-				end)
-			end
-		end
-	end
+        if vape.Legit then
+            for _, Module: any in vape.Legit.Modules do
+                rawset(Module, `Create{Index}`, function(_, Properties)
+                    return Callback(Properties, Module.Children, Module)
+                end)
+            end
+        end
+    end
 })
 
 vape:LoadGUI()
 
-local deferhandout = deferLoad
-local function runPremium(source, license)
-	local chunk, err = loadstring(source, 'premium')
-	if not chunk then
-		error(err or 'unknown')
-	end
+local DeferHandout = DeferLoad
+local function RunPremium(Source: string, License)
+    local Chunk, Error = loadstring(Source, "premium")
+    if not Chunk then
+        error(Error or "unknown")
+    end
 
-	local claim = deferhandout
-	deferhandout = nil
-	return chunk(license, claim)
+    local Claim = DeferHandout
+    DeferHandout = nil
+    return Chunk(License, Claim)
 end
 
-return vape, runPremium
+return vape, RunPremium

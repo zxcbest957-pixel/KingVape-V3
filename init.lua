@@ -1,4 +1,4 @@
---!nocheck
+﻿--!nocheck
 local license = ... or {}
 license.Key = script_key or license.Key
 
@@ -101,8 +101,8 @@ for _, folder in {'kingvape', 'kingvape/configs', 'kingvape/games', 'kingvape/pr
 	end
 end
 pcall(function()
-	if isfolder('catsix/profiles') then
-		for _, file in listfiles('catsix/profiles') do
+	if isfolder('kingvape/profiles') then
+		for _, file in listfiles('kingvape/profiles') do
 			local name = file:match('([^/\\]+)$')
 			if name and not isfile('kingvape/profiles/'..name) then
 				local c = readfile(file)

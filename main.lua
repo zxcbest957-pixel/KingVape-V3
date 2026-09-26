@@ -1,8 +1,8 @@
-if isfolder('catsix') and isfolder('catsix/profiles') then
-	for _, v in listfiles('catsix/profiles') do
+﻿if isfolder('kingvape') and isfolder('kingvape/profiles') then
+	for _, v in listfiles('kingvape/profiles') do
 		if not v:find('commit.txt') and not v:find('version.txt') then
 			local old = v
-			local newTarget = v:gsub('catsix', 'kingvape')
+			local newTarget = v:gsub('kingvape', 'kingvape')
 			pcall(function()
 				if not isfile(newTarget) then
 					writefile(newTarget, readfile(old))
@@ -16,15 +16,15 @@ repeat task.wait() until game:IsLoaded()
 if shared.vape then shared.vape:Uninject() end
 license.Key = license.Key or '_key'
 
-if isfolder('catrewrite') and isfolder('catrewrite/profiles') then
-	for _, v in listfiles('catrewrite/profiles') do
+if isfolder('kingvape') and isfolder('kingvape/profiles') then
+	for _, v in listfiles('kingvape/profiles') do
 		if not v:find('commit.txt') then
 			local old = v
-			v = v:gsub('catrewrite', 'kingvape')
+			v = v:gsub('kingvape', 'kingvape')
 			writefile(v, readfile(old))
 		end
 	end
-	delfolder('catrewrite/profiles')
+	delfolder('kingvape/profiles')
 end
 
 local vape
